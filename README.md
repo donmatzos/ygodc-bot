@@ -1,7 +1,7 @@
 # ygo-discord-bot
 
 A Discord bot for Yu-Gi-Oh! players, written in Java 17 with [JDA 6](https://github.com/discord-jda/JDA).
-It is built to run on a free hosting plan with about 345 MB of RAM.
+It is built to run on a free hosting plan with about 300 MB of RAM.
 
 - **Banlists:** `/banlist` sends the current TCG, OCG and Genesys lists, plus the frozen Goat and Edison
   format lists, as plain-text messages that Discord's search can find.
