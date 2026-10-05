@@ -104,13 +104,16 @@ public class CardRefresherTest {
 
     @Test
     public void startDownloadsRightAwayWithoutStoredList() throws Exception {
-        CountDownLatch checked = new CountDownLatch(1);
-        try (CardRefresher refresher = refresher(() -> {
-            checked.countDown();
-            return "147.22";
-        })) {
+        // Waits for the download itself: close() interrupts the thread, so waiting only for the version
+        // check would let close() skip the download (that race failed this test in CI)
+        CountDownLatch downloading = new CountDownLatch(1);
+        try (CardRefresher refresher = new CardRefresher(repository, store, () -> "147.22", () -> {
+            downloads.incrementAndGet();
+            downloading.countDown();
+            return NEW_NAMES;
+        }, CLOCK)) {
             refresher.start();
-            assertTrue(checked.await(5, TimeUnit.SECONDS));
+            assertTrue(downloading.await(5, TimeUnit.SECONDS));
         }
         // close() waited for the refresh to finish
         assertEquals(downloads.get(), 1);
