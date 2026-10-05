@@ -1,0 +1,297 @@
+{
+  "name": "April 2005",
+  "entries": [
+    {
+      "cardName": "Butterfly Dagger - Elma",
+      "status": "FORBIDDEN"
+    },
+    {
+      "cardName": "Change of Heart",
+      "status": "FORBIDDEN"
+    },
+    {
+      "cardName": "Chaos Emperor Dragon - Envoy of the End",
+      "status": "FORBIDDEN"
+    },
+    {
+      "cardName": "Confiscation",
+      "status": "FORBIDDEN"
+    },
+    {
+      "cardName": "Dark Hole",
+      "status": "FORBIDDEN"
+    },
+    {
+      "cardName": "Fiber Jar",
+      "status": "FORBIDDEN"
+    },
+    {
+      "cardName": "Harpie's Feather Duster",
+      "status": "FORBIDDEN"
+    },
+    {
+      "cardName": "Imperial Order",
+      "status": "FORBIDDEN"
+    },
+    {
+      "cardName": "Magical Scientist",
+      "status": "FORBIDDEN"
+    },
+    {
+      "cardName": "Makyura the Destructor",
+      "status": "FORBIDDEN"
+    },
+    {
+      "cardName": "Mirage of Nightmare",
+      "status": "FORBIDDEN"
+    },
+    {
+      "cardName": "Monster Reborn",
+      "status": "FORBIDDEN"
+    },
+    {
+      "cardName": "Painful Choice",
+      "status": "FORBIDDEN"
+    },
+    {
+      "cardName": "Raigeki",
+      "status": "FORBIDDEN"
+    },
+    {
+      "cardName": "The Forceful Sentry",
+      "status": "FORBIDDEN"
+    },
+    {
+      "cardName": "Witch of the Black Forest",
+      "status": "FORBIDDEN"
+    },
+    {
+      "cardName": "Yata-Garasu",
+      "status": "FORBIDDEN"
+    },
+    {
+      "cardName": "Black Luster Soldier - Envoy of the Beginning",
+      "status": "LIMITED"
+    },
+    {
+      "cardName": "Breaker the Magical Warrior",
+      "status": "LIMITED"
+    },
+    {
+      "cardName": "Call of the Haunted",
+      "status": "LIMITED"
+    },
+    {
+      "cardName": "Card Destruction",
+      "status": "LIMITED"
+    },
+    {
+      "cardName": "Ceasefire",
+      "status": "LIMITED"
+    },
+    {
+      "cardName": "Cyber Jar",
+      "status": "LIMITED"
+    },
+    {
+      "cardName": "D.D. Warrior Lady",
+      "status": "LIMITED"
+    },
+    {
+      "cardName": "Dark Magician of Chaos",
+      "status": "LIMITED"
+    },
+    {
+      "cardName": "Deck Devastation Virus",
+      "status": "LIMITED"
+    },
+    {
+      "cardName": "Delinquent Duo",
+      "status": "LIMITED"
+    },
+    {
+      "cardName": "Exiled Force",
+      "status": "LIMITED"
+    },
+    {
+      "cardName": "Exodia the Forbidden One",
+      "status": "LIMITED"
+    },
+    {
+      "cardName": "Graceful Charity",
+      "status": "LIMITED"
+    },
+    {
+      "cardName": "Heavy Storm",
+      "status": "LIMITED"
+    },
+    {
+      "cardName": "Injection Fairy Lily",
+      "status": "LIMITED"
+    },
+    {
+      "cardName": "Jinzo",
+      "status": "LIMITED"
+    },
+    {
+      "cardName": "Left Arm of the Forbidden One",
+      "status": "LIMITED"
+    },
+    {
+      "cardName": "Left Leg of the Forbidden One",
+      "status": "LIMITED"
+    },
+    {
+      "cardName": "Lightning Vortex",
+      "status": "LIMITED"
+    },
+    {
+      "cardName": "Mage Power",
+      "status": "LIMITED"
+    },
+    {
+      "cardName": "Magic Cylinder",
+      "status": "LIMITED"
+    },
+    {
+      "cardName": "Mirror Force",
+      "status": "LIMITED"
+    },
+    {
+      "cardName": "Morphing Jar",
+      "status": "LIMITED"
+    },
+    {
+      "cardName": "Mystical Space Typhoon",
+      "status": "LIMITED"
+    },
+    {
+      "cardName": "Pot of Greed",
+      "status": "LIMITED"
+    },
+    {
+      "cardName": "Premature Burial",
+      "status": "LIMITED"
+    },
+    {
+      "cardName": "Protector of the Sanctuary",
+      "status": "LIMITED"
+    },
+    {
+      "cardName": "Reckless Greed",
+      "status": "LIMITED"
+    },
+    {
+      "cardName": "Reflect Bounder",
+      "status": "LIMITED"
+    },
+    {
+      "cardName": "Right Arm of the Forbidden One",
+      "status": "LIMITED"
+    },
+    {
+      "cardName": "Right Leg of the Forbidden One",
+      "status": "LIMITED"
+    },
+    {
+      "cardName": "Ring of Destruction",
+      "status": "LIMITED"
+    },
+    {
+      "cardName": "Sacred Phoenix of Nephthys",
+      "status": "LIMITED"
+    },
+    {
+      "cardName": "Sangan",
+      "status": "LIMITED"
+    },
+    {
+      "cardName": "Sinister Serpent",
+      "status": "LIMITED"
+    },
+    {
+      "cardName": "Snatch Steal",
+      "status": "LIMITED"
+    },
+    {
+      "cardName": "Swords of Revealing Light",
+      "status": "LIMITED"
+    },
+    {
+      "cardName": "Torrential Tribute",
+      "status": "LIMITED"
+    },
+    {
+      "cardName": "Tribe-Infecting Virus",
+      "status": "LIMITED"
+    },
+    {
+      "cardName": "Twin-Headed Behemoth",
+      "status": "LIMITED"
+    },
+    {
+      "cardName": "United We Stand",
+      "status": "LIMITED"
+    },
+    {
+      "cardName": "Abyss Soldier",
+      "status": "SEMI_LIMITED"
+    },
+    {
+      "cardName": "Creature Swap",
+      "status": "SEMI_LIMITED"
+    },
+    {
+      "cardName": "Dark Scorpion - Chick the Yellow",
+      "status": "SEMI_LIMITED"
+    },
+    {
+      "cardName": "Emergency Provisions",
+      "status": "SEMI_LIMITED"
+    },
+    {
+      "cardName": "Good Goblin Housekeeping",
+      "status": "SEMI_LIMITED"
+    },
+    {
+      "cardName": "Gravity Bind",
+      "status": "SEMI_LIMITED"
+    },
+    {
+      "cardName": "Last Turn",
+      "status": "SEMI_LIMITED"
+    },
+    {
+      "cardName": "Level Limit - Area B",
+      "status": "SEMI_LIMITED"
+    },
+    {
+      "cardName": "Manticore of Darkness",
+      "status": "SEMI_LIMITED"
+    },
+    {
+      "cardName": "Marauding Captain",
+      "status": "SEMI_LIMITED"
+    },
+    {
+      "cardName": "Night Assailant",
+      "status": "SEMI_LIMITED"
+    },
+    {
+      "cardName": "Nobleman of Crossout",
+      "status": "SEMI_LIMITED"
+    },
+    {
+      "cardName": "Reinforcement of the Army",
+      "status": "SEMI_LIMITED"
+    },
+    {
+      "cardName": "Upstart Goblin",
+      "status": "SEMI_LIMITED"
+    },
+    {
+      "cardName": "Vampire Lord",
+      "status": "SEMI_LIMITED"
+    }
+  ]
+}

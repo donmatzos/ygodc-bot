@@ -1,0 +1,10 @@
+# Copy to bot.properties (next to the jar / in the working directory) and fill in.
+# Never commit bot.properties. Environment variables with the same names take precedence.
+DISCORD_TOKEN=paste-your-bot-token-here
+# Optional: your test server's ID, so slash commands update instantly
+DEV_GUILD_ID=
+# Optional: MySQL database for /deck (Waifly panel > Databases). Without DB_URL, /deck is disabled.
+# Format: jdbc:mysql://<host>:<port>/<database>
+DB_URL=
+DB_USER=
+DB_PASSWORD=

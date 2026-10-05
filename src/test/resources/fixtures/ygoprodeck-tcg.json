@@ -1,0 +1,2180 @@
+{
+ "data": [
+  {
+   "id": 80181649,
+   "name": "\"A Case for K9\"",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited"
+   }
+  },
+  {
+   "id": 21044178,
+   "name": "Abyss Dweller",
+   "type": "XYZ Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 62320425,
+   "name": "Agido the Ancient Sentinel",
+   "type": "Effect Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 13332685,
+   "name": "Ame no Habakiri no Mitsurugi",
+   "type": "Ritual Effect Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited"
+   }
+  },
+  {
+   "id": 58921041,
+   "name": "Anti-Spell Fragrance",
+   "type": "Trap Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited",
+    "ban_ocg": "Limited"
+   }
+  },
+  {
+   "id": 4280258,
+   "name": "Apollousa, Bow of the Goddess",
+   "type": "Link Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 43262273,
+   "name": "Appointer of the Red Lotus",
+   "type": "Trap Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Limited"
+   }
+  },
+  {
+   "id": 59509952,
+   "name": "Archlord Kristya",
+   "type": "Effect Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden"
+   }
+  },
+  {
+   "id": 6728559,
+   "name": "Archnemeses Protos",
+   "type": "Effect Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden"
+   }
+  },
+  {
+   "id": 80237445,
+   "name": "Artifact Mjollnir",
+   "type": "Effect Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden"
+   }
+  },
+  {
+   "id": 20292186,
+   "name": "Artifact Scythe",
+   "type": "Effect Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 76794549,
+   "name": "Astrograph Sorcerer",
+   "type": "Pendulum Effect Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited"
+   }
+  },
+  {
+   "id": 440556,
+   "name": "Bahamut Shark",
+   "type": "XYZ Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden"
+   }
+  },
+  {
+   "id": 84815190,
+   "name": "Baronne de Fleur",
+   "type": "Synchro Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden"
+   }
+  },
+  {
+   "id": 19740112,
+   "name": "Barrier Statue of the Drought",
+   "type": "Effect Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden"
+   }
+  },
+  {
+   "id": 47961808,
+   "name": "Barrier Statue of the Inferno",
+   "type": "Effect Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden"
+   }
+  },
+  {
+   "id": 73356503,
+   "name": "Barrier Statue of the Stormwinds",
+   "type": "Effect Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 10963799,
+   "name": "Barrier Statue of the Torrent",
+   "type": "Effect Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden"
+   }
+  },
+  {
+   "id": 27552504,
+   "name": "Beatrice, Lady of the Eternal",
+   "type": "XYZ Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 9929398,
+   "name": "Blackwing - Gofu the Vague Shadow",
+   "type": "Tuner Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 94689206,
+   "name": "Block Dragon",
+   "type": "Effect Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Limited"
+   }
+  },
+  {
+   "id": 85106525,
+   "name": "Bonfire",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited",
+    "ban_ocg": "Limited"
+   }
+  },
+  {
+   "id": 27548199,
+   "name": "Borreload Savage Dragon",
+   "type": "Synchro Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden"
+   }
+  },
+  {
+   "id": 1041278,
+   "name": "Branded Expulsion",
+   "type": "Trap Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 44362883,
+   "name": "Branded Fusion",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited",
+    "ban_ocg": "Limited"
+   }
+  },
+  {
+   "id": 29948294,
+   "name": "Branded in High Spirits",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Semi-Limited"
+   }
+  },
+  {
+   "id": 7394770,
+   "name": "Brilliant Fusion",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited",
+    "ban_ocg": "Limited"
+   }
+  },
+  {
+   "id": 69243953,
+   "name": "Butterfly Dagger - Elma",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden",
+    "ban_goat": "Forbidden"
+   }
+  },
+  {
+   "id": 6637331,
+   "name": "Bystial Druiswurm",
+   "type": "Effect Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited",
+    "ban_ocg": "Limited"
+   }
+  },
+  {
+   "id": 33854624,
+   "name": "Bystial Magnamhut",
+   "type": "Effect Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited",
+    "ban_ocg": "Limited"
+   }
+  },
+  {
+   "id": 24224830,
+   "name": "Called by the Grave",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 72892473,
+   "name": "Card Destruction",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited",
+    "ban_ocg": "Limited",
+    "ban_goat": "Limited"
+   }
+  },
+  {
+   "id": 59750328,
+   "name": "Card of Demise",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited"
+   }
+  },
+  {
+   "id": 57953380,
+   "name": "Card of Safe Return",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 91623717,
+   "name": "Chain Strike",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited"
+   }
+  },
+  {
+   "id": 3040496,
+   "name": "Chaos Ruler, the Chaotic Magical Dragon",
+   "type": "Synchro Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 99266988,
+   "name": "Chaos Space",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited"
+   }
+  },
+  {
+   "id": 67616300,
+   "name": "Chicken Game",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited"
+   }
+  },
+  {
+   "id": 60682203,
+   "name": "Cold Wave",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 17375316,
+   "name": "Confiscation",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden",
+    "ban_goat": "Forbidden"
+   }
+  },
+  {
+   "id": 65681983,
+   "name": "Crossout Designator",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited",
+    "ban_ocg": "Limited"
+   }
+  },
+  {
+   "id": 50588353,
+   "name": "Crystron Halqifibrax",
+   "type": "Link Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 31603289,
+   "name": "Cupsy★Yummy Way",
+   "type": "Synchro Tuner Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited"
+   }
+  },
+  {
+   "id": 31425736,
+   "name": "Cupsy☆Yummy",
+   "type": "Effect Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited"
+   }
+  },
+  {
+   "id": 98095162,
+   "name": "Curious, the Lightsworn Dominion",
+   "type": "Link Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden"
+   }
+  },
+  {
+   "id": 3685372,
+   "name": "CXyz Gimmick Puppet Fanatix Machinix",
+   "type": "XYZ Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden"
+   }
+  },
+  {
+   "id": 69015963,
+   "name": "Cyber-Stein",
+   "type": "Effect Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 581014,
+   "name": "Daigusto Emeral",
+   "type": "XYZ Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited"
+   }
+  },
+  {
+   "id": 15341821,
+   "name": "Dandylion",
+   "type": "Effect Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 44763025,
+   "name": "Delinquent Duo",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden",
+    "ban_goat": "Limited"
+   }
+  },
+  {
+   "id": 23557835,
+   "name": "Dimension Fusion",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 91800273,
+   "name": "Dimension Shifter",
+   "type": "Effect Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 83326048,
+   "name": "Dimensional Barrier",
+   "type": "Trap Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Limited"
+   }
+  },
+  {
+   "id": 15854426,
+   "name": "Divine Wind of Mist Valley",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited"
+   }
+  },
+  {
+   "id": 8903700,
+   "name": "Djinn Releaser of Rituals",
+   "type": "Effect Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 33760966,
+   "name": "Dracotail Arthalion",
+   "type": "Fusion Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Semi-Limited"
+   }
+  },
+  {
+   "id": 75003700,
+   "name": "Dracotail Lukias",
+   "type": "Effect Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Semi-Limited"
+   }
+  },
+  {
+   "id": 7375867,
+   "name": "Dracotail Mululu",
+   "type": "Effect Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited",
+    "ban_ocg": "Limited"
+   }
+  },
+  {
+   "id": 94145021,
+   "name": "Droll & Lock Bird",
+   "type": "Effect Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Semi-Limited",
+    "ban_ocg": "Limited"
+   }
+  },
+  {
+   "id": 51858306,
+   "name": "Eclipse Wyvern",
+   "type": "Effect Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden"
+   }
+  },
+  {
+   "id": 59581480,
+   "name": "Elfnote Tinia",
+   "type": "Effect Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited",
+    "ban_ocg": "Limited"
+   }
+  },
+  {
+   "id": 38273745,
+   "name": "Evilswarm Ouroboros",
+   "type": "XYZ Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 33396948,
+   "name": "Exodia the Forbidden One",
+   "type": "Effect Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited",
+    "ban_ocg": "Limited",
+    "ban_goat": "Limited"
+   }
+  },
+  {
+   "id": 34022970,
+   "name": "Ext Ryzeal",
+   "type": "Effect Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited",
+    "ban_ocg": "Limited"
+   }
+  },
+  {
+   "id": 55623480,
+   "name": "Fairy Tail - Snow",
+   "type": "Effect Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited"
+   }
+  },
+  {
+   "id": 78706415,
+   "name": "Fiber Jar",
+   "type": "Flip Effect Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden",
+    "ban_goat": "Forbidden"
+   }
+  },
+  {
+   "id": 46640168,
+   "name": "Fiendsmith's Lacrima",
+   "type": "Fusion Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited"
+   }
+  },
+  {
+   "id": 95308449,
+   "name": "Final Countdown",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited"
+   }
+  },
+  {
+   "id": 93369354,
+   "name": "Fishborg Blaster",
+   "type": "Tuner Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 81439173,
+   "name": "Foolish Burial",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited",
+    "ban_ocg": "Limited"
+   }
+  },
+  {
+   "id": 42009836,
+   "name": "Fossil Dyna Pachycephalo",
+   "type": "Effect Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden"
+   }
+  },
+  {
+   "id": 27970830,
+   "name": "Gateway of the Six",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited",
+    "ban_ocg": "Limited"
+   }
+  },
+  {
+   "id": 39512984,
+   "name": "Gem-Knight Master Diamond",
+   "type": "Fusion Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited"
+   }
+  },
+  {
+   "id": 42703248,
+   "name": "Giant Trunade",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 55204071,
+   "name": "Gimmick Puppet Nightmare",
+   "type": "Effect Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden"
+   }
+  },
+  {
+   "id": 75500286,
+   "name": "Gold Sarcophagus",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited",
+    "ban_ocg": "Limited"
+   }
+  },
+  {
+   "id": 53334471,
+   "name": "Gozen Match",
+   "type": "Trap Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited",
+    "ban_ocg": "Limited"
+   }
+  },
+  {
+   "id": 79571449,
+   "name": "Graceful Charity",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden",
+    "ban_goat": "Limited"
+   }
+  },
+  {
+   "id": 75732622,
+   "name": "Grinder Golem",
+   "type": "Effect Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 59537380,
+   "name": "Guardragon Agarpain",
+   "type": "Link Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 86148577,
+   "name": "Guardragon Elpy",
+   "type": "Link Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 18144507,
+   "name": "Harpie's Feather Duster",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited",
+    "ban_ocg": "Limited",
+    "ban_goat": "Forbidden"
+   }
+  },
+  {
+   "id": 87639778,
+   "name": "Harpie's Feather Storm",
+   "type": "Trap Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 19613556,
+   "name": "Heavy Storm",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Limited",
+    "ban_goat": "Limited"
+   }
+  },
+  {
+   "id": 24094258,
+   "name": "Heavymetalfoes Electrumite",
+   "type": "Link Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Limited"
+   }
+  },
+  {
+   "id": 79606837,
+   "name": "Herald of the Arc Light",
+   "type": "Synchro Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Limited"
+   }
+  },
+  {
+   "id": 62242678,
+   "name": "Hot Red Dragon Archfiend King Calamity",
+   "type": "Synchro Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 8633261,
+   "name": "Ice Ryzeal",
+   "type": "Effect Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Semi-Limited",
+    "ban_ocg": "Limited"
+   }
+  },
+  {
+   "id": 61740673,
+   "name": "Imperial Order",
+   "type": "Trap Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden",
+    "ban_goat": "Forbidden"
+   }
+  },
+  {
+   "id": 66957584,
+   "name": "Infernity Launcher",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited"
+   }
+  },
+  {
+   "id": 1845204,
+   "name": "Instant Fusion",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited",
+    "ban_ocg": "Limited"
+   }
+  },
+  {
+   "id": 93946239,
+   "name": "Into the Void",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited"
+   }
+  },
+  {
+   "id": 59934749,
+   "name": "Isolde, Two Tales of the Noble Knights",
+   "type": "Link Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden"
+   }
+  },
+  {
+   "id": 41855169,
+   "name": "Jowgen the Spiritualist",
+   "type": "Effect Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden"
+   }
+  },
+  {
+   "id": 47960073,
+   "name": "K9-04 Noroi",
+   "type": "Effect Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden"
+   }
+  },
+  {
+   "id": 28642461,
+   "name": "K9-66a Jokul",
+   "type": "Effect Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited",
+    "ban_ocg": "Limited"
+   }
+  },
+  {
+   "id": 35059553,
+   "name": "Kaiser Colosseum",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 48626373,
+   "name": "Kashtira Arise-Heart",
+   "type": "XYZ Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden"
+   }
+  },
+  {
+   "id": 25926710,
+   "name": "Kelbek the Ancient Vanguard",
+   "type": "Effect Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 63542003,
+   "name": "Keldo the Sacred Protector",
+   "type": "Effect Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited",
+    "ban_ocg": "Limited"
+   }
+  },
+  {
+   "id": 6153210,
+   "name": "Ketu Dracotail",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited",
+    "ban_ocg": "Limited"
+   }
+  },
+  {
+   "id": 17209452,
+   "name": "Kewl Tune Rotary",
+   "type": "Tuner Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Limited"
+   }
+  },
+  {
+   "id": 11398059,
+   "name": "King of the Feral Imps",
+   "type": "XYZ Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden"
+   }
+  },
+  {
+   "id": 39064822,
+   "name": "Knightmare Goblin",
+   "type": "Link Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden"
+   }
+  },
+  {
+   "id": 65330383,
+   "name": "Knightmare Gryphon",
+   "type": "Link Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden"
+   }
+  },
+  {
+   "id": 3679218,
+   "name": "Knightmare Mermaid",
+   "type": "Link Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 28566710,
+   "name": "Last Turn",
+   "type": "Trap Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden",
+    "ban_goat": "Semi-Limited"
+   }
+  },
+  {
+   "id": 85602018,
+   "name": "Last Will",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 34086406,
+   "name": "Lavalval Chain",
+   "type": "XYZ Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 7902349,
+   "name": "Left Arm of the Forbidden One",
+   "type": "Normal Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited",
+    "ban_ocg": "Limited",
+    "ban_goat": "Limited"
+   }
+  },
+  {
+   "id": 44519536,
+   "name": "Left Leg of the Forbidden One",
+   "type": "Normal Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited",
+    "ban_ocg": "Limited",
+    "ban_goat": "Limited"
+   }
+  },
+  {
+   "id": 57421866,
+   "name": "Level Eater",
+   "type": "Effect Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 30342076,
+   "name": "Link Decoder",
+   "type": "Link Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden"
+   }
+  },
+  {
+   "id": 85243784,
+   "name": "Linkross",
+   "type": "Link Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 41999284,
+   "name": "Linkuriboh",
+   "type": "Link Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited"
+   }
+  },
+  {
+   "id": 32723153,
+   "name": "Magical Explosion",
+   "type": "Trap Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 71650854,
+   "name": "Magical Mid-Breaker Field",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited"
+   }
+  },
+  {
+   "id": 34206604,
+   "name": "Magical Scientist",
+   "type": "Effect Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden",
+    "ban_goat": "Forbidden"
+   }
+  },
+  {
+   "id": 68337209,
+   "name": "Maliss in Underground",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Semi-Limited"
+   }
+  },
+  {
+   "id": 34906152,
+   "name": "Mass Driver",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 36521307,
+   "name": "Mathmech Circular",
+   "type": "Effect Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited"
+   }
+  },
+  {
+   "id": 23434538,
+   "name": "Maxx \"C\"",
+   "type": "Effect Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Limited"
+   }
+  },
+  {
+   "id": 44097050,
+   "name": "Mecha Phantom Beast Auroradon",
+   "type": "Link Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden"
+   }
+  },
+  {
+   "id": 38572779,
+   "name": "Miscellaneousaurus",
+   "type": "Effect Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited"
+   }
+  },
+  {
+   "id": 43040603,
+   "name": "Monster Gate",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited"
+   }
+  },
+  {
+   "id": 83764719,
+   "name": "Monster Reborn",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited",
+    "ban_ocg": "Limited",
+    "ban_goat": "Forbidden"
+   }
+  },
+  {
+   "id": 71818935,
+   "name": "Moon of the Closed Heaven",
+   "type": "Link Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 99937011,
+   "name": "Mudora the Sword Oracle",
+   "type": "Effect Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited",
+    "ban_ocg": "Limited"
+   }
+  },
+  {
+   "id": 76375976,
+   "name": "Mystic Mine",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 61049315,
+   "name": "Naturia Rosewhip",
+   "type": "Tuner Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 3734202,
+   "name": "Naturia Sacred Tree",
+   "type": "Trap Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited"
+   }
+  },
+  {
+   "id": 54719828,
+   "name": "Number 16: Shock Master",
+   "type": "XYZ Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 75433814,
+   "name": "Number 40: Gimmick Puppet of Strings",
+   "type": "XYZ Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited",
+    "ban_ocg": "Limited"
+   }
+  },
+  {
+   "id": 10389142,
+   "name": "Number 42: Galaxy Tomahawk",
+   "type": "XYZ Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden"
+   }
+  },
+  {
+   "id": 35772782,
+   "name": "Number 67: Pair-a-Dice Smasher",
+   "type": "XYZ Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 63504681,
+   "name": "Number 86: Heroic Champion - Rhongomyniad",
+   "type": "XYZ Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 95474755,
+   "name": "Number 89: Diablosis the Mind Hacker",
+   "type": "XYZ Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden"
+   }
+  },
+  {
+   "id": 58820923,
+   "name": "Number 95: Galaxy-Eyes Dark Matter Dragon",
+   "type": "XYZ Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 69170557,
+   "name": "Number C40: Gimmick Puppet of Dark Strings",
+   "type": "XYZ Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited"
+   }
+  },
+  {
+   "id": 52653092,
+   "name": "Number S0: Utopic ZEXAL",
+   "type": "XYZ Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 72537897,
+   "name": "Obedience Schooled",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 33782437,
+   "name": "One Day of Peace",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited",
+    "ban_ocg": "Limited"
+   }
+  },
+  {
+   "id": 2295440,
+   "name": "One for One",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited",
+    "ban_ocg": "Limited"
+   }
+  },
+  {
+   "id": 89023486,
+   "name": "Original Sinful Spoils - Snake-Eye",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden"
+   }
+  },
+  {
+   "id": 34945480,
+   "name": "Outer Entity Azathot",
+   "type": "XYZ Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 74191942,
+   "name": "Painful Choice",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden",
+    "ban_goat": "Forbidden"
+   }
+  },
+  {
+   "id": 90884403,
+   "name": "Phantasmal Lord Ultimitl Bishbaalkin",
+   "type": "Synchro Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden"
+   }
+  },
+  {
+   "id": 80453041,
+   "name": "Phantom of Yubel",
+   "type": "Fusion Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited",
+    "ban_ocg": "Limited"
+   }
+  },
+  {
+   "id": 23558733,
+   "name": "Phoenixian Cluster Amaryllis",
+   "type": "Effect Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 55144522,
+   "name": "Pot of Greed",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden",
+    "ban_goat": "Limited"
+   }
+  },
+  {
+   "id": 84211599,
+   "name": "Pot of Prosperity",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited",
+    "ban_ocg": "Limited"
+   }
+  },
+  {
+   "id": 25725326,
+   "name": "Prank-Kids Meow-Meow-Mu",
+   "type": "Link Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden"
+   }
+  },
+  {
+   "id": 70369116,
+   "name": "Predaplant Verte Anaconda",
+   "type": "Link Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 25661743,
+   "name": "Prohibited Power Patron Portal - Terminus",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited",
+    "ban_ocg": "Limited"
+   }
+  },
+  {
+   "id": 58036229,
+   "name": "Protectcode Talker",
+   "type": "Link Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden"
+   }
+  },
+  {
+   "id": 38814750,
+   "name": "PSY-Framegear Gamma",
+   "type": "Tuner Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited",
+    "ban_ocg": "Limited"
+   }
+  },
+  {
+   "id": 74586817,
+   "name": "PSY-Framelord Omega",
+   "type": "Synchro Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 21347668,
+   "name": "Purrely Sleepy Memory",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Semi-Limited"
+   }
+  },
+  {
+   "id": 67115133,
+   "name": "Radiant Typhoon Chant",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited"
+   }
+  },
+  {
+   "id": 32548318,
+   "name": "Rahu Dracotail",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited",
+    "ban_ocg": "Limited"
+   }
+  },
+  {
+   "id": 58577036,
+   "name": "Reasoning",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited"
+   }
+  },
+  {
+   "id": 23002292,
+   "name": "Red Reboot",
+   "type": "Trap Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Limited"
+   }
+  },
+  {
+   "id": 32807846,
+   "name": "Reinforcement of the Army",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited",
+    "ban_ocg": "Limited",
+    "ban_goat": "Semi-Limited"
+   }
+  },
+  {
+   "id": 34989413,
+   "name": "Reprodocus",
+   "type": "Link Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden"
+   }
+  },
+  {
+   "id": 27174286,
+   "name": "Return from the Different Dimension",
+   "type": "Trap Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 70903634,
+   "name": "Right Arm of the Forbidden One",
+   "type": "Normal Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited",
+    "ban_ocg": "Limited",
+    "ban_goat": "Limited"
+   }
+  },
+  {
+   "id": 8124921,
+   "name": "Right Leg of the Forbidden One",
+   "type": "Normal Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited",
+    "ban_ocg": "Limited",
+    "ban_goat": "Limited"
+   }
+  },
+  {
+   "id": 90846359,
+   "name": "Rivalry of Warlords",
+   "type": "Trap Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited",
+    "ban_ocg": "Limited"
+   }
+  },
+  {
+   "id": 1357146,
+   "name": "Ronintoadin",
+   "type": "Effect Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden"
+   }
+  },
+  {
+   "id": 93016201,
+   "name": "Royal Oppression",
+   "type": "Trap Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 34909328,
+   "name": "Ryzeal Detonator",
+   "type": "XYZ Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited"
+   }
+  },
+  {
+   "id": 66730191,
+   "name": "Sangen Kaimen",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited",
+    "ban_ocg": "Limited"
+   }
+  },
+  {
+   "id": 30336082,
+   "name": "Sangen Summoning",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited",
+    "ban_ocg": "Limited"
+   }
+  },
+  {
+   "id": 24940422,
+   "name": "Sekka's Light",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited"
+   }
+  },
+  {
+   "id": 57585212,
+   "name": "Self-Destruct Button",
+   "type": "Trap Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden"
+   }
+  },
+  {
+   "id": 73468603,
+   "name": "Set Rotation",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited",
+    "ban_ocg": "Limited"
+   }
+  },
+  {
+   "id": 72330894,
+   "name": "Simorgh, Bird of Sovereignty",
+   "type": "Link Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden"
+   }
+  },
+  {
+   "id": 3280747,
+   "name": "Sixth Sense",
+   "type": "Trap Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 82732705,
+   "name": "Skill Drain",
+   "type": "Trap Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited",
+    "ban_ocg": "Limited"
+   }
+  },
+  {
+   "id": 52340444,
+   "name": "Sky Striker Mecha - Hornet Drones",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited",
+    "ban_ocg": "Limited"
+   }
+  },
+  {
+   "id": 71344451,
+   "name": "Slash Draw",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited"
+   }
+  },
+  {
+   "id": 63789924,
+   "name": "Smoke Grenade of the Thief",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 41420027,
+   "name": "Solemn Judgment",
+   "type": "Trap Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited",
+    "ban_ocg": "Limited"
+   }
+  },
+  {
+   "id": 54447022,
+   "name": "Soul Charge",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 59859086,
+   "name": "Splash Mage",
+   "type": "Link Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 27381364,
+   "name": "Spright Elf",
+   "type": "Link Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 91258852,
+   "name": "SPYRAL Master Plan",
+   "type": "Effect Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden"
+   }
+  },
+  {
+   "id": 73539069,
+   "name": "Striker Dragon",
+   "type": "Link Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited"
+   }
+  },
+  {
+   "id": 20663556,
+   "name": "Substitoad",
+   "type": "Effect Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 23516703,
+   "name": "Summon Limit",
+   "type": "Trap Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 61665245,
+   "name": "Summon Sorceress",
+   "type": "Link Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited"
+   }
+  },
+  {
+   "id": 93896655,
+   "name": "Sunavalon Dryas",
+   "type": "Link Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited"
+   }
+  },
+  {
+   "id": 65563871,
+   "name": "Sunvine Healer",
+   "type": "Link Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited"
+   }
+  },
+  {
+   "id": 33918636,
+   "name": "Superheavy Samurai Scarecrow",
+   "type": "Link Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden"
+   }
+  },
+  {
+   "id": 43387895,
+   "name": "Supreme King Dragon Starving Venom",
+   "type": "Fusion Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 35844557,
+   "name": "Sword Ryzeal",
+   "type": "Effect Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Semi-Limited",
+    "ban_ocg": "Limited"
+   }
+  },
+  {
+   "id": 99243014,
+   "name": "Synchro Overtake",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited",
+    "ban_ocg": "Limited"
+   }
+  },
+  {
+   "id": 90953320,
+   "name": "T.G. Hyper Librarian",
+   "type": "Synchro Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited",
+    "ban_ocg": "Limited"
+   }
+  },
+  {
+   "id": 37961969,
+   "name": "Tearlaments Havnis",
+   "type": "Effect Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited",
+    "ban_ocg": "Limited"
+   }
+  },
+  {
+   "id": 92731385,
+   "name": "Tearlaments Kitkallos",
+   "type": "Fusion Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 74078255,
+   "name": "Tearlaments Merrli",
+   "type": "Effect Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited",
+    "ban_ocg": "Limited"
+   }
+  },
+  {
+   "id": 572850,
+   "name": "Tearlaments Scheiren",
+   "type": "Effect Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited",
+    "ban_ocg": "Limited"
+   }
+  },
+  {
+   "id": 63101919,
+   "name": "Tempest Magician",
+   "type": "Synchro Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 91810826,
+   "name": "Tenpai Dragon Chundra",
+   "type": "Tuner Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited",
+    "ban_ocg": "Limited"
+   }
+  },
+  {
+   "id": 73628505,
+   "name": "Terraforming",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited",
+    "ban_ocg": "Limited"
+   }
+  },
+  {
+   "id": 11110587,
+   "name": "That Grass Looks Greener",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited",
+    "ban_ocg": "Limited"
+   }
+  },
+  {
+   "id": 42829885,
+   "name": "The Forceful Sentry",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden",
+    "ban_goat": "Forbidden"
+   }
+  },
+  {
+   "id": 88071625,
+   "name": "The Tyrant Neptune",
+   "type": "Effect Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 24207889,
+   "name": "There Can Be Only One",
+   "type": "Trap Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited",
+    "ban_ocg": "Limited"
+   }
+  },
+  {
+   "id": 22593417,
+   "name": "Topologic Gumblar Dragon",
+   "type": "Link Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 64697231,
+   "name": "Trap Dustshoot",
+   "type": "Trap Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 25311006,
+   "name": "Triple Tactics Talent",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited"
+   }
+  },
+  {
+   "id": 88581108,
+   "name": "True King of All Calamities",
+   "type": "XYZ Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 80604092,
+   "name": "Ultimate Offering",
+   "type": "Trap Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 83152482,
+   "name": "Union Carrier",
+   "type": "Link Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 5851097,
+   "name": "Vanity's Emptiness",
+   "type": "Trap Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 93156774,
+   "name": "Vanquish Soul Hollie Sue",
+   "type": "Effect Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited",
+    "ban_ocg": "Limited"
+   }
+  },
+  {
+   "id": 44910027,
+   "name": "Victory Dragon",
+   "type": "Effect Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 16923472,
+   "name": "Wind-Up Hunter",
+   "type": "Effect Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 30581601,
+   "name": "Yummy★Snatchy",
+   "type": "Link Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited",
+    "ban_ocg": "Limited"
+   }
+  },
+  {
+   "id": 85115440,
+   "name": "Zoodiac Broadbull",
+   "type": "XYZ Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Forbidden",
+    "ban_ocg": "Forbidden"
+   }
+  },
+  {
+   "id": 78872731,
+   "name": "Zoodiac Ratpier",
+   "type": "Effect Monster",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited",
+    "ban_ocg": "Semi-Limited"
+   }
+  },
+  {
+   "id": 1,
+   "name": "\"A Case for K9\"",
+   "type": "Spell Card",
+   "desc": "(trimmed)",
+   "banlist_info": {
+    "ban_tcg": "Limited"
+   }
+  }
+ ]
+}
