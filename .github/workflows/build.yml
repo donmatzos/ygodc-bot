@@ -1,0 +1,42 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  checks: write # test-reporter publishes the report as a check run
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      # Compiles, runs the tests and builds the fat jar. DB tests are skipped (no TEST_DB_URL).
+      - name: Build and test
+        run: mvn -B verify
+
+      - name: Test report
+        uses: dorny/test-reporter@v2
+        if: ${{ !cancelled() }}
+        with:
+          name: Test results
+          path: target/surefire-reports/TEST-*.xml
+          reporter: java-junit
+          fail-on-error: false
+
+      - name: Upload jar
+        uses: actions/upload-artifact@v4
+        with:
+          name: ygo-discord-bot
+          path: target/ygo-discord-bot.jar
