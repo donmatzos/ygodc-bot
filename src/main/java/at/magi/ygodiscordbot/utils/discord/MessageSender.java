@@ -1,5 +1,6 @@
 package at.magi.ygodiscordbot.utils.discord;
 
+import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
@@ -9,6 +10,7 @@ import net.dv8tion.jda.api.requests.RestAction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -26,6 +28,16 @@ public final class MessageSender {
         RestAction<?> chain = channel.sendMessage(messages.get(0));
         for (String message : messages.subList(1, messages.size())) {
             chain = chain.flatMap(previous -> channel.sendMessage(message));
+        }
+        return chain;
+    }
+
+    /** Like {@link #sendAll(MessageChannel, List)}, but only the given mention types notify anyone. */
+    public static RestAction<?> sendAll(MessageChannel channel, List<String> messages,
+                                        Collection<Message.MentionType> allowedMentions) {
+        RestAction<?> chain = channel.sendMessage(messages.get(0)).setAllowedMentions(allowedMentions);
+        for (String message : messages.subList(1, messages.size())) {
+            chain = chain.flatMap(previous -> channel.sendMessage(message).setAllowedMentions(allowedMentions));
         }
         return chain;
     }
