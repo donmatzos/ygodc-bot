@@ -1,4 +1,4 @@
-package at.magi.ygodiscordbot.config;
+package at.magi.ygodiscordbot.impl.config;
 
 import java.io.IOException;
 import java.io.Reader;

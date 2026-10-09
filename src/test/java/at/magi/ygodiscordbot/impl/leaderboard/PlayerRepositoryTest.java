@@ -1,10 +1,10 @@
 package at.magi.ygodiscordbot.impl.leaderboard;
 
-import at.magi.ygodiscordbot.config.DatabaseConfig;
 import at.magi.ygodiscordbot.entity.leaderboard.LeaderboardPage;
 import at.magi.ygodiscordbot.entity.leaderboard.PointChange;
 import at.magi.ygodiscordbot.entity.leaderboard.Points;
 import at.magi.ygodiscordbot.entity.leaderboard.RankedPlayer;
+import at.magi.ygodiscordbot.impl.config.DatabaseConfig;
 import at.magi.ygodiscordbot.impl.deck.DeckDatabase;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;

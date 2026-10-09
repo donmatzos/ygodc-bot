@@ -1,7 +1,5 @@
 package at.magi.ygodiscordbot;
 
-import at.magi.ygodiscordbot.config.BotConfig;
-import at.magi.ygodiscordbot.config.DatabaseConfig;
 import at.magi.ygodiscordbot.impl.banlist.BanlistCommand;
 import at.magi.ygodiscordbot.impl.banlist.BanlistRefresher;
 import at.magi.ygodiscordbot.impl.banlist.BanlistRepository;
@@ -15,6 +13,8 @@ import at.magi.ygodiscordbot.impl.card.CardRepository;
 import at.magi.ygodiscordbot.impl.card.CardSource;
 import at.magi.ygodiscordbot.impl.command.CommandRegistry;
 import at.magi.ygodiscordbot.impl.command.PingCommand;
+import at.magi.ygodiscordbot.impl.config.BotConfig;
+import at.magi.ygodiscordbot.impl.config.DatabaseConfig;
 import at.magi.ygodiscordbot.impl.deck.DeckCommand;
 import at.magi.ygodiscordbot.impl.deck.DeckDatabase;
 import at.magi.ygodiscordbot.impl.deck.DecklistRepository;

@@ -1,6 +1,6 @@
 package at.magi.ygodiscordbot.impl.deck;
 
-import at.magi.ygodiscordbot.config.DatabaseConfig;
+import at.magi.ygodiscordbot.impl.config.DatabaseConfig;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import org.slf4j.Logger;

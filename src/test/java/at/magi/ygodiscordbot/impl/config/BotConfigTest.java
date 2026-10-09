@@ -1,4 +1,4 @@
-package at.magi.ygodiscordbot.config;
+package at.magi.ygodiscordbot.impl.config;
 
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
