@@ -393,6 +393,8 @@ mvn test
   docker run -d --rm --name ygo-test-db -p 3307:3306 -e MARIADB_ROOT_PASSWORD=test -e MARIADB_DATABASE=ygotest mariadb:11
   TEST_DB_URL=jdbc:mysql://127.0.0.1:3307/ygotest TEST_DB_USER=root TEST_DB_PASSWORD=test mvn test
   ```
+- CI (`.github/workflows/build.yml`) starts a MariaDB 11 service container and sets these variables, so the DB tests
+  run there too instead of being skipped.
 - `PlayerRepositoryConcurrencyTest` (same database) is a race smoke test: 8 threads with their own connections change
   the same players at once. It caught a deadlock when several writers added a new player at the same time.
 
