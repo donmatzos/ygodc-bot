@@ -2,7 +2,6 @@ package at.magi.ygodiscordbot.command;
 
 import at.magi.ygodiscordbot.leaderboard.LeaderboardPage;
 import at.magi.ygodiscordbot.leaderboard.RankedPlayer;
-import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
 import org.testng.annotations.Test;
 
@@ -67,7 +66,7 @@ public class LeaderboardCommandTest {
         assertEquals(points.getName(), "points");
         assertTrue(points.isRequired());
         assertEquals(points.getMinValue().longValue(), 0L);
-        assertEquals(points.getMaxValue().longValue(), (long) OptionData.MAX_POSITIVE_NUMBER);
+        assertEquals(points.getMaxValue().longValue(), 999_999L);
     }
 
     @Test

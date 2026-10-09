@@ -4,6 +4,7 @@ import at.magi.ygodiscordbot.format.LeaderboardMessages;
 import at.magi.ygodiscordbot.leaderboard.LeaderboardPage;
 import at.magi.ygodiscordbot.leaderboard.PlayerRepository;
 import at.magi.ygodiscordbot.leaderboard.PointChange;
+import at.magi.ygodiscordbot.leaderboard.Points;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.User;
@@ -66,8 +67,8 @@ public final class LeaderboardCommand implements SlashCommand {
                                 .addOptions(new OptionData(OptionType.USER, PLAYER, "Player to add", true)),
                         new SubcommandData("update", "Set a player's points (Manage Server)")
                                 .addOptions(new OptionData(OptionType.USER, PLAYER, "Player", true),
-                                        new OptionData(OptionType.INTEGER, POINTS, "New total", true)
-                                                .setRequiredRange(0, (long) OptionData.MAX_POSITIVE_NUMBER)))
+                                        new OptionData(OptionType.INTEGER, POINTS, "New total (0–999,999)", true)
+                                                .setRequiredRange(0, Points.MAX)))
                 .setContexts(InteractionContextType.GUILD, InteractionContextType.BOT_DM);
     }
 

@@ -54,8 +54,8 @@ there. Each page is a table with the columns Rank, Player and Points. Points are
 user (table `players`: `id` = Discord user ID, `points` default 0); the rank is computed when querying, and
 players with equal points share a rank (1, 2, 2, 4).
 
-Points stay between 0 and 9,223,372,036,854,775,806; `/points remove` stops at 0 and the reply says how many
-points were really removed. `/points add` adds a player who isn't on the board yet. `/leaderboard add` and
+Points stay between 0 and 999,999; `/points remove` stops at 0, `/points add` at 999,999, and the reply says
+how many points were really applied. `/points add` adds a player who isn't on the board yet. `/leaderboard add` and
 `update` check **Manage Server** in the bot itself (Discord can't hide single subcommands of a public command),
 so role grants under *Integrations* don't apply to them; `/points` is hidden by Discord like `/leaderboard-admin`.
 All of these replies are only visible to you. Resetting all points to 0 is only possible in code
@@ -349,7 +349,7 @@ src/main/java/at/magi/ygodiscordbot/
   card/                     CardNames, CardCatalog, CardRepository, CardRefresher, CardFileStore
   deck/                     Ydke, YdkeDeck, Decklist, DeckDatabase (pool + schema), DecklistRepository (JDBC)
   leaderboard/              RankedPlayer, LeaderboardPage, PlayerRepository (JDBC, RANK() per query),
-                            Points (0 … Long.MAX_VALUE - 1), PointChange
+                            Points (0 … 999,999), PointChange
   source/                   HttpDownloader, YgoProDeckSource, GenesysSource, CardSource
   format/                   ListMessages, DeckMessages, LeaderboardMessages, HelpMessages,
                             DcMessageUtils (2000-character split)

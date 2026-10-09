@@ -19,23 +19,16 @@ public class PointsTest {
     }
 
     @Test
+    public void maximumIs999999() {
+        assertEquals(Points.MAX, 999_999);
+    }
+
+    @Test
     public void addStopsAtMaximum() {
-        assertEquals(Points.MAX, Long.MAX_VALUE - 1);
-        assertEquals(Points.apply(Points.MAX - 1, 99), Points.MAX);
-        assertEquals(Points.apply(Points.MAX, 1), Points.MAX);
-    }
-
-    @Test
-    public void noOverflowNearLongMax() {
-        assertEquals(Points.apply(Points.MAX - 99, 99), Points.MAX);
-        assertEquals(Points.apply(Points.MAX - 100, 99), Points.MAX - 1);
-    }
-
-    @Test
-    public void valueAboveMaximumIsPulledDown() {
-        // Only possible if someone edited the table by hand
-        assertEquals(Points.apply(Long.MAX_VALUE, 5), Points.MAX);
-        assertEquals(Points.apply(Long.MAX_VALUE, -5), Points.MAX - 5);
+        assertEquals(Points.apply(999_950, 99), 999_999);
+        assertEquals(Points.apply(999_999, 1), 999_999);
+        assertEquals(Points.apply(999_900, 99), 999_999);
+        assertEquals(Points.apply(999_899, 99), 999_998);
     }
 
     @Test

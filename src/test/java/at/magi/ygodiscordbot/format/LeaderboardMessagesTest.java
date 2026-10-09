@@ -144,9 +144,8 @@ public class LeaderboardMessagesTest {
     public void pointsChangedAtLimit() {
         assertEquals(LeaderboardMessages.pointsChanged("Yugi", new PointChange(2, 0, false), -3),
                 "✅ Removed 2 of 3 points from **Yugi** (stopped at 0): 2 → 0.");
-        assertEquals(LeaderboardMessages.pointsChanged("Yugi",
-                        new PointChange(9223372036854775805L, 9223372036854775806L, false), 3),
-                "✅ Added 1 of 3 points to **Yugi** (maximum reached): 9223372036854775805 → 9223372036854775806.");
+        assertEquals(LeaderboardMessages.pointsChanged("Yugi", new PointChange(999_998, 999_999, false), 3),
+                "✅ Added 1 of 3 points to **Yugi** (maximum reached): 999998 → 999999.");
     }
 
     @Test
