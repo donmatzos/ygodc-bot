@@ -28,6 +28,24 @@ public class TournamentServiceLifecycleTest extends TournamentServiceTestBase {
     }
 
     @Test
+    public void dropAndForfeitAreSavedTogether() throws SQLException {
+        long id = start(FOUR);
+        ActiveMatch match = service.openMatches(id).get(0);
+        store.writesUntilFailure = 1; // the database goes down after one more write
+        try {
+            service.drop(id, GUILD, match.player1());
+        } catch (SQLException e) {
+            // The organizer sees "not available" and can retry
+        }
+        store.writesUntilFailure = -1;
+        boolean dropped = stored(id).droppedInRound().containsKey(match.player1());
+        boolean forfeited = stored(id).matches().contains(
+                new MatchRecord(1, match.player1(), match.player2(), match.player2()));
+        assertEquals(forfeited, dropped, "drop and forfeit must be saved together");
+        assertEquals(service.openMatches(id).size(), dropped ? 1 : 2);
+    }
+
+    @Test
     public void dropRepairsPendingRound() throws SQLException {
         long id = start(FOUR);
         List<ActiveMatch> round1 = service.openMatches(id);

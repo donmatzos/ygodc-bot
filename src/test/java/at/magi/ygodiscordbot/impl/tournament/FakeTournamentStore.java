@@ -36,14 +36,19 @@ final class FakeTournamentStore implements TournamentStore {
     private long nextId = 1;
     /** When true, every write fails like a database that is down. */
     boolean failWrites;
+    /** When ≥ 0: that many more writes succeed, then the database is down. */
+    int writesUntilFailure = -1;
 
     long lastId() {
         return nextId - 1;
     }
 
     private void write() throws SQLException {
-        if (failWrites) {
+        if (failWrites || writesUntilFailure == 0) {
             throw new SQLException("database down");
+        }
+        if (writesUntilFailure > 0) {
+            writesUntilFailure--;
         }
     }
 
@@ -121,9 +126,17 @@ final class FakeTournamentStore implements TournamentStore {
     }
 
     @Override
-    public void drop(long tournamentId, long player, int round) throws SQLException {
-        write();
-        row(tournamentId).dropped.put(player, round);
+    public void drop(long tournamentId, long player, int round, MatchRecord forfeit) throws SQLException {
+        write(); // one transaction: one write
+        Row row = row(tournamentId);
+        if (forfeit != null) {
+            MatchRecord open = row.matches.stream()
+                    .filter(match -> match.round() == forfeit.round() && match.player1() == forfeit.player1())
+                    .findFirst()
+                    .orElseThrow(() -> new SQLException("No match of " + forfeit.player1()));
+            row.matches.set(row.matches.indexOf(open), forfeit);
+        }
+        row.dropped.put(player, round);
     }
 
     @Override

@@ -240,18 +240,20 @@ public final class TournamentService {
             return TournamentMessages.alreadyDropped(tournamentId, player);
         }
         int round = tournament.currentRound();
-        store.drop(tournamentId, player, round);
-        tournament.drop(player, round);
-        log.info("Tournament {}: player {} dropped in round {}", tournamentId, player, round);
-        StringBuilder reply = new StringBuilder(TournamentMessages.dropped(tournamentId, player));
-
         ActiveMatch match = openMatches(tournamentId).stream()
                 .filter(open -> open.involves(player))
                 .findFirst()
                 .orElse(null);
+        // The drop and the opponent's win are one write, so a failure can't leave the player dropped but playing
+        MatchRecord forfeit = match == null ? null
+                : tournament.record(match.round(), match.player1()).withWinner(match.opponentOf(player));
+        store.drop(tournamentId, player, round, forfeit);
+        tournament.drop(player, round);
+        log.info("Tournament {}: player {} dropped in round {}", tournamentId, player, round);
+        StringBuilder reply = new StringBuilder(TournamentMessages.dropped(tournamentId, player));
+
         if (match != null) {
             long opponent = match.opponentOf(player);
-            store.recordWinner(tournamentId, match.round(), match.player1(), opponent);
             tournament.setWinner(match.round(), match.player1(), opponent);
             reply.append('\n').append(TournamentMessages.matchFinished(match.id(), opponent, false));
             announcer.post(tournament.channelId,

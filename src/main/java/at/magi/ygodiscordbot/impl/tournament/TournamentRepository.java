@@ -190,10 +190,29 @@ public class TournamentRepository implements TournamentStore {
     }
 
     @Override
-    public void drop(long tournamentId, long player, int round) throws SQLException {
-        expectOneRow(update(
-                "UPDATE tournament_player SET dropped_in_round = ? WHERE tournament_id = ? AND player_id = ?",
-                round, tournamentId, player), "Player " + player + " is not in tournament " + tournamentId);
+    public void drop(long tournamentId, long player, int round, MatchRecord forfeit) throws SQLException {
+        inTransaction(connection -> {
+            try (PreparedStatement drop = connection.prepareStatement(
+                    "UPDATE tournament_player SET dropped_in_round = ? WHERE tournament_id = ? AND player_id = ?")) {
+                drop.setInt(1, round);
+                drop.setLong(2, tournamentId);
+                drop.setLong(3, player);
+                expectOneRow(drop.executeUpdate(), "Player " + player + " is not in tournament " + tournamentId);
+            }
+            if (forfeit != null) {
+                try (PreparedStatement win = connection.prepareStatement(
+                        "UPDATE tournament_match SET winner_id = ?, double_loss = FALSE"
+                                + " WHERE tournament_id = ? AND round = ? AND player1_id = ?")) {
+                    win.setLong(1, forfeit.winner());
+                    win.setLong(2, tournamentId);
+                    win.setInt(3, forfeit.round());
+                    win.setLong(4, forfeit.player1());
+                    expectOneRow(win.executeUpdate(), "No match of player " + forfeit.player1() + " in round "
+                            + forfeit.round() + " of tournament " + tournamentId);
+                }
+            }
+            return null;
+        });
     }
 
     @Override

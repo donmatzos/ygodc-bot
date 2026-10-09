@@ -103,7 +103,7 @@ public class TournamentRepositoryTest {
         repository.deletePairings(id, 2);
         repository.savePairings(id, 2, List.of(new Pairing(30, 10L), Pairing.bye(40)));
         repository.startRound(id, 2);
-        repository.drop(id, 40, 2);
+        repository.drop(id, 40, 2, null);
 
         TournamentRecord record = repository.load(id).orElseThrow();
         assertEquals(record.currentRound(), 2);
@@ -123,6 +123,23 @@ public class TournamentRepositoryTest {
         assertTrue(repository.load(id).orElseThrow().matches().contains(new MatchRecord(1, 40, 10L, 40L)));
         // A bye can't be a double loss
         expectThrows(SQLException.class, () -> repository.recordDoubleLoss(id, 1, 30));
+    }
+
+    @Test
+    public void dropWithForfeitSavesBoth() throws SQLException {
+        long id = create();
+        repository.drop(id, 40, 1, new MatchRecord(1, 40, 10L, 10L));
+        TournamentRecord record = repository.load(id).orElseThrow();
+        assertEquals(record.droppedInRound(), Map.of(40L, 1));
+        assertTrue(record.matches().contains(new MatchRecord(1, 40, 10L, 10L)));
+    }
+
+    @Test
+    public void failedForfeitAlsoUndoesTheDrop() throws SQLException {
+        long id = create();
+        // No round-2 match exists: the forfeit fails, so the drop must be rolled back too
+        expectThrows(SQLException.class, () -> repository.drop(id, 40, 1, new MatchRecord(2, 40, 10L, 10L)));
+        assertEquals(repository.load(id).orElseThrow().droppedInRound(), Map.of());
     }
 
     @Test

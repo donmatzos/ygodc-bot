@@ -1,5 +1,6 @@
 package at.magi.ygodiscordbot.impl.tournament;
 
+import at.magi.ygodiscordbot.entity.tournament.MatchRecord;
 import at.magi.ygodiscordbot.entity.tournament.NewTournament;
 import at.magi.ygodiscordbot.entity.tournament.Pairing;
 import at.magi.ygodiscordbot.entity.tournament.TournamentRecord;
@@ -29,7 +30,11 @@ public interface TournamentStore {
     /** Sets or overwrites the result of that pairing to a double loss; fails if there is none or it is a bye. */
     void recordDoubleLoss(long tournamentId, int round, long player1) throws SQLException;
 
-    void drop(long tournamentId, long player, int round) throws SQLException;
+    /**
+     * Marks the player as dropped and, in the same transaction, stores {@code forfeit} (their open match, won by the
+     * opponent) if it is not null: both are saved or neither.
+     */
+    void drop(long tournamentId, long player, int round, MatchRecord forfeit) throws SQLException;
 
     /** RUNNING → FINISHED with the winner; fails if the tournament is not running. */
     void finish(long tournamentId, long winner, Instant at) throws SQLException;
