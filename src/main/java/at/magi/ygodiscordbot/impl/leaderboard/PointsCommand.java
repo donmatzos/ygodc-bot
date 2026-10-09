@@ -1,8 +1,8 @@
 package at.magi.ygodiscordbot.impl.leaderboard;
 
-import at.magi.ygodiscordbot.command.SlashCommand;
 import at.magi.ygodiscordbot.entity.leaderboard.PointChange;
 import at.magi.ygodiscordbot.entity.leaderboard.Points;
+import at.magi.ygodiscordbot.impl.command.SlashCommand;
 import at.magi.ygodiscordbot.utils.discord.MessageSender;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.User;

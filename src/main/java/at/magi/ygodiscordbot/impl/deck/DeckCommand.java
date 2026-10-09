@@ -1,11 +1,11 @@
 package at.magi.ygodiscordbot.impl.deck;
 
-import at.magi.ygodiscordbot.command.SlashCommand;
 import at.magi.ygodiscordbot.entity.card.CardNames;
 import at.magi.ygodiscordbot.entity.deck.Decklist;
 import at.magi.ygodiscordbot.entity.deck.Ydke;
 import at.magi.ygodiscordbot.entity.deck.YdkeDeck;
 import at.magi.ygodiscordbot.impl.card.CardRepository;
+import at.magi.ygodiscordbot.impl.command.SlashCommand;
 import at.magi.ygodiscordbot.utils.discord.DcMessageUtils;
 import at.magi.ygodiscordbot.utils.discord.MessageSender;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
