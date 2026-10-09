@@ -21,6 +21,7 @@ import org.slf4j.LoggerFactory;
 
 import java.sql.SQLException;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
 
@@ -67,7 +68,8 @@ public final class LeaderboardCommand implements SlashCommand {
                                 .addOptions(new OptionData(OptionType.USER, PLAYER, "Player to add", true)),
                         new SubcommandData("update", "Set a player's points (Manage Server)")
                                 .addOptions(new OptionData(OptionType.USER, PLAYER, "Player", true),
-                                        new OptionData(OptionType.INTEGER, POINTS, "New total (0–999,999)", true)
+                                        new OptionData(OptionType.INTEGER, POINTS,
+                                                String.format(Locale.ROOT, "New total (0–%,d)", Points.MAX), true)
                                                 .setRequiredRange(0, Points.MAX)))
                 .setContexts(InteractionContextType.GUILD, InteractionContextType.BOT_DM);
     }

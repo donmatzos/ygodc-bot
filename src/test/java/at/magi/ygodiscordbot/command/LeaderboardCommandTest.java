@@ -67,6 +67,7 @@ public class LeaderboardCommandTest {
         assertTrue(points.isRequired());
         assertEquals(points.getMinValue().longValue(), 0L);
         assertEquals(points.getMaxValue().longValue(), 999_999L);
+        assertEquals(points.getDescription(), "New total (0–999,999)");
     }
 
     @Test

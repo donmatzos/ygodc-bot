@@ -21,7 +21,7 @@ import org.slf4j.LoggerFactory;
 import java.util.concurrent.Executor;
 
 /**
- * {@code /points add|remove player amount}: changes a player's points by 1–99, kept within 0 … 999,999.
+ * {@code /points add|remove player amount}: changes a player's points by 1–99, kept within 0 … {@link Points#MAX}.
  * Like /leaderboard-admin, who may use it is decided by Discord (default Manage Server, changeable under
  * Integrations), so the bot does not check that permission itself.
  */
