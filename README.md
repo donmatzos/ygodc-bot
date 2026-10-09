@@ -35,6 +35,7 @@ Contents:
 | `/deck update name:<name> ydke:<ydke://...>` | Replaces a saved deck and shows the new version |
 | `/deck delete name:<name>` | Deletes a deck and shows what was deleted |
 | `/deck list` | Lists your deck names |
+| `/help` | Lists the commands you can use (only visible to you) |
 | `/leaderboard [page:<n>]` | Sends a leaderboard page (20 players, highest points first) to your DMs |
 | `/leaderboard-admin share [channel:<#channel>]` | Posts the top 20 into a channel (default: this one) |
 | `/ping` | Checks that the bot is alive |
@@ -53,6 +54,12 @@ players with equal points share a rank (1, 2, 2, 4). Points cannot be entered wi
 roles (or limit it to channels) under *Server Settings → Integrations → YGO DC Bot*; the bot does not check
 Manage Server itself, so those settings work. `share` only posts if both you and the bot can send messages
 in the target channel. Needs `DB_URL`, like `/deck`.
+
+**`/help`** replies where you used it, visible only to you. The list is built from the registered commands, so
+it shows exactly what this bot instance offers (no `/deck` or `/leaderboard` without `DB_URL`). In a server it
+only lists commands you can use there, so `/leaderboard-admin` is hidden without **Manage Server**; in the bot's
+DM it lists everything and marks server-only commands. Overrides under *Integrations* are not read, so a role
+that was granted `/leaderboard-admin` there still won't see it in `/help` (the command itself works).
 
 **`/deck`** replies are only visible to the user who ran the command.
 - **Names:** deck names are per user and ignore case, so "Snake-Eye" and "snake-eye" are the same deck.
@@ -325,13 +332,15 @@ src/main/java/at/magi/ygodiscordbot/
   runtime/                  Supervisor (child JVM, memory flags, restarts), RestartPolicy
   config/                   BotConfig, DatabaseConfig (bot.properties / environment variables)
   command/                  SlashCommand, CommandRegistry, BanlistCommand, DeckCommand, LeaderboardCommand,
-                            LeaderboardAdminCommand, PingCommand, MessageSender, PlayerNames (cached names)
+                            LeaderboardAdminCommand, HelpCommand, PingCommand, MessageSender,
+                            PlayerNames (cached names)
   banlist/                  BanlistSnapshot, BanlistRepository, BanlistRefresher, SnapshotFileStore, StaticBanlists
   card/                     CardNames, CardCatalog, CardRepository, CardRefresher, CardFileStore
   deck/                     Ydke, YdkeDeck, Decklist, DeckDatabase (pool + schema), DecklistRepository (JDBC)
   leaderboard/              RankedPlayer, LeaderboardPage, PlayerRepository (JDBC, RANK() per query)
   source/                   HttpDownloader, YgoProDeckSource, GenesysSource, CardSource
-  format/                   ListMessages, DeckMessages, LeaderboardMessages, DcMessageUtils (2000-character split)
+  format/                   ListMessages, DeckMessages, LeaderboardMessages, HelpMessages,
+                            DcMessageUtils (2000-character split)
   entity/                   immutable banlist records
   storage/                  AtomicFiles
   json/                     shared Jackson mapper
