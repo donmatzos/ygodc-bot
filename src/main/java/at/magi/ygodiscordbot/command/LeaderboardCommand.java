@@ -85,7 +85,6 @@ public final class LeaderboardCommand implements SlashCommand {
 
     private void page(SlashCommandInteractionEvent event) {
         int page = event.getOption(PAGE, 1, OptionMapping::getAsInt);
-        log.info("/leaderboard page {} by {}", page, MessageSender.who(event));
         // Ephemeral in servers; in the bot DM a normal message, so it is still there after a client restart
         event.deferReply(event.isFromGuild()).queue();
         try {
@@ -141,7 +140,6 @@ public final class LeaderboardCommand implements SlashCommand {
             return;
         }
         String name = player.getEffectiveName();
-        log.info("/leaderboard add {} by {}", player.getId(), MessageSender.who(event));
         DatabaseReplies.replyEphemeral(event, dbExecutor, () -> players.create(player.getIdLong())
                 ? LeaderboardMessages.added(name)
                 : LeaderboardMessages.alreadyOnBoard(name));
@@ -156,12 +154,9 @@ public final class LeaderboardCommand implements SlashCommand {
         String name = player.getEffectiveName();
         DatabaseReplies.replyEphemeral(event, dbExecutor, () -> {
             PointChange change = players.setPoints(player.getIdLong(), points);
-            if (change == null) {
-                return LeaderboardMessages.notOnBoard(name) + NOT_ON_BOARD_HINT;
-            }
-            log.info("/leaderboard update {} by {}: {} → {}", player.getId(), MessageSender.who(event),
-                    change.before(), change.after());
-            return LeaderboardMessages.pointsSet(name, change);
+            return change == null
+                    ? LeaderboardMessages.notOnBoard(name) + NOT_ON_BOARD_HINT
+                    : LeaderboardMessages.pointsSet(name, change);
         });
     }
 
@@ -171,6 +166,7 @@ public final class LeaderboardCommand implements SlashCommand {
         String problem = changeProblem(event.isFromGuild(),
                 member != null && member.hasPermission(Permission.MANAGE_SERVER), player.isBot());
         if (problem != null) {
+            log.info("/{} refused for {}: {}", event.getFullCommandName(), MessageSender.who(event), problem);
             event.reply(problem).setEphemeral(true).queue();
         }
         return problem != null;

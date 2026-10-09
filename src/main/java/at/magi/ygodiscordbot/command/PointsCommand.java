@@ -72,18 +72,16 @@ public final class PointsCommand implements SlashCommand {
         // Discord already enforces server + permission; only the target needs checking
         String problem = LeaderboardCommand.changeProblem(true, true, player.isBot());
         if (problem != null) {
+            log.info("/{} refused for {}: {}", event.getFullCommandName(), MessageSender.who(event), problem);
             event.reply(problem).setEphemeral(true).queue();
             return;
         }
         String name = player.getEffectiveName();
         DatabaseReplies.replyEphemeral(event, dbExecutor, () -> {
             PointChange change = players.changePoints(player.getIdLong(), delta);
-            if (change == null) {
-                return LeaderboardMessages.notOnBoard(name);
-            }
-            log.info("/points {} {} for {} by {}: {} → {}", subcommand, Math.abs(delta), player.getId(),
-                    MessageSender.who(event), change.before(), change.after());
-            return LeaderboardMessages.pointsChanged(name, change, delta);
+            return change == null
+                    ? LeaderboardMessages.notOnBoard(name)
+                    : LeaderboardMessages.pointsChanged(name, change, delta);
         });
     }
 

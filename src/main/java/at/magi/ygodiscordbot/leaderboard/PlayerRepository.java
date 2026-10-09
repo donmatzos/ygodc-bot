@@ -101,11 +101,21 @@ public class PlayerRepository {
 
     /** Adds a player with 0 points. False if the player is already on the leaderboard. */
     public boolean create(long id) throws SQLException {
+        boolean added = insertIfMissing(id);
+        if (!added) {
+            log.info("Player {} is already on the leaderboard", id);
+        }
+        return added;
+    }
+
+    /** Inserts the player with 0 points in its own statement; false if the player already exists. */
+    private boolean insertIfMissing(long id) throws SQLException {
         ensureSchema();
         try (Connection connection = dataSource.getConnection();
              PreparedStatement insert = connection.prepareStatement("INSERT INTO players (id) VALUES (?)")) {
             insert.setLong(1, id);
             insert.executeUpdate();
+            log.info("Added player {} to the leaderboard", id);
             return true;
         } catch (SQLIntegrityConstraintViolationException e) {
             // Duplicate primary key. Not "ON DUPLICATE KEY UPDATE": Connector/J reports found rows by default,
@@ -132,7 +142,13 @@ public class PlayerRepository {
         if (points < 0 || points > Points.MAX) {
             throw new IllegalArgumentException("points out of range: " + points);
         }
-        return write(id, current -> points, false);
+        PointChange change = write(id, current -> points, false);
+        if (change == null) {
+            log.info("Points of player {} not set: not on the leaderboard", id);
+        } else {
+            log.info("Points of player {} set: {} → {}", id, change.before(), change.after());
+        }
+        return change;
     }
 
     /**
@@ -140,7 +156,14 @@ public class PlayerRepository {
      * is created when points are added; removing from a missing player returns null.
      */
     public PointChange changePoints(long id, long delta) throws SQLException {
-        return write(id, current -> Points.apply(current, delta), delta > 0);
+        PointChange change = write(id, current -> Points.apply(current, delta), delta > 0);
+        if (change == null) {
+            log.info("Points of player {} not changed: not on the leaderboard", id);
+        } else {
+            log.info("Points of player {} changed by {}: {} → {}", id, String.format("%+d", delta), change.before(),
+                    change.after());
+        }
+        return change;
     }
 
     /** Sets every player's points to 0 (full leaderboard refresh); the players stay on the board. */
@@ -160,7 +183,8 @@ public class PlayerRepository {
      * holding it would deadlock on their inserts.
      */
     private PointChange write(long id, LongUnaryOperator change, boolean createIfMissing) throws SQLException {
-        boolean created = createIfMissing && create(id);
+        ensureSchema();
+        boolean created = createIfMissing && insertIfMissing(id);
         try (Connection connection = dataSource.getConnection()) {
             connection.setAutoCommit(false);
             boolean ended = false;

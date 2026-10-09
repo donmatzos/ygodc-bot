@@ -2,11 +2,15 @@ package at.magi.ygodiscordbot.leaderboard;
 
 import at.magi.ygodiscordbot.config.DatabaseConfig;
 import at.magi.ygodiscordbot.deck.DeckDatabase;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.zaxxer.hikari.HikariDataSource;
 import org.testng.SkipException;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
+import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
 
 import java.lang.reflect.InvocationTargetException;
@@ -161,6 +165,13 @@ public class PlayerRepositoryTest {
         assertEquals(repository.find(2), Optional.empty());
     }
 
+    /** The table is created on first use, also when the first call is a write that creates nothing. */
+    @Test
+    public void writesWithoutCreatingWorkOnAFreshDatabase() throws SQLException {
+        assertNull(repository.setPoints(1, 5));
+        assertNull(new PlayerRepository(dataSource).changePoints(1, -5));
+    }
+
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void setPointsRejectsNegative() throws SQLException {
         repository.setPoints(1, -1);
@@ -246,5 +257,39 @@ public class PlayerRepositoryTest {
         assertEquals(error.getSuppressed().length, 1);
         assertEquals(error.getSuppressed()[0].getMessage(), "rollback failed");
         assertEquals(repository.find(1).orElseThrow().points(), 10L);
+    }
+
+    /** Runs {@code work} and returns the INFO lines PlayerRepository logged meanwhile. */
+    private static List<String> logsOf(SqlWork work) throws SQLException {
+        Logger logger = (Logger) LoggerFactory.getLogger(PlayerRepository.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+        try {
+            work.run();
+        } finally {
+            logger.detachAppender(appender);
+        }
+        return appender.list.stream().map(ILoggingEvent::getFormattedMessage).toList();
+    }
+
+    private interface SqlWork {
+        void run() throws SQLException;
+    }
+
+    @Test
+    public void writesAreLogged() throws SQLException {
+        repository.ensureSchema();
+        assertEquals(logsOf(() -> repository.create(1)), List.of("Added player 1 to the leaderboard"));
+        assertEquals(logsOf(() -> repository.create(1)), List.of("Player 1 is already on the leaderboard"));
+        assertEquals(logsOf(() -> repository.changePoints(1, 5)), List.of("Points of player 1 changed by +5: 0 → 5"));
+        assertEquals(logsOf(() -> repository.changePoints(1, -9)), List.of("Points of player 1 changed by -9: 5 → 0"));
+        assertEquals(logsOf(() -> repository.setPoints(1, 40)), List.of("Points of player 1 set: 0 → 40"));
+        assertEquals(logsOf(() -> repository.setPoints(2, 40)), List.of("Points of player 2 not set: not on the leaderboard"));
+        assertEquals(logsOf(() -> repository.changePoints(2, -1)),
+                List.of("Points of player 2 not changed: not on the leaderboard"));
+        assertEquals(logsOf(() -> repository.changePoints(3, 2)),
+                List.of("Added player 3 to the leaderboard", "Points of player 3 changed by +2: 0 → 2"));
+        assertEquals(logsOf(() -> repository.resetAllPoints()), List.of("Reset the points of 2 players"));
     }
 }
