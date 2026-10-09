@@ -34,11 +34,14 @@ public final class Standings {
     private final List<Long> players;
     private final Map<Long, Entry> entries;
     private final Map<Long, Set<Long>> opponents;
+    private final boolean doubleLossOrDrop;
 
-    private Standings(List<Long> players, Map<Long, Entry> entries, Map<Long, Set<Long>> opponents) {
+    private Standings(List<Long> players, Map<Long, Entry> entries, Map<Long, Set<Long>> opponents,
+                      boolean doubleLossOrDrop) {
         this.players = players;
         this.entries = entries;
         this.opponents = opponents;
+        this.doubleLossOrDrop = doubleLossOrDrop;
     }
 
     /** @param players every player in entry order, dropped ones included */
@@ -74,7 +77,8 @@ public final class Standings {
             int[] count = counts.get(player);
             entries.put(player, new Entry(player, count[WINS], count[LOSSES], count[BYES], dropped.contains(player)));
         }
-        return new Standings(List.copyOf(players), entries, opponents);
+        boolean doubleLossOrDrop = !dropped.isEmpty() || matches.stream().anyMatch(MatchRecord::doubleLoss);
+        return new Standings(List.copyOf(players), entries, opponents, doubleLossOrDrop);
     }
 
     public Entry entry(long player) {
@@ -97,6 +101,11 @@ public final class Standings {
 
     public boolean haveMet(long player, long other) {
         return opponents.get(player).contains(other);
+    }
+
+    /** True once a player dropped or a match ended as a double loss. */
+    public boolean hasDoubleLossOrDrop() {
+        return doubleLossOrDrop;
     }
 
     /** Everyone who started, dropped players included. */

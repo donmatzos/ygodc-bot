@@ -40,6 +40,17 @@ public class WinnerRuleTest {
     }
 
     @Test
+    public void earlyLeaderWinsWithoutDoubleLossOrDrop() {
+        // 5 players: after round 2 only D is undefeated (C lost a play-down match), one round before ⌈log₂ 5⌉ = 3.
+        // Nothing irregular happened, so D has won.
+        long e = 5;
+        Standings standings = Standings.of(List.of(A, B, C, D, e), Set.of(), List.of(
+                won(1, D, B), won(1, A, e), MatchRecord.of(1, Pairing.bye(C)),
+                won(2, D, C), won(2, B, A), MatchRecord.of(2, Pairing.bye(e))));
+        assertEquals(WinnerRule.winner(standings, 2), Optional.of(D));
+    }
+
+    @Test
     public void byeKeepsAPlayerUndefeated() {
         Standings standings = Standings.of(List.of(A, B, C), Set.of(), List.of(
                 won(1, A, B), MatchRecord.of(1, Pairing.bye(C))));
