@@ -7,8 +7,8 @@ It is built to run on a free hosting plan with about 300 MB of RAM.
   format lists, as plain-text messages that Discord's search can find.
 - **Decklists:** `/deck` stores each user's decks as [YDKE URIs](#4-ydke-the-deck-format) in a MySQL database and
   shows them with real card names.
-- **Leaderboard:** `/leaderboard` shows tournament points, ranked highest first; organizers can post the top 20
-  into a channel with `/leaderboard-admin share`.
+- **Leaderboard:** `/leaderboard` shows tournament points, ranked highest first; organizers manage points with
+  `/points` and `/leaderboard add|update`, and post the top 20 into a channel with `/leaderboard-admin share`.
 - **Hosting:** runs on [Waifly](https://waifly.com)'s free tier, a [Pterodactyl](https://pterodactyl.io) panel with
   ~300 MB of RAM and a Java image (start command `java -jar ygo-discord-bot.jar`). The database is the
   panel's MySQL, reached from inside the container at `172.18.0.1:3306`, not at the public `db.waifly.com`.
@@ -36,7 +36,11 @@ Contents:
 | `/deck delete name:<name>` | Deletes a deck and shows what was deleted |
 | `/deck list` | Lists your deck names |
 | `/help` | Lists the commands you can use (only visible to you) |
-| `/leaderboard [page:<n>]` | Sends a leaderboard page (20 players, highest points first) to your DMs |
+| `/leaderboard page [page:<n>]` | Sends a leaderboard page (20 players, highest points first) to your DMs |
+| `/leaderboard get [player:<@user>]` | Shows a player's points and rank (default: you) |
+| `/leaderboard add player:<@user>` | Adds a player with 0 points (Manage Server) |
+| `/leaderboard update player:<@user> points:<n>` | Sets a player's points (Manage Server) |
+| `/points add\|remove player:<@user> amount:<1-99>` | Adds or removes points (Manage Server, hidden from others) |
 | `/leaderboard-admin share [channel:<#channel>]` | Posts the top 20 into a channel (default: this one) |
 | `/ping` | Checks that the bot is alive |
 
@@ -45,10 +49,17 @@ with a link that only they can see. Used in the bot's DM, it posts the list righ
 text instead of embeds, because Discord's search can find plain text but not embeds. If a user blocks DMs
 from server members, the bot asks them to run the command in its DM instead.
 
-**`/leaderboard`** works like `/banlist`: in a server the page goes to your DMs, in the bot's DM it is posted
+**`/leaderboard page`** works like `/banlist`: in a server the page goes to your DMs, in the bot's DM it is posted
 there. Each page is a table with the columns Rank, Player and Points. Points are a running total per Discord
 user (table `players`: `id` = Discord user ID, `points` default 0); the rank is computed when querying, and
-players with equal points share a rank (1, 2, 2, 4). Points cannot be entered with a command yet.
+players with equal points share a rank (1, 2, 2, 4).
+
+Points stay between 0 and 9,223,372,036,854,775,806; `/points remove` stops at 0 and the reply says how many
+points were really removed. `/points add` adds a player who isn't on the board yet. `/leaderboard add` and
+`update` check **Manage Server** in the bot itself (Discord can't hide single subcommands of a public command),
+so role grants under *Integrations* don't apply to them; `/points` is hidden by Discord like `/leaderboard-admin`.
+All of these replies are only visible to you. Resetting all points to 0 is only possible in code
+(`PlayerRepository.resetAllPoints`), not as a command.
 
 **`/leaderboard-admin`** is hidden from members without **Manage Server**. Server owners can hand it to other
 roles (or limit it to channels) under *Server Settings → Integrations → YGO DC Bot*; the bot does not check
@@ -145,7 +156,7 @@ Everything the bot contacts at runtime. All HTTP requests send the `User-Agent` 
 | YGOProDeck card list | `https://db.ygoprodeck.com/api/v7/cardinfo.php` | Card names for `/deck` (passcode → name, including alternate artworks) | only when the version changed, at most every 3 days | 21 MB, 2.9 MB gzipped |
 | Konami Genesys page | `https://www.yugioh-card.com/en/genesys/` | TCG Genesys points (HTML table, parsed with jsoup) | daily, 03:00 Europe/Vienna | one HTML page |
 | Discord gateway and REST API | `wss://gateway.discord.gg`, `https://discord.com/api` (through JDA) | Login, receiving slash commands, sending replies, registering commands | permanent connection | n/a |
-| MySQL / MariaDB | `jdbc:mysql://172.18.0.1:3306/<db>` (on Waifly) | `decklist` and `players` tables | per `/deck` and `/leaderboard` command | tiny |
+| MySQL / MariaDB | `jdbc:mysql://172.18.0.1:3306/<db>` (on Waifly) | `decklist` and `players` tables | per `/deck`, `/leaderboard` and `/points` command | tiny |
 
 Not contacted at runtime:
 - **[Format Library](https://www.formatlibrary.com):** source of the Goat (April 2005) and Edison (March 2010)
@@ -332,12 +343,13 @@ src/main/java/at/magi/ygodiscordbot/
   runtime/                  Supervisor (child JVM, memory flags, restarts), RestartPolicy
   config/                   BotConfig, DatabaseConfig (bot.properties / environment variables)
   command/                  SlashCommand, CommandRegistry, BanlistCommand, DeckCommand, LeaderboardCommand,
-                            LeaderboardAdminCommand, HelpCommand, PingCommand, MessageSender,
-                            PlayerNames (cached names)
+                            LeaderboardAdminCommand, PointsCommand, HelpCommand, PingCommand, MessageSender,
+                            DatabaseReplies, PlayerNames (cached names)
   banlist/                  BanlistSnapshot, BanlistRepository, BanlistRefresher, SnapshotFileStore, StaticBanlists
   card/                     CardNames, CardCatalog, CardRepository, CardRefresher, CardFileStore
   deck/                     Ydke, YdkeDeck, Decklist, DeckDatabase (pool + schema), DecklistRepository (JDBC)
-  leaderboard/              RankedPlayer, LeaderboardPage, PlayerRepository (JDBC, RANK() per query)
+  leaderboard/              RankedPlayer, LeaderboardPage, PlayerRepository (JDBC, RANK() per query),
+                            Points (0 … Long.MAX_VALUE - 1), PointChange
   source/                   HttpDownloader, YgoProDeckSource, GenesysSource, CardSource
   format/                   ListMessages, DeckMessages, LeaderboardMessages, HelpMessages,
                             DcMessageUtils (2000-character split)
