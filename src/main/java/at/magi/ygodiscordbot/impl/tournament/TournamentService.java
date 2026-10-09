@@ -67,8 +67,9 @@ public final class TournamentService {
     }
 
     /**
-     * Loads the running tournaments once: at startup, or on the first command after the database came back.
-     * Task 7 adds resuming them (new match IDs, timeouts, unfinished round ends).
+     * Loads the running tournaments once: at startup, or on the first command after the database came back. Then
+     * resumes each: abandons it if it is older than 48 h, re-creates the open matches with new IDs (and posts them),
+     * or finishes a round end that was interrupted.
      */
     public void recover() throws SQLException {
         if (loaded) {
@@ -78,6 +79,26 @@ public final class TournamentService {
         running.forEach(record -> tournaments.put(record.id(), new ActiveTournament(record)));
         loaded = true;
         log.info("Loaded {} running tournament(s)", running.size());
+        for (ActiveTournament tournament : List.copyOf(tournaments.values())) {
+            try {
+                resume(tournament);
+            } catch (SQLException | RuntimeException e) {
+                // The timer and /tournament continue retry what is missing
+                log.warn("Could not resume tournament {}", tournament.id, e);
+            }
+        }
+    }
+
+    private void resume(ActiveTournament tournament) throws SQLException {
+        if (expired(tournament)) {
+            abandon(tournament, TournamentMessages.TIMEOUT_REASON);
+        } else if (!tournament.roundClosed()) {
+            createMatches(tournament, tournament.currentRound());
+            announcer.post(tournament.channelId, TournamentMessages.restarted(tournament.id,
+                    tournament.currentRound(), openMatches(tournament.id)), true);
+        } else {
+            prepareNextRound(tournament);
+        }
     }
 
     public String start(long guildId, long channelId, long admin, List<Long> players) throws SQLException {
@@ -190,6 +211,84 @@ public final class TournamentService {
         Standings standings = Standings.of(record.players(), record.droppedInRound().keySet(), record.matches());
         return TournamentMessages.standings(tournamentId, record.status(), record.currentRound(), standings,
                 List.of(), record.winner());
+    }
+
+    public String cancel(long tournamentId, long guildId) throws SQLException {
+        recover();
+        ActiveTournament tournament = running(tournamentId, guildId);
+        if (tournament == null) {
+            return notRunning(tournamentId, guildId);
+        }
+        abandon(tournament, TournamentMessages.CANCELLED_REASON);
+        return TournamentMessages.cancelled(tournamentId);
+    }
+
+    /**
+     * Removes a player from the remaining rounds. Their open match is won by the opponent; posted next pairings are
+     * made again without them (which may also decide the winner).
+     */
+    public String drop(long tournamentId, long guildId, long player) throws SQLException {
+        recover();
+        ActiveTournament tournament = running(tournamentId, guildId);
+        if (tournament == null) {
+            return notRunning(tournamentId, guildId);
+        }
+        if (!tournament.hasPlayer(player)) {
+            return TournamentMessages.notAPlayer(tournamentId, player);
+        }
+        if (tournament.isDropped(player)) {
+            return TournamentMessages.alreadyDropped(tournamentId, player);
+        }
+        int round = tournament.currentRound();
+        store.drop(tournamentId, player, round);
+        tournament.drop(player, round);
+        log.info("Tournament {}: player {} dropped in round {}", tournamentId, player, round);
+        StringBuilder reply = new StringBuilder(TournamentMessages.dropped(tournamentId, player));
+
+        ActiveMatch match = openMatches(tournamentId).stream()
+                .filter(open -> open.involves(player))
+                .findFirst()
+                .orElse(null);
+        if (match != null) {
+            long opponent = match.opponentOf(player);
+            store.recordWinner(tournamentId, match.round(), match.player1(), opponent);
+            tournament.setWinner(match.round(), match.player1(), opponent);
+            reply.append('\n').append(TournamentMessages.matchFinished(match.id(), opponent, false));
+            announcer.post(tournament.channelId,
+                    List.of(TournamentMessages.droppedPost(tournamentId, player, match.id(), opponent)), false);
+            String roundEnd = closeRoundIfDone(tournament);
+            if (roundEnd != null) {
+                reply.append('\n').append(roundEnd);
+            }
+            return reply.toString();
+        }
+
+        announcer.post(tournament.channelId,
+                List.of(TournamentMessages.droppedPost(tournamentId, player, null, null)), false);
+        if (!tournament.pending().isEmpty()) {
+            int next = round + 1;
+            store.deletePairings(tournamentId, next);
+            tournament.removeRound(next);
+            prepareNextRound(tournament);
+            if (tournaments.containsKey(tournamentId)) {
+                reply.append('\n').append(TournamentMessages.repaired(next));
+            }
+        }
+        return reply.toString();
+    }
+
+    /** Abandons every tournament older than {@link #TIMEOUT}. Called by the timer every few minutes. */
+    public void abandonExpired() throws SQLException {
+        recover();
+        for (ActiveTournament tournament : List.copyOf(tournaments.values())) {
+            if (expired(tournament)) {
+                abandon(tournament, TournamentMessages.TIMEOUT_REASON);
+            }
+        }
+    }
+
+    private boolean expired(ActiveTournament tournament) {
+        return !clock.instant().isBefore(tournament.startedAt.plus(TIMEOUT));
     }
 
     /** Unplayed matches of the tournament's current round, by match ID. */
