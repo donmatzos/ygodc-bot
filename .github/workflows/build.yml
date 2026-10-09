@@ -14,10 +14,12 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    # Throwaway database for the DB tests (they drop their tables); same image as the local test database
+    # Throwaway database for the DB tests (they drop their tables); same image as the local test database.
+    # Pulled from the ECR Public mirror of Docker's official images: anonymous Docker Hub pulls from shared runners
+    # often hit the rate limit.
     services:
       mariadb:
-        image: mariadb:11
+        image: public.ecr.aws/docker/library/mariadb:11
         env:
           MARIADB_ROOT_PASSWORD: test
           MARIADB_DATABASE: ygotest
