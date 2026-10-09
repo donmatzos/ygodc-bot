@@ -3,6 +3,7 @@ package at.magi.ygodiscordbot.impl.leaderboard;
 import at.magi.ygodiscordbot.entity.leaderboard.LeaderboardPage;
 import at.magi.ygodiscordbot.entity.leaderboard.PointChange;
 import at.magi.ygodiscordbot.entity.leaderboard.Points;
+import at.magi.ygodiscordbot.impl.command.DatabaseReplies;
 import at.magi.ygodiscordbot.impl.command.SlashCommand;
 import at.magi.ygodiscordbot.utils.discord.MessageSender;
 import net.dv8tion.jda.api.Permission;
@@ -37,6 +38,7 @@ public final class LeaderboardCommand implements SlashCommand {
     static final String TITLE = "🏆 Leaderboard";
     static final String UNAVAILABLE = "The leaderboard is not available right now. Please try again later.";
     static final String BUSY = "Too many requests right now. Please try again in a moment.";
+    static final DatabaseReplies.Texts TEXTS = new DatabaseReplies.Texts(BUSY, UNAVAILABLE);
     static final int MAX_PAGE = 10_000;
 
     static final String PLAYER = "player";
@@ -131,7 +133,7 @@ public final class LeaderboardCommand implements SlashCommand {
     private void get(SlashCommandInteractionEvent event) {
         User player = event.getOption(PLAYER, event.getUser(), OptionMapping::getAsUser);
         String name = player.getEffectiveName();
-        DatabaseReplies.replyEphemeral(event, dbExecutor, () -> players.find(player.getIdLong())
+        DatabaseReplies.replyEphemeral(event, dbExecutor, TEXTS, () -> players.find(player.getIdLong())
                 .map(found -> LeaderboardMessages.playerPoints(name, found))
                 .orElse(LeaderboardMessages.notOnBoard(name)));
     }
@@ -142,7 +144,7 @@ public final class LeaderboardCommand implements SlashCommand {
             return;
         }
         String name = player.getEffectiveName();
-        DatabaseReplies.replyEphemeral(event, dbExecutor, () -> players.create(player.getIdLong())
+        DatabaseReplies.replyEphemeral(event, dbExecutor, TEXTS, () -> players.create(player.getIdLong())
                 ? LeaderboardMessages.added(name)
                 : LeaderboardMessages.alreadyOnBoard(name));
     }
@@ -154,7 +156,7 @@ public final class LeaderboardCommand implements SlashCommand {
             return;
         }
         String name = player.getEffectiveName();
-        DatabaseReplies.replyEphemeral(event, dbExecutor, () -> {
+        DatabaseReplies.replyEphemeral(event, dbExecutor, TEXTS, () -> {
             PointChange change = players.setPoints(player.getIdLong(), points);
             return change == null
                     ? LeaderboardMessages.notOnBoard(name) + NOT_ON_BOARD_HINT

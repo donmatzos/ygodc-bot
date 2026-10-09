@@ -2,6 +2,7 @@ package at.magi.ygodiscordbot.impl.leaderboard;
 
 import at.magi.ygodiscordbot.entity.leaderboard.PointChange;
 import at.magi.ygodiscordbot.entity.leaderboard.Points;
+import at.magi.ygodiscordbot.impl.command.DatabaseReplies;
 import at.magi.ygodiscordbot.impl.command.SlashCommand;
 import at.magi.ygodiscordbot.utils.discord.MessageSender;
 import net.dv8tion.jda.api.Permission;
@@ -77,7 +78,7 @@ public final class PointsCommand implements SlashCommand {
             return;
         }
         String name = player.getEffectiveName();
-        DatabaseReplies.replyEphemeral(event, dbExecutor, () -> {
+        DatabaseReplies.replyEphemeral(event, dbExecutor, LeaderboardCommand.TEXTS, () -> {
             PointChange change = players.changePoints(player.getIdLong(), delta);
             return change == null
                     ? LeaderboardMessages.notOnBoard(name)

@@ -1,6 +1,7 @@
 package at.magi.ygodiscordbot.impl.leaderboard;
 
 import at.magi.ygodiscordbot.entity.leaderboard.LeaderboardPage;
+import at.magi.ygodiscordbot.impl.command.DatabaseReplies;
 import at.magi.ygodiscordbot.impl.command.SlashCommand;
 import at.magi.ygodiscordbot.utils.discord.MessageSender;
 import net.dv8tion.jda.api.Permission;
@@ -72,7 +73,8 @@ public final class LeaderboardAdminCommand implements SlashCommand {
         }
         GuildMessageChannel target = (GuildMessageChannel) chosen;
         // Only after Discord accepted the defer: a retry after a timeout must not post the leaderboard twice
-        DatabaseReplies.deferEphemeral(event, dbExecutor, hook -> post(event, target, players.page(1)));
+        DatabaseReplies.deferEphemeral(event, dbExecutor, LeaderboardCommand.TEXTS,
+                hook -> post(event, target, players.page(1)));
     }
 
     private void post(SlashCommandInteractionEvent event, GuildMessageChannel target, LeaderboardPage page) {

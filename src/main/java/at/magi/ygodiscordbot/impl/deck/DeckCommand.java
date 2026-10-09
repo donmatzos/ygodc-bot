@@ -5,9 +5,9 @@ import at.magi.ygodiscordbot.entity.deck.Decklist;
 import at.magi.ygodiscordbot.entity.deck.Ydke;
 import at.magi.ygodiscordbot.entity.deck.YdkeDeck;
 import at.magi.ygodiscordbot.impl.card.CardRepository;
+import at.magi.ygodiscordbot.impl.command.DatabaseReplies;
 import at.magi.ygodiscordbot.impl.command.SlashCommand;
 import at.magi.ygodiscordbot.utils.discord.DcMessageUtils;
-import at.magi.ygodiscordbot.utils.discord.MessageSender;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.interactions.InteractionContextType;
 import net.dv8tion.jda.api.interactions.commands.OptionMapping;
@@ -16,13 +16,10 @@ import net.dv8tion.jda.api.interactions.commands.build.Commands;
 import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import net.dv8tion.jda.api.interactions.commands.build.SlashCommandData;
 import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.sql.SQLException;
 import java.util.List;
 import java.util.concurrent.Executor;
-import java.util.concurrent.RejectedExecutionException;
 
 /**
  * {@code /deck save|get|update|delete|list}: each user's own decklists, stored as YDKE URIs.
@@ -32,23 +29,16 @@ import java.util.concurrent.RejectedExecutionException;
  */
 public final class DeckCommand implements SlashCommand {
 
-    private static final Logger log = LoggerFactory.getLogger(DeckCommand.class);
-
     static final int MAX_MAIN = 60;
     static final int MAX_EXTRA = 15;
     static final int MAX_SIDE = 15;
 
     static final String UNAVAILABLE = "Deck storage is not available right now. Please try again later.";
     static final String BUSY = "Too many deck requests right now. Please try again in a moment.";
+    private static final DatabaseReplies.Texts TEXTS = new DatabaseReplies.Texts(BUSY, UNAVAILABLE);
 
     private static final String NAME = "name";
     private static final String YDKE = "ydke";
-
-    /** Database work that produces the reply messages. */
-    @FunctionalInterface
-    interface DatabaseWork {
-        List<String> run() throws SQLException;
-    }
 
     private final DecklistRepository decks;
     private final CardRepository cards;
@@ -192,28 +182,8 @@ public final class DeckCommand implements SlashCommand {
         event.reply(message).setEphemeral(true).queue();
     }
 
-    private void runInDatabase(SlashCommandInteractionEvent event, DatabaseWork work) {
-        event.deferReply(true).queue();
-        try {
-            dbExecutor.execute(() -> {
-                List<String> replies;
-                try {
-                    replies = work.run();
-                } catch (SQLException | RuntimeException e) {
-                    log.warn("/deck {} failed for {}", event.getSubcommandName(), event.getUser().getId(), e);
-                    replies = List.of(UNAVAILABLE);
-                }
-                send(event, replies);
-            });
-        } catch (RejectedExecutionException e) {
-            log.warn("Deck request queue full, rejected /deck {} by {}", event.getSubcommandName(), event.getUser().getId());
-            event.getHook().editOriginal(BUSY).queue();
-        }
-    }
-
-    /** Replaces the deferred reply with the first message; the rest follow in order, also only visible to the user. */
-    private static void send(SlashCommandInteractionEvent event, List<String> replies) {
-        MessageSender.replyAll(event.getHook(), replies, true)
-                .queue(null, error -> log.warn("Could not send /deck reply to {}", event.getUser().getId(), error));
+    /** Runs only after Discord accepted the defer, so a timed-out /deck save is not still saved in the background. */
+    private void runInDatabase(SlashCommandInteractionEvent event, DatabaseReplies.SqlListCall work) {
+        DatabaseReplies.replyAllEphemeral(event, dbExecutor, TEXTS, work);
     }
 }

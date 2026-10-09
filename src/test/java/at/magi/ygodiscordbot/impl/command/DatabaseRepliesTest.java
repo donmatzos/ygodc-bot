@@ -1,4 +1,4 @@
-package at.magi.ygodiscordbot.impl.leaderboard;
+package at.magi.ygodiscordbot.impl.command;
 
 import net.dv8tion.jda.api.interactions.InteractionHook;
 import net.dv8tion.jda.api.requests.RestAction;
@@ -25,6 +25,8 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 
 public class DatabaseRepliesTest {
+
+    private static final DatabaseReplies.Texts TEXTS = new DatabaseReplies.Texts("busy", "unavailable");
 
     /** A deferReply() action that Discord accepts (success) or rejects, e.g. because the interaction timed out. */
     @SuppressWarnings("unchecked")
@@ -56,10 +58,40 @@ public class DatabaseRepliesTest {
                 });
     }
 
+    /**
+     * A hook that records edits and follow-ups in send order ("edit:a", "follow-up:b"). Its actions run flatMap
+     * right away, so a chain of messages is recorded as it would be sent.
+     */
+    private static InteractionHook sendingHook(List<String> sent) {
+        return (InteractionHook) Proxy.newProxyInstance(InteractionHook.class.getClassLoader(),
+                new Class<?>[]{InteractionHook.class}, (proxy, method, args) -> switch (method.getName()) {
+                    case "editOriginal" -> {
+                        sent.add("edit:" + args[0]);
+                        yield chainable(method.getReturnType());
+                    }
+                    case "sendMessage" -> {
+                        sent.add("follow-up:" + args[0]);
+                        yield chainable(method.getReturnType());
+                    }
+                    default -> throw new UnsupportedOperationException(method.getName());
+                });
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Object chainable(Class<?> type) {
+        return Proxy.newProxyInstance(RestAction.class.getClassLoader(), new Class<?>[]{type}, (proxy, method, args) ->
+                switch (method.getName()) {
+                    case "flatMap" -> ((java.util.function.Function<Object, Object>) args[args.length - 1]).apply(null);
+                    case "setEphemeral" -> proxy;
+                    case "queue" -> null;
+                    default -> throw new UnsupportedOperationException(method.getName());
+                });
+    }
+
     @Test
     public void failedDeferNeverRunsTheCall() {
         List<String> calls = new ArrayList<>();
-        DatabaseReplies.afterDefer(defer(false, null), Runnable::run, "/points add", () -> {
+        DatabaseReplies.afterDefer(defer(false, null), Runnable::run, TEXTS, "/points add", () -> {
             calls.add("ran");
             return "done";
         });
@@ -69,17 +101,17 @@ public class DatabaseRepliesTest {
     @Test
     public void acceptedDeferRunsTheCallAndShowsItsResult() {
         List<String> edits = new ArrayList<>();
-        DatabaseReplies.afterDefer(defer(true, recordingHook(edits)), Runnable::run, "/points add", () -> "done");
+        DatabaseReplies.afterDefer(defer(true, recordingHook(edits)), Runnable::run, TEXTS, "/points add", () -> "done");
         assertEquals(edits, List.of("done"));
     }
 
     @Test
     public void databaseErrorShowsUnavailable() {
         List<String> edits = new ArrayList<>();
-        DatabaseReplies.afterDefer(defer(true, recordingHook(edits)), Runnable::run, "/points add", () -> {
+        DatabaseReplies.afterDefer(defer(true, recordingHook(edits)), Runnable::run, TEXTS, "/points add", () -> {
             throw new java.sql.SQLException("down");
         });
-        assertEquals(edits, List.of(LeaderboardCommand.UNAVAILABLE));
+        assertEquals(edits, List.of(TEXTS.unavailable()));
     }
 
     @Test
@@ -87,23 +119,44 @@ public class DatabaseRepliesTest {
         List<String> edits = new ArrayList<>();
         DatabaseReplies.afterDefer(defer(true, recordingHook(edits)), task -> {
             throw new RejectedExecutionException();
-        }, "/points add", () -> "done");
-        assertEquals(edits, List.of(LeaderboardCommand.BUSY));
+        }, TEXTS, "/points add", () -> "done");
+        assertEquals(edits, List.of(TEXTS.busy()));
     }
 
     @Test
     public void actorIsInTheLogContextOnlyDuringTheCall() {
         List<String> edits = new ArrayList<>();
-        DatabaseReplies.afterDefer(defer(true, recordingHook(edits)), Runnable::run, "/points add by yugi (1)",
+        DatabaseReplies.afterDefer(defer(true, recordingHook(edits)), Runnable::run, TEXTS, "/points add by yugi (1)",
                 () -> MDC.get(DatabaseReplies.ACTOR));
         assertEquals(edits, List.of(" [/points add by yugi (1)]"));
         assertNull(MDC.get(DatabaseReplies.ACTOR));
     }
 
     @Test
+    public void listCallSendsTheFirstMessageAsReplyAndTheRestAsFollowUps() {
+        List<String> sent = new ArrayList<>();
+        DatabaseReplies.afterDeferAll(defer(true, sendingHook(sent)), Runnable::run, TEXTS, "/deck list",
+                () -> List.of("first", "second"));
+        assertEquals(sent, List.of("edit:first", "follow-up:second"));
+    }
+
+    @Test
+    public void listCallErrorShowsUnavailableAndFailedDeferRunsNothing() {
+        List<String> sent = new ArrayList<>();
+        DatabaseReplies.afterDeferAll(defer(true, sendingHook(sent)), Runnable::run, TEXTS, "/deck get", () -> {
+            throw new java.sql.SQLException("down");
+        });
+        DatabaseReplies.afterDeferAll(defer(false, null), Runnable::run, TEXTS, "/deck save", () -> {
+            sent.add("ran");
+            return List.of("saved");
+        });
+        assertEquals(sent, List.of("edit:" + TEXTS.unavailable()));
+    }
+
+    @Test
     public void failedDeferNeverRunsHookWork() {
         List<String> runs = new ArrayList<>();
-        DatabaseReplies.afterDefer(defer(false, null), Runnable::run, "/leaderboard-admin share",
+        DatabaseReplies.afterDefer(defer(false, null), Runnable::run, TEXTS, "/leaderboard-admin share",
                 hook -> runs.add("posted"));
         assertTrue(runs.isEmpty(), "nothing may be posted when the user was told the command failed");
     }
@@ -111,13 +164,13 @@ public class DatabaseRepliesTest {
     @Test
     public void hookWorkGetsTheHookAndErrorsShowUnavailable() {
         List<String> edits = new ArrayList<>();
-        DatabaseReplies.afterDefer(defer(true, recordingHook(edits)), Runnable::run, "/leaderboard-admin share",
+        DatabaseReplies.afterDefer(defer(true, recordingHook(edits)), Runnable::run, TEXTS, "/leaderboard-admin share",
                 hook -> hook.editOriginal("posted").queue());
-        DatabaseReplies.afterDefer(defer(true, recordingHook(edits)), Runnable::run, "/leaderboard-admin share",
+        DatabaseReplies.afterDefer(defer(true, recordingHook(edits)), Runnable::run, TEXTS, "/leaderboard-admin share",
                 hook -> {
                     throw new java.sql.SQLException("down");
                 });
-        assertEquals(edits, List.of("posted", LeaderboardCommand.UNAVAILABLE));
+        assertEquals(edits, List.of("posted", TEXTS.unavailable()));
     }
 
     /**
@@ -141,7 +194,7 @@ public class DatabaseRepliesTest {
                         Thread.currentThread().interrupt();
                         return;
                     }
-                    DatabaseReplies.afterDefer(defer(true, recordingHook(edits)), database, "/points add", () -> {
+                    DatabaseReplies.afterDefer(defer(true, recordingHook(edits)), database, TEXTS, "/points add", () -> {
                         if (running.incrementAndGet() > 1) {
                             overlaps.incrementAndGet();
                         }
@@ -162,7 +215,7 @@ public class DatabaseRepliesTest {
         }
         assertEquals(overlaps.get(), 0);
         assertEquals(edits.size(), 100);
-        assertTrue(edits.stream().allMatch(e -> e.equals("done") || e.equals(LeaderboardCommand.BUSY)), edits.toString());
+        assertTrue(edits.stream().allMatch(e -> e.equals("done") || e.equals(TEXTS.busy())), edits.toString());
         assertTrue(edits.contains("done"));
     }
 }
