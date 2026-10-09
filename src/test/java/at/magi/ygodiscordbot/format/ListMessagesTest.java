@@ -79,7 +79,7 @@ public class ListMessagesTest {
     private static void assertValidMessages(List<String> messages) {
         assertFalse(messages.isEmpty());
         for (String message : messages) {
-            assertTrue(message.length() <= MessagePacker.MAX_MESSAGE_LENGTH, "too long: " + message.length());
+            assertTrue(message.length() <= DcMessageUtils.MAX_MESSAGE_LENGTH, "too long: " + message.length());
             assertEquals(message.split("```", -1).length % 2, 1, "unbalanced code fences in:\n" + message);
         }
     }
