@@ -1,6 +1,7 @@
 package at.magi.ygodiscordbot.format;
 
 import at.magi.ygodiscordbot.leaderboard.LeaderboardPage;
+import at.magi.ygodiscordbot.leaderboard.PointChange;
 import at.magi.ygodiscordbot.leaderboard.RankedPlayer;
 import org.testng.annotations.Test;
 
@@ -110,5 +111,48 @@ public class LeaderboardMessagesTest {
             names.put(i, "x".repeat(32));
         }
         return names;
+    }
+
+    @Test
+    public void playerPointsWithRank() {
+        assertEquals(LeaderboardMessages.playerPoints("Yugi", new RankedPlayer(2, 1, 120)),
+                "**Yugi** has 120 points (rank 2).");
+        assertEquals(LeaderboardMessages.playerPoints("Yugi", new RankedPlayer(1, 1, 1)),
+                "**Yugi** has 1 point (rank 1).");
+    }
+
+    @Test
+    public void entryReplies() {
+        assertEquals(LeaderboardMessages.notOnBoard("Yugi"), "**Yugi** is not on the leaderboard.");
+        assertEquals(LeaderboardMessages.added("Yugi"), "✅ Added **Yugi** to the leaderboard with 0 points.");
+        assertEquals(LeaderboardMessages.alreadyOnBoard("Yugi"), "**Yugi** is already on the leaderboard.");
+        assertEquals(LeaderboardMessages.pointsSet("Yugi", new PointChange(120, 50, false)),
+                "✅ **Yugi** now has 50 points (was 120).");
+    }
+
+    @Test
+    public void pointsChangedFully() {
+        assertEquals(LeaderboardMessages.pointsChanged("Yugi", new PointChange(120, 123, false), 3),
+                "✅ Added 3 points to **Yugi**: 120 → 123.");
+        assertEquals(LeaderboardMessages.pointsChanged("Yugi", new PointChange(5, 2, false), -3),
+                "✅ Removed 3 points from **Yugi**: 5 → 2.");
+        assertEquals(LeaderboardMessages.pointsChanged("Yugi", new PointChange(0, 3, true), 3),
+                "✅ Added **Yugi** to the leaderboard with 3 points.");
+    }
+
+    @Test
+    public void pointsChangedAtLimit() {
+        assertEquals(LeaderboardMessages.pointsChanged("Yugi", new PointChange(2, 0, false), -3),
+                "✅ Removed 2 of 3 points from **Yugi** (stopped at 0): 2 → 0.");
+        assertEquals(LeaderboardMessages.pointsChanged("Yugi",
+                        new PointChange(9223372036854775805L, 9223372036854775806L, false), 3),
+                "✅ Added 1 of 3 points to **Yugi** (maximum reached): 9223372036854775805 → 9223372036854775806.");
+    }
+
+    @Test
+    public void namesAreEscaped() {
+        // JDA escapes only characters that would format; a lone '_' stays as it is
+        assertEquals(LeaderboardMessages.notOnBoard("*Kaiba_*"), "**\\*Kaiba_\\*** is not on the leaderboard.");
+        assertEquals(LeaderboardMessages.notOnBoard("__Joey__"), "**\\_\\_Joey\\_\\_** is not on the leaderboard.");
     }
 }
