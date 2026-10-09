@@ -395,7 +395,7 @@ mvn test
 | `Communications link failure … Connection refused` | Wrong database host. On Waifly, use `172.18.0.1:3306`: `db.waifly.com` is the container's own host, and connections from a container to its host's public IP are refused |
 | `Access denied for user '…'@'172.18.0.x'` | The database only accepts certain IPs. Recreate it with **Connections from** left empty (the bot connects from Docker's internal network) |
 | `DB_URL is not set, /deck is disabled` | Add `DB_URL`, `DB_USER` and `DB_PASSWORD` to the server's `bot.properties` |
-| Who changed a player's points? | The console log: every command call is logged once (command, options with user IDs, user, server or DM), every leaderboard write as `Points of player <id> …: before → after`, and refused calls with the reason |
+| Who changed a player's points? | The console log: every command call is logged once (command, options with user IDs, user, server or DM), every leaderboard write as `Points of player <id> …: before → after [/points add by <user> (<id>)]`, and refused calls with the reason |
 | A command doesn't show up in Discord | Reload the Discord app (Ctrl+R). Also check **Server Settings → Integrations → the bot** for hidden commands |
 | Commands don't work in DMs | `DEV_GUILD_ID` is set; leave it empty to register commands globally |
 | `Bot stopped because of a configuration error` | Missing or invalid `DISCORD_TOKEN` (exit code 78, not restarted) |

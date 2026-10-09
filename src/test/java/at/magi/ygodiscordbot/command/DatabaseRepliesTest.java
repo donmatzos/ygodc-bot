@@ -2,6 +2,7 @@ package at.magi.ygodiscordbot.command;
 
 import net.dv8tion.jda.api.interactions.InteractionHook;
 import net.dv8tion.jda.api.requests.RestAction;
+import org.slf4j.MDC;
 import org.testng.annotations.Test;
 
 import java.lang.reflect.Proxy;
@@ -20,6 +21,7 @@ import java.util.concurrent.locks.LockSupport;
 import java.util.function.Consumer;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 
 public class DatabaseRepliesTest {
@@ -87,6 +89,35 @@ public class DatabaseRepliesTest {
             throw new RejectedExecutionException();
         }, "/points add", () -> "done");
         assertEquals(edits, List.of(LeaderboardCommand.BUSY));
+    }
+
+    @Test
+    public void actorIsInTheLogContextOnlyDuringTheCall() {
+        List<String> edits = new ArrayList<>();
+        DatabaseReplies.afterDefer(defer(true, recordingHook(edits)), Runnable::run, "/points add by yugi (1)",
+                () -> MDC.get(DatabaseReplies.ACTOR));
+        assertEquals(edits, List.of(" [/points add by yugi (1)]"));
+        assertNull(MDC.get(DatabaseReplies.ACTOR));
+    }
+
+    @Test
+    public void failedDeferNeverRunsHookWork() {
+        List<String> runs = new ArrayList<>();
+        DatabaseReplies.afterDefer(defer(false, null), Runnable::run, "/leaderboard-admin share",
+                hook -> runs.add("posted"));
+        assertTrue(runs.isEmpty(), "nothing may be posted when the user was told the command failed");
+    }
+
+    @Test
+    public void hookWorkGetsTheHookAndErrorsShowUnavailable() {
+        List<String> edits = new ArrayList<>();
+        DatabaseReplies.afterDefer(defer(true, recordingHook(edits)), Runnable::run, "/leaderboard-admin share",
+                hook -> hook.editOriginal("posted").queue());
+        DatabaseReplies.afterDefer(defer(true, recordingHook(edits)), Runnable::run, "/leaderboard-admin share",
+                hook -> {
+                    throw new java.sql.SQLException("down");
+                });
+        assertEquals(edits, List.of("posted", LeaderboardCommand.UNAVAILABLE));
     }
 
     /**
