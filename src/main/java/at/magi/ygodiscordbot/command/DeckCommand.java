@@ -193,7 +193,6 @@ public final class DeckCommand implements SlashCommand {
     }
 
     private void runInDatabase(SlashCommandInteractionEvent event, DatabaseWork work) {
-        log.info("/deck {} by {} ({})", event.getSubcommandName(), event.getUser().getName(), event.getUser().getId());
         event.deferReply(true).queue();
         try {
             dbExecutor.execute(() -> {

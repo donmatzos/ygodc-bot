@@ -19,9 +19,7 @@ import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.sql.SQLException;
 import java.util.concurrent.Executor;
-import java.util.concurrent.RejectedExecutionException;
 
 /**
  * {@code /leaderboard-admin share [channel]}: posts the top 20 into a server channel.
@@ -64,34 +62,17 @@ public final class LeaderboardAdminCommand implements SlashCommand {
             return;
         }
         GuildChannel chosen = event.getOption(CHANNEL, event.getGuildChannel(), OptionMapping::getAsChannel);
-        if (!(chosen instanceof GuildMessageChannel target)) {
-            event.reply("I can only post the leaderboard into text channels.").setEphemeral(true).queue();
-            return;
-        }
-        String problem = channelProblem(target.canTalk(event.getMember()), target.canTalk(), target.getAsMention());
+        String problem = chosen instanceof GuildMessageChannel target
+                ? channelProblem(target.canTalk(event.getMember()), target.canTalk(), target.getAsMention())
+                : "I can only post the leaderboard into text channels.";
         if (problem != null) {
+            log.info("/leaderboard-admin share refused for {}: {}", MessageSender.who(event), problem);
             event.reply(problem).setEphemeral(true).queue();
             return;
         }
-        log.info("/leaderboard-admin share by {} into #{} ({}) in server {}", MessageSender.who(event),
-                target.getName(), target.getId(), event.getGuild().getId());
-        event.deferReply(true).queue();
-        try {
-            dbExecutor.execute(() -> {
-                LeaderboardPage page;
-                try {
-                    page = players.page(1);
-                } catch (SQLException | RuntimeException e) {
-                    log.warn("/leaderboard-admin share failed for {}", event.getUser().getId(), e);
-                    event.getHook().editOriginal(LeaderboardCommand.UNAVAILABLE).queue();
-                    return;
-                }
-                post(event, target, page);
-            });
-        } catch (RejectedExecutionException e) {
-            log.warn("Request queue full, rejected /leaderboard-admin share by {}", event.getUser().getId());
-            event.getHook().editOriginal(LeaderboardCommand.BUSY).queue();
-        }
+        GuildMessageChannel target = (GuildMessageChannel) chosen;
+        // Only after Discord accepted the defer: a retry after a timeout must not post the leaderboard twice
+        DatabaseReplies.deferEphemeral(event, dbExecutor, hook -> post(event, target, players.page(1)));
     }
 
     private void post(SlashCommandInteractionEvent event, GuildMessageChannel target, LeaderboardPage page) {
@@ -103,9 +84,13 @@ public final class LeaderboardAdminCommand implements SlashCommand {
         names.resolve(event.getJDA(), page.rows(), found -> {
             try {
                 MessageSender.sendAll(target, LeaderboardMessages.page(LeaderboardCommand.TITLE, page, found))
-                        .queue(last -> event.getHook()
-                                        .editOriginal("✅ Posted the leaderboard in " + target.getAsMention() + ".")
-                                        .queue(),
+                        .queue(last -> {
+                                    log.info("Posted the leaderboard into #{} ({}) for {}", target.getName(),
+                                            target.getId(), MessageSender.who(event));
+                                    event.getHook()
+                                            .editOriginal("✅ Posted the leaderboard in " + target.getAsMention() + ".")
+                                            .queue();
+                                },
                                 failure -> postFailed(event, target, failure));
             } catch (RuntimeException e) {
                 // JDA checks the bot's cached permissions before sending (permissions changed since canTalk)

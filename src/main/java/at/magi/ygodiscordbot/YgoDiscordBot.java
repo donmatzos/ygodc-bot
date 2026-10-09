@@ -15,6 +15,7 @@ import at.magi.ygodiscordbot.command.LeaderboardAdminCommand;
 import at.magi.ygodiscordbot.command.LeaderboardCommand;
 import at.magi.ygodiscordbot.command.PlayerNames;
 import at.magi.ygodiscordbot.command.PingCommand;
+import at.magi.ygodiscordbot.command.PointsCommand;
 import at.magi.ygodiscordbot.config.BotConfig;
 import at.magi.ygodiscordbot.config.DatabaseConfig;
 import at.magi.ygodiscordbot.deck.DeckDatabase;
@@ -56,7 +57,7 @@ public final class YgoDiscordBot {
      */
     private static final Deque<Runnable> ON_SHUTDOWN = new ConcurrentLinkedDeque<>();
 
-    /** Pending /deck and /leaderboard requests beyond this are rejected with a "busy" reply, which bounds memory. */
+    /** Pending /deck, /leaderboard and /points requests beyond this are rejected with a "busy" reply, which bounds memory. */
     private static final int DECK_QUEUE_SIZE = 50;
 
     private YgoDiscordBot() {
@@ -95,7 +96,7 @@ public final class YgoDiscordBot {
         if (config.database() != null) {
             deckDatabase = openDeckDatabase(config.database());
         } else {
-            log.warn("DB_URL is not set, /deck and /leaderboard are disabled");
+            log.warn("DB_URL is not set, /deck, /leaderboard and /points are disabled");
         }
         if (deckDatabase != null) {
             deckExecutor = deckExecutor();
@@ -120,6 +121,7 @@ public final class YgoDiscordBot {
             PlayerNames playerNames = new PlayerNames(clock);
             commands.register(new LeaderboardCommand(players, playerNames, deckExecutor));
             commands.register(new LeaderboardAdminCommand(players, playerNames, deckExecutor));
+            commands.register(new PointsCommand(players, deckExecutor));
         }
 
         // Slash commands need no privileged intents, so the default (empty) set is enough.
@@ -182,7 +184,7 @@ public final class YgoDiscordBot {
         try {
             return DeckDatabase.open(database);
         } catch (RuntimeException e) {
-            log.error("Invalid decklist database settings ({}), /deck and /leaderboard are disabled: {}",
+            log.error("Invalid decklist database settings ({}), /deck, /leaderboard and /points are disabled: {}",
                     database, e.getMessage());
             return null;
         }
