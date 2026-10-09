@@ -7,6 +7,8 @@ It is built to run on a free hosting plan with about 300 MB of RAM.
   format lists, as plain-text messages that Discord's search can find.
 - **Decklists:** `/deck` stores each user's decks as [YDKE URIs](#4-ydke-the-deck-format) in a MySQL database and
   shows them with real card names.
+- **Leaderboard:** `/leaderboard` shows tournament points, ranked highest first; organizers can post the top 20
+  into a channel with `/leaderboard-admin share`.
 - **Hosting:** runs on [Waifly](https://waifly.com)'s free tier, a [Pterodactyl](https://pterodactyl.io) panel with
   ~300 MB of RAM and a Java image (start command `java -jar ygo-discord-bot.jar`). The database is the
   panel's MySQL, reached from inside the container at `172.18.0.1:3306`, not at the public `db.waifly.com`.
@@ -33,12 +35,24 @@ Contents:
 | `/deck update name:<name> ydke:<ydke://...>` | Replaces a saved deck and shows the new version |
 | `/deck delete name:<name>` | Deletes a deck and shows what was deleted |
 | `/deck list` | Lists your deck names |
+| `/leaderboard [page:<n>]` | Sends a leaderboard page (20 players, highest points first) to your DMs |
+| `/leaderboard-admin share [channel:<#channel>]` | Posts the top 20 into a channel (default: this one) |
 | `/ping` | Checks that the bot is alive |
 
 **`/banlist`** keeps server channels clean. Used in a server, it sends the list to the user's DMs and replies
 with a link that only they can see. Used in the bot's DM, it posts the list right there. The lists are plain
 text instead of embeds, because Discord's search can find plain text but not embeds. If a user blocks DMs
 from server members, the bot asks them to run the command in its DM instead.
+
+**`/leaderboard`** works like `/banlist`: in a server the page goes to your DMs, in the bot's DM it is posted
+there. Each page is a table with the columns Rank, Player and Points. Points are a running total per Discord
+user (table `players`: `id` = Discord user ID, `points` default 0); the rank is computed when querying, and
+players with equal points share a rank (1, 2, 2, 4). Points cannot be entered with a command yet.
+
+**`/leaderboard-admin`** is hidden from members without **Manage Server**. Server owners can hand it to other
+roles (or limit it to channels) under *Server Settings → Integrations → YGO DC Bot*; the bot does not check
+Manage Server itself, so those settings work. `share` only posts if both you and the bot can send messages
+in the target channel. Needs `DB_URL`, like `/deck`.
 
 **`/deck`** replies are only visible to the user who ran the command.
 - **Names:** deck names are per user and ignore case, so "Snake-Eye" and "snake-eye" are the same deck.
@@ -124,7 +138,7 @@ Everything the bot contacts at runtime. All HTTP requests send the `User-Agent` 
 | YGOProDeck card list | `https://db.ygoprodeck.com/api/v7/cardinfo.php` | Card names for `/deck` (passcode → name, including alternate artworks) | only when the version changed, at most every 3 days | 21 MB, 2.9 MB gzipped |
 | Konami Genesys page | `https://www.yugioh-card.com/en/genesys/` | TCG Genesys points (HTML table, parsed with jsoup) | daily, 03:00 Europe/Vienna | one HTML page |
 | Discord gateway and REST API | `wss://gateway.discord.gg`, `https://discord.com/api` (through JDA) | Login, receiving slash commands, sending replies, registering commands | permanent connection | n/a |
-| MySQL / MariaDB | `jdbc:mysql://172.18.0.1:3306/<db>` (on Waifly) | `decklist` table | per `/deck` command | tiny |
+| MySQL / MariaDB | `jdbc:mysql://172.18.0.1:3306/<db>` (on Waifly) | `decklist` and `players` tables | per `/deck` and `/leaderboard` command | tiny |
 
 Not contacted at runtime:
 - **[Format Library](https://www.formatlibrary.com):** source of the Goat (April 2005) and Edison (March 2010)
@@ -213,6 +227,10 @@ commands.register(new HelloCommand());
 Never block JDA's event thread with network or database work. Hand it to an executor and answer with
 `deferReply()` plus `getHook().editOriginal(...)`, as `DeckCommand` does.
 
+Output longer than Discord's 2000-character limit is split by `format/DcMessageUtils` (code-block tables with
+repeated headers, or plain lines) and sent in order by `command/MessageSender` (channel, interaction reply
+with follow-ups, or DMs).
+
 ### 3. Banlists
 
 - `source/YgoProDeckSource` (TCG, OCG) and `source/GenesysSource` (Konami's HTML, parsed with jsoup) fetch
@@ -220,7 +238,7 @@ Never block JDA's event thread with network or database work. Hand it to an exec
 - `banlist/BanlistRefresher` fetches daily at 03:00 Europe/Vienna, swaps a new immutable `BanlistSnapshot`
   into `BanlistRepository`, and stores it in `data/banlists.json`. A failed source keeps its previous list
   and is retried hourly; a run missed while the bot was offline is caught up at startup.
-- `format/ListMessages` and `MessagePacker` render headings and code-block tables, split at Discord's
+- `format/ListMessages` and `DcMessageUtils` render headings and code-block tables, split at Discord's
   **2000-character limit**.
 
 ### 4. YDKE, the deck format
@@ -306,12 +324,14 @@ src/main/java/at/magi/ygodiscordbot/
   YgoDiscordBot.java        entry point: wiring, Discord login, command registration, shutdown steps
   runtime/                  Supervisor (child JVM, memory flags, restarts), RestartPolicy
   config/                   BotConfig, DatabaseConfig (bot.properties / environment variables)
-  command/                  SlashCommand, CommandRegistry, BanlistCommand, DeckCommand, PingCommand
+  command/                  SlashCommand, CommandRegistry, BanlistCommand, DeckCommand, LeaderboardCommand,
+                            LeaderboardAdminCommand, PingCommand, MessageSender, PlayerNames (cached names)
   banlist/                  BanlistSnapshot, BanlistRepository, BanlistRefresher, SnapshotFileStore, StaticBanlists
   card/                     CardNames, CardCatalog, CardRepository, CardRefresher, CardFileStore
   deck/                     Ydke, YdkeDeck, Decklist, DeckDatabase (pool + schema), DecklistRepository (JDBC)
+  leaderboard/              RankedPlayer, LeaderboardPage, PlayerRepository (JDBC, RANK() per query)
   source/                   HttpDownloader, YgoProDeckSource, GenesysSource, CardSource
-  format/                   ListMessages, DeckMessages, MessagePacker (2000-character split)
+  format/                   ListMessages, DeckMessages, LeaderboardMessages, DcMessageUtils (2000-character split)
   entity/                   immutable banlist records
   storage/                  AtomicFiles
   json/                     shared Jackson mapper
@@ -328,14 +348,14 @@ mvn test
 ```
 
 - The tests use TestNG and need no network. Sources are tested with stored fixtures, and HTTP with a local server.
-- The `DecklistRepository` tests need a real MySQL or MariaDB database. They are skipped unless these
+- The `DecklistRepository` and `PlayerRepository` tests need a real MySQL or MariaDB database. They are skipped unless these
   variables are set:
 
   ```sh
   TEST_DB_URL=jdbc:mysql://127.0.0.1:3306/test TEST_DB_USER=... TEST_DB_PASSWORD=... mvn test
   ```
 
-  **The `decklist` table in that database is dropped before each test.** Never point these variables at
+  **The `decklist` and `players` tables in that database are dropped before each test.** Never point these variables at
   the production database.
 
 ---
