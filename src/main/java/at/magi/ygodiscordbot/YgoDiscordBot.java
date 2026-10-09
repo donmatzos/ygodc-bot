@@ -24,7 +24,7 @@ import at.magi.ygodiscordbot.impl.leaderboard.LeaderboardCommand;
 import at.magi.ygodiscordbot.impl.leaderboard.PlayerNames;
 import at.magi.ygodiscordbot.impl.leaderboard.PlayerRepository;
 import at.magi.ygodiscordbot.impl.leaderboard.PointsCommand;
-import at.magi.ygodiscordbot.runtime.Supervisor;
+import at.magi.ygodiscordbot.impl.runtime.Supervisor;
 import at.magi.ygodiscordbot.utils.http.HttpDownloader;
 import com.zaxxer.hikari.HikariDataSource;
 import net.dv8tion.jda.api.JDA;

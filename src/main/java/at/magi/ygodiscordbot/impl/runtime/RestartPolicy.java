@@ -1,4 +1,4 @@
-package at.magi.ygodiscordbot.runtime;
+package at.magi.ygodiscordbot.impl.runtime;
 
 import java.time.Duration;
 import java.util.Optional;

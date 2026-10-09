@@ -1,4 +1,4 @@
-package at.magi.ygodiscordbot.runtime;
+package at.magi.ygodiscordbot.impl.runtime;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
