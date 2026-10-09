@@ -1,8 +1,5 @@
 package at.magi.ygodiscordbot;
 
-import at.magi.ygodiscordbot.card.CardFileStore;
-import at.magi.ygodiscordbot.card.CardRefresher;
-import at.magi.ygodiscordbot.card.CardRepository;
 import at.magi.ygodiscordbot.command.CommandRegistry;
 import at.magi.ygodiscordbot.command.DeckCommand;
 import at.magi.ygodiscordbot.command.HelpCommand;
@@ -22,9 +19,12 @@ import at.magi.ygodiscordbot.impl.banlist.GenesysSource;
 import at.magi.ygodiscordbot.impl.banlist.SnapshotFileStore;
 import at.magi.ygodiscordbot.impl.banlist.StaticBanlists;
 import at.magi.ygodiscordbot.impl.banlist.YgoProDeckSource;
+import at.magi.ygodiscordbot.impl.card.CardFileStore;
+import at.magi.ygodiscordbot.impl.card.CardRefresher;
+import at.magi.ygodiscordbot.impl.card.CardRepository;
+import at.magi.ygodiscordbot.impl.card.CardSource;
 import at.magi.ygodiscordbot.leaderboard.PlayerRepository;
 import at.magi.ygodiscordbot.runtime.Supervisor;
-import at.magi.ygodiscordbot.source.CardSource;
 import at.magi.ygodiscordbot.utils.http.HttpDownloader;
 import com.zaxxer.hikari.HikariDataSource;
 import net.dv8tion.jda.api.JDA;

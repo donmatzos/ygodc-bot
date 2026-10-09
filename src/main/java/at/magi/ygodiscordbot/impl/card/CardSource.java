@@ -1,4 +1,4 @@
-package at.magi.ygodiscordbot.source;
+package at.magi.ygodiscordbot.impl.card;
 
 import at.magi.ygodiscordbot.entity.card.CardNames;
 import at.magi.ygodiscordbot.utils.http.HttpDownloader;
@@ -20,7 +20,7 @@ import java.util.Map;
  * streamed and trimmed on the fly: only passcodes and names are kept, never the whole document.
  *
  * <p>API rules: at most 20 requests per second, and data should be stored locally instead of fetched
- * repeatedly; {@link at.magi.ygodiscordbot.card.CardRefresher} calls this every few days at most.
+ * repeatedly; {@link CardRefresher} calls this every few days at most.
  */
 public final class CardSource {
 
