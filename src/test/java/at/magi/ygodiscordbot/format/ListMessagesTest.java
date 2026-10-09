@@ -7,6 +7,7 @@ import at.magi.ygodiscordbot.entity.GenesysPointEntry;
 import at.magi.ygodiscordbot.entity.GenesysPointlist;
 import at.magi.ygodiscordbot.entity.TcgBanlist;
 import at.magi.ygodiscordbot.source.FixtureLists;
+import at.magi.ygodiscordbot.utils.discord.DcMessageUtils;
 import org.testng.annotations.Test;
 
 import java.time.Instant;

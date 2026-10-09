@@ -5,7 +5,8 @@ import at.magi.ygodiscordbot.entity.Banlist;
 import at.magi.ygodiscordbot.entity.BanlistEntry;
 import at.magi.ygodiscordbot.entity.GenesysPointEntry;
 import at.magi.ygodiscordbot.entity.GenesysPointlist;
-import at.magi.ygodiscordbot.format.DcMessageUtils.Section;
+import at.magi.ygodiscordbot.utils.discord.DcMessageUtils.Section;
+import at.magi.ygodiscordbot.utils.discord.DcMessageUtils;
 
 import java.time.Instant;
 import java.util.ArrayList;

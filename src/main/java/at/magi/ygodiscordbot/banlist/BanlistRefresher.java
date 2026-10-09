@@ -3,7 +3,7 @@ package at.magi.ygodiscordbot.banlist;
 import at.magi.ygodiscordbot.entity.GenesysPointlist;
 import at.magi.ygodiscordbot.entity.OcgBanlist;
 import at.magi.ygodiscordbot.entity.TcgBanlist;
-import at.magi.ygodiscordbot.source.ListFetcher;
+import at.magi.ygodiscordbot.utils.http.ListFetcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

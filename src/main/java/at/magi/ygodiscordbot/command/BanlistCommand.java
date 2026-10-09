@@ -2,6 +2,7 @@ package at.magi.ygodiscordbot.command;
 
 import at.magi.ygodiscordbot.banlist.BanlistRepository;
 import at.magi.ygodiscordbot.format.ListMessages;
+import at.magi.ygodiscordbot.utils.discord.MessageSender;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.interactions.InteractionContextType;
 import net.dv8tion.jda.api.interactions.commands.OptionMapping;

@@ -1,6 +1,6 @@
 package at.magi.ygodiscordbot.card;
 
-import at.magi.ygodiscordbot.source.ListFetcher;
+import at.magi.ygodiscordbot.utils.http.ListFetcher;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;

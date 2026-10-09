@@ -2,7 +2,7 @@ package at.magi.ygodiscordbot.banlist;
 
 import at.magi.ygodiscordbot.entity.EdisonBanlist;
 import at.magi.ygodiscordbot.entity.GoatBanlist;
-import at.magi.ygodiscordbot.json.Json;
+import at.magi.ygodiscordbot.utils.json.JsonUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -27,7 +27,7 @@ public final class StaticBanlists {
             if (in == null) {
                 throw new IllegalStateException("Missing resource " + resource);
             }
-            return Json.MAPPER.readValue(in, type);
+            return JsonUtils.MAPPER.readValue(in, type);
         } catch (IOException e) {
             throw new UncheckedIOException("Could not read " + resource, e);
         }

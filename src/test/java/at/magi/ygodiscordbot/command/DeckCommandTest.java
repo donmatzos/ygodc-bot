@@ -2,11 +2,11 @@ package at.magi.ygodiscordbot.command;
 
 import at.magi.ygodiscordbot.card.TestCards;
 import at.magi.ygodiscordbot.deck.Decklist;
-import at.magi.ygodiscordbot.deck.DecklistRepository;
 import at.magi.ygodiscordbot.deck.DecklistRepository.SaveResult;
+import at.magi.ygodiscordbot.deck.DecklistRepository;
 import at.magi.ygodiscordbot.deck.Ydke;
 import at.magi.ygodiscordbot.deck.YdkeDeck;
-import at.magi.ygodiscordbot.format.DcMessageUtils;
+import at.magi.ygodiscordbot.utils.discord.DcMessageUtils;
 import org.testng.annotations.Test;
 
 import java.util.Collections;

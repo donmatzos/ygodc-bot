@@ -1,6 +1,6 @@
-package at.magi.ygodiscordbot.format;
+package at.magi.ygodiscordbot.utils.discord;
 
-import at.magi.ygodiscordbot.format.DcMessageUtils.Section;
+import at.magi.ygodiscordbot.utils.discord.DcMessageUtils.Section;
 import org.testng.annotations.Test;
 
 import java.util.Collections;

@@ -1,4 +1,4 @@
-package at.magi.ygodiscordbot.source;
+package at.magi.ygodiscordbot.utils.http;
 
 import com.sun.net.httpserver.HttpServer;
 import org.testng.annotations.AfterClass;

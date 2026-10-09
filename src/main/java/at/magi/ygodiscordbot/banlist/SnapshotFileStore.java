@@ -1,7 +1,7 @@
 package at.magi.ygodiscordbot.banlist;
 
-import at.magi.ygodiscordbot.json.Json;
-import at.magi.ygodiscordbot.storage.AtomicFiles;
+import at.magi.ygodiscordbot.utils.io.AtomicFiles;
+import at.magi.ygodiscordbot.utils.json.JsonUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,7 +36,7 @@ public final class SnapshotFileStore {
             return Optional.empty();
         }
         try {
-            return Optional.of(Json.MAPPER.readValue(file.toFile(), BanlistSnapshot.class));
+            return Optional.of(JsonUtils.MAPPER.readValue(file.toFile(), BanlistSnapshot.class));
         } catch (IOException | RuntimeException e) {
             log.warn("Ignoring unreadable snapshot file {}", file, e);
             return Optional.empty();
@@ -44,6 +44,6 @@ public final class SnapshotFileStore {
     }
 
     public void save(BanlistSnapshot snapshot) throws IOException {
-        AtomicFiles.write(file, TEMP_PREFIX, out -> Json.MAPPER.writeValue(out, snapshot));
+        AtomicFiles.write(file, TEMP_PREFIX, out -> JsonUtils.MAPPER.writeValue(out, snapshot));
     }
 }

@@ -1,4 +1,4 @@
-package at.magi.ygodiscordbot.format;
+package at.magi.ygodiscordbot.utils.discord;
 
 import java.util.ArrayList;
 import java.util.List;

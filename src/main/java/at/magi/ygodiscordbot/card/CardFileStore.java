@@ -1,7 +1,7 @@
 package at.magi.ygodiscordbot.card;
 
-import at.magi.ygodiscordbot.json.Json;
-import at.magi.ygodiscordbot.storage.AtomicFiles;
+import at.magi.ygodiscordbot.utils.io.AtomicFiles;
+import at.magi.ygodiscordbot.utils.json.JsonUtils;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
@@ -42,7 +42,7 @@ public final class CardFileStore {
             return Optional.empty();
         }
         try (InputStream in = Files.newInputStream(file);
-             JsonParser parser = Json.MAPPER.getFactory().createParser(in)) {
+             JsonParser parser = JsonUtils.MAPPER.getFactory().createParser(in)) {
             return Optional.of(read(parser));
         } catch (IOException | RuntimeException e) {
             log.warn("Ignoring unreadable card file {}", file, e);
@@ -52,7 +52,7 @@ public final class CardFileStore {
 
     public void save(CardCatalog catalog) throws IOException {
         AtomicFiles.write(file, TEMP_PREFIX, out -> {
-            try (JsonGenerator json = Json.MAPPER.getFactory().createGenerator(out)) {
+            try (JsonGenerator json = JsonUtils.MAPPER.getFactory().createGenerator(out)) {
                 json.writeStartObject();
                 json.writeStringField("version", catalog.version());
                 json.writeStringField("checkedAt", catalog.checkedAt().toString());

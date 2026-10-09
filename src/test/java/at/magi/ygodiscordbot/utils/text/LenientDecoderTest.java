@@ -1,4 +1,4 @@
-package at.magi.ygodiscordbot.source;
+package at.magi.ygodiscordbot.utils.text;
 
 import org.testng.annotations.Test;
 

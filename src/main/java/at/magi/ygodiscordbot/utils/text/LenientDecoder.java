@@ -1,4 +1,4 @@
-package at.magi.ygodiscordbot.source;
+package at.magi.ygodiscordbot.utils.text;
 
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
@@ -9,14 +9,14 @@ import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 
 /** Decodes UTF-8, falling back to Windows-1252 for bytes that are not valid UTF-8. */
-final class LenientDecoder {
+public final class LenientDecoder {
 
     private static final Charset WINDOWS_1252 = Charset.forName("windows-1252");
 
     private LenientDecoder() {
     }
 
-    static String decode(byte[] bytes) {
+    public static String decode(byte[] bytes) {
         CharsetDecoder utf8 = StandardCharsets.UTF_8.newDecoder()
                 .onMalformedInput(CodingErrorAction.REPORT)
                 .onUnmappableCharacter(CodingErrorAction.REPORT);

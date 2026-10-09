@@ -5,6 +5,7 @@ import at.magi.ygodiscordbot.leaderboard.LeaderboardPage;
 import at.magi.ygodiscordbot.leaderboard.PlayerRepository;
 import at.magi.ygodiscordbot.leaderboard.PointChange;
 import at.magi.ygodiscordbot.leaderboard.Points;
+import at.magi.ygodiscordbot.utils.discord.MessageSender;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.User;

@@ -4,7 +4,8 @@ import at.magi.ygodiscordbot.entity.BanStatus;
 import at.magi.ygodiscordbot.entity.BanlistEntry;
 import at.magi.ygodiscordbot.entity.OcgBanlist;
 import at.magi.ygodiscordbot.entity.TcgBanlist;
-import at.magi.ygodiscordbot.json.Json;
+import at.magi.ygodiscordbot.utils.http.HttpDownloader;
+import at.magi.ygodiscordbot.utils.json.JsonUtils;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.io.IOException;
@@ -47,7 +48,7 @@ public final class YgoProDeckSource {
     }
 
     static List<BanlistEntry> parse(byte[] json, String banlist) throws IOException {
-        Response response = Json.MAPPER.readValue(json, Response.class);
+        Response response = JsonUtils.MAPPER.readValue(json, Response.class);
         if (response.data() == null) {
             throw new IOException("YGOProDeck response for " + banlist + " has no data");
         }

@@ -3,6 +3,7 @@ package at.magi.ygodiscordbot.format;
 import at.magi.ygodiscordbot.leaderboard.LeaderboardPage;
 import at.magi.ygodiscordbot.leaderboard.PointChange;
 import at.magi.ygodiscordbot.leaderboard.RankedPlayer;
+import at.magi.ygodiscordbot.utils.discord.DcMessageUtils;
 import org.testng.annotations.Test;
 
 import java.util.ArrayList;

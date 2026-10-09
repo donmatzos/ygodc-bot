@@ -3,7 +3,7 @@ package at.magi.ygodiscordbot.banlist;
 import at.magi.ygodiscordbot.entity.GenesysPointlist;
 import at.magi.ygodiscordbot.entity.OcgBanlist;
 import at.magi.ygodiscordbot.entity.TcgBanlist;
-import at.magi.ygodiscordbot.source.ListFetcher;
+import at.magi.ygodiscordbot.utils.http.ListFetcher;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;

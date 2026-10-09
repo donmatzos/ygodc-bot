@@ -1,7 +1,8 @@
 package at.magi.ygodiscordbot.source;
 
 import at.magi.ygodiscordbot.card.CardNames;
-import at.magi.ygodiscordbot.json.Json;
+import at.magi.ygodiscordbot.utils.http.HttpDownloader;
+import at.magi.ygodiscordbot.utils.json.JsonUtils;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -46,7 +47,7 @@ public final class CardSource {
 
     static String parseVersion(byte[] json) throws IOException {
         // [{"database_version":"147.22","last_update":"2026-10-02 00:03:40"}]
-        JsonNode version = Json.MAPPER.readTree(json).path(0).path("database_version");
+        JsonNode version = JsonUtils.MAPPER.readTree(json).path(0).path("database_version");
         if (!version.isValueNode() || version.asText().isBlank()) {
             throw new IOException("YGOProDeck version response has no database_version");
         }
@@ -60,7 +61,7 @@ public final class CardSource {
     static CardNames parseCards(InputStream body, int minCards) throws IOException {
         Map<Integer, String> names = new HashMap<>(20_000);
         int cards = 0;
-        try (JsonParser parser = Json.MAPPER.getFactory().createParser(body)) {
+        try (JsonParser parser = JsonUtils.MAPPER.getFactory().createParser(body)) {
             if (parser.nextToken() != JsonToken.START_OBJECT) {
                 throw new IOException("Expected a JSON object");
             }

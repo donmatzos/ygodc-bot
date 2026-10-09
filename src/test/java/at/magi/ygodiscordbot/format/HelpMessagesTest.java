@@ -1,5 +1,6 @@
 package at.magi.ygodiscordbot.format;
 
+import at.magi.ygodiscordbot.utils.discord.DcMessageUtils;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.Commands;
 import net.dv8tion.jda.api.interactions.commands.build.OptionData;

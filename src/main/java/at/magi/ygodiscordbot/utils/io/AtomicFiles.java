@@ -1,4 +1,4 @@
-package at.magi.ygodiscordbot.storage;
+package at.magi.ygodiscordbot.utils.io;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

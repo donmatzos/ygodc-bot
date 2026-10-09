@@ -1,6 +1,7 @@
 package at.magi.ygodiscordbot.command;
 
 import at.magi.ygodiscordbot.format.HelpMessages;
+import at.magi.ygodiscordbot.utils.discord.MessageSender;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;

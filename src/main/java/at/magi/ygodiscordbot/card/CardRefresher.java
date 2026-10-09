@@ -1,6 +1,6 @@
 package at.magi.ygodiscordbot.card;
 
-import at.magi.ygodiscordbot.source.ListFetcher;
+import at.magi.ygodiscordbot.utils.http.ListFetcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

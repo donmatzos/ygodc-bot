@@ -1,9 +1,10 @@
 package at.magi.ygodiscordbot.format;
 
-import at.magi.ygodiscordbot.format.DcMessageUtils.Section;
 import at.magi.ygodiscordbot.leaderboard.LeaderboardPage;
 import at.magi.ygodiscordbot.leaderboard.PointChange;
 import at.magi.ygodiscordbot.leaderboard.RankedPlayer;
+import at.magi.ygodiscordbot.utils.discord.DcMessageUtils.Section;
+import at.magi.ygodiscordbot.utils.discord.DcMessageUtils;
 import net.dv8tion.jda.api.utils.MarkdownSanitizer;
 
 import java.util.ArrayList;
