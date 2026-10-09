@@ -10,6 +10,7 @@ import at.magi.ygodiscordbot.card.CardRepository;
 import at.magi.ygodiscordbot.command.BanlistCommand;
 import at.magi.ygodiscordbot.command.CommandRegistry;
 import at.magi.ygodiscordbot.command.DeckCommand;
+import at.magi.ygodiscordbot.command.HelpCommand;
 import at.magi.ygodiscordbot.command.LeaderboardAdminCommand;
 import at.magi.ygodiscordbot.command.LeaderboardCommand;
 import at.magi.ygodiscordbot.command.PlayerNames;
@@ -85,6 +86,8 @@ public final class YgoDiscordBot {
 
         CommandRegistry commands = new CommandRegistry();
         commands.register(new PingCommand());
+        // Reads the registry on every call, so it also lists /deck and /leaderboard registered below
+        commands.register(new HelpCommand(commands::commandData));
         commands.register(new BanlistCommand(banlists));
 
         HikariDataSource deckDatabase = null;
