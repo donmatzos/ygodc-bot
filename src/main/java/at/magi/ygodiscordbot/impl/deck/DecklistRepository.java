@@ -27,6 +27,24 @@ public class DecklistRepository {
     /** Keeps the free database small and stops a single user from filling it. */
     public static final int MAX_DECKS_PER_USER = 50;
 
+    /**
+     * MySQL 8+ / MariaDB 10.2+ version of the schema. The collation makes names case-insensitive
+     * ("Snake-Eye" = "snake-eye"); the YDKE string is plain ASCII.
+     */
+    static final String SCHEMA = """
+            CREATE TABLE IF NOT EXISTS decklist (
+                id          BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                user_id     BIGINT       NOT NULL,
+                name        VARCHAR(50)  CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+                ydke        VARCHAR(4000) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+                created_at  BIGINT       NOT NULL,
+                updated_at  BIGINT       NOT NULL,
+                CONSTRAINT uq_decklist_user_name UNIQUE (user_id, name),
+                CONSTRAINT chk_decklist_name CHECK (CHAR_LENGTH(name) BETWEEN 1 AND 50),
+                CONSTRAINT chk_decklist_ydke CHECK (ydke LIKE 'ydke://%')
+            ) ENGINE = InnoDB
+            """;
+
     /** MySQL and MariaDB error code for a duplicate key (ER_DUP_ENTRY). */
     static final int DUPLICATE_KEY = 1062;
 
@@ -48,7 +66,7 @@ public class DecklistRepository {
         }
         try (Connection connection = dataSource.getConnection();
              Statement statement = connection.createStatement()) {
-            statement.execute(DeckDatabase.SCHEMA);
+            statement.execute(SCHEMA);
         }
         schemaReady = true;
         log.info("Decklist table is ready");

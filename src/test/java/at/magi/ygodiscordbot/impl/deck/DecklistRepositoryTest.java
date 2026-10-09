@@ -4,6 +4,7 @@ import at.magi.ygodiscordbot.entity.deck.Decklist;
 import at.magi.ygodiscordbot.entity.deck.Ydke;
 import at.magi.ygodiscordbot.entity.deck.YdkeTest;
 import at.magi.ygodiscordbot.impl.config.DatabaseConfig;
+import at.magi.ygodiscordbot.impl.database.DatabasePool;
 import at.magi.ygodiscordbot.impl.deck.DecklistRepository.SaveResult;
 import com.zaxxer.hikari.HikariDataSource;
 import org.testng.SkipException;
@@ -45,7 +46,7 @@ public class DecklistRepositoryTest {
         if (url == null || url.isBlank()) {
             throw new SkipException("TEST_DB_URL not set");
         }
-        dataSource = DeckDatabase.open(
+        dataSource = DatabasePool.open(
                 new DatabaseConfig(url, System.getenv("TEST_DB_USER"), System.getenv("TEST_DB_PASSWORD")));
     }
 

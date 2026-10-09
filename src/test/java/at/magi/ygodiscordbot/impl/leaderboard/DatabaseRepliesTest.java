@@ -121,7 +121,7 @@ public class DatabaseRepliesTest {
     }
 
     /**
-     * Race smoke test: 100 commands arrive at once. Like the bot's deck-db executor (one thread, queue of 50), calls
+     * Race smoke test: 100 commands arrive at once. Like the bot's db executor (one thread, queue of 50), calls
      * must never overlap, and every request gets exactly one reply: its result or "busy".
      */
     @Test

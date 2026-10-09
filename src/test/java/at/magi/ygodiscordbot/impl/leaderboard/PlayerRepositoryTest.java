@@ -5,7 +5,7 @@ import at.magi.ygodiscordbot.entity.leaderboard.PointChange;
 import at.magi.ygodiscordbot.entity.leaderboard.Points;
 import at.magi.ygodiscordbot.entity.leaderboard.RankedPlayer;
 import at.magi.ygodiscordbot.impl.config.DatabaseConfig;
-import at.magi.ygodiscordbot.impl.deck.DeckDatabase;
+import at.magi.ygodiscordbot.impl.database.DatabasePool;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
@@ -50,7 +50,7 @@ public class PlayerRepositoryTest {
         if (url == null || url.isBlank()) {
             throw new SkipException("TEST_DB_URL not set");
         }
-        dataSource = DeckDatabase.open(
+        dataSource = DatabasePool.open(
                 new DatabaseConfig(url, System.getenv("TEST_DB_USER"), System.getenv("TEST_DB_PASSWORD")));
     }
 
