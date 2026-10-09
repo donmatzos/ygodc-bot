@@ -16,7 +16,6 @@ import net.dv8tion.jda.api.interactions.commands.build.Commands;
 import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import net.dv8tion.jda.api.interactions.commands.build.SlashCommandData;
 import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
-import net.dv8tion.jda.api.requests.RestAction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -215,10 +214,7 @@ public final class DeckCommand implements SlashCommand {
 
     /** Replaces the deferred reply with the first message; the rest follow in order, also only visible to the user. */
     private static void send(SlashCommandInteractionEvent event, List<String> replies) {
-        RestAction<?> chain = event.getHook().editOriginal(replies.get(0));
-        for (String reply : replies.subList(1, replies.size())) {
-            chain = chain.flatMap(previous -> event.getHook().sendMessage(reply).setEphemeral(true));
-        }
-        chain.queue(null, error -> log.warn("Could not send /deck reply to {}", event.getUser().getId(), error));
+        MessageSender.replyAll(event.getHook(), replies, true)
+                .queue(null, error -> log.warn("Could not send /deck reply to {}", event.getUser().getId(), error));
     }
 }
