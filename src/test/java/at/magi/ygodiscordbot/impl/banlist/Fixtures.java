@@ -1,4 +1,4 @@
-package at.magi.ygodiscordbot.source;
+package at.magi.ygodiscordbot.impl.banlist;
 
 import java.io.IOException;
 import java.io.InputStream;

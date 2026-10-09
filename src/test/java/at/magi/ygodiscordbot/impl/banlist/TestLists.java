@@ -1,4 +1,4 @@
-package at.magi.ygodiscordbot.banlist;
+package at.magi.ygodiscordbot.impl.banlist;
 
 import at.magi.ygodiscordbot.entity.banlist.BanStatus;
 import at.magi.ygodiscordbot.entity.banlist.BanlistEntry;

@@ -1,4 +1,4 @@
-package at.magi.ygodiscordbot.source;
+package at.magi.ygodiscordbot.impl.banlist;
 
 import at.magi.ygodiscordbot.entity.banlist.GenesysPointEntry;
 import at.magi.ygodiscordbot.entity.banlist.GenesysPointlist;
