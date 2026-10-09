@@ -1,11 +1,10 @@
-package at.magi.ygodiscordbot.command;
+package at.magi.ygodiscordbot.impl.deck;
 
-import at.magi.ygodiscordbot.deck.DecklistRepository.SaveResult;
-import at.magi.ygodiscordbot.deck.DecklistRepository;
 import at.magi.ygodiscordbot.entity.card.TestCards;
 import at.magi.ygodiscordbot.entity.deck.Decklist;
 import at.magi.ygodiscordbot.entity.deck.Ydke;
 import at.magi.ygodiscordbot.entity.deck.YdkeDeck;
+import at.magi.ygodiscordbot.impl.deck.DecklistRepository.SaveResult;
 import at.magi.ygodiscordbot.utils.discord.DcMessageUtils;
 import org.testng.annotations.Test;
 

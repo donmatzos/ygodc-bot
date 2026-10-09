@@ -1,10 +1,10 @@
-package at.magi.ygodiscordbot.deck;
+package at.magi.ygodiscordbot.impl.deck;
 
 import at.magi.ygodiscordbot.config.DatabaseConfig;
-import at.magi.ygodiscordbot.deck.DecklistRepository.SaveResult;
 import at.magi.ygodiscordbot.entity.deck.Decklist;
 import at.magi.ygodiscordbot.entity.deck.Ydke;
 import at.magi.ygodiscordbot.entity.deck.YdkeTest;
+import at.magi.ygodiscordbot.impl.deck.DecklistRepository.SaveResult;
 import com.zaxxer.hikari.HikariDataSource;
 import org.testng.SkipException;
 import org.testng.annotations.AfterClass;

@@ -1,4 +1,4 @@
-package at.magi.ygodiscordbot.format;
+package at.magi.ygodiscordbot.impl.deck;
 
 import at.magi.ygodiscordbot.entity.card.CardNames;
 import at.magi.ygodiscordbot.entity.card.TestCards;

@@ -1,4 +1,4 @@
-package at.magi.ygodiscordbot.deck;
+package at.magi.ygodiscordbot.impl.deck;
 
 import at.magi.ygodiscordbot.entity.deck.Decklist;
 import org.slf4j.Logger;

@@ -1,4 +1,4 @@
-package at.magi.ygodiscordbot.deck;
+package at.magi.ygodiscordbot.impl.deck;
 
 import at.magi.ygodiscordbot.config.DatabaseConfig;
 import com.zaxxer.hikari.HikariConfig;
