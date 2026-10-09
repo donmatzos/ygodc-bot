@@ -6,8 +6,17 @@ import org.testng.annotations.Test;
 
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.LockSupport;
 import java.util.function.Consumer;
 
 import static org.testng.Assert.assertEquals;
@@ -78,5 +87,51 @@ public class DatabaseRepliesTest {
             throw new RejectedExecutionException();
         }, "/points add", () -> "done");
         assertEquals(edits, List.of(LeaderboardCommand.BUSY));
+    }
+
+    /**
+     * Race smoke test: 100 commands arrive at once. Like the bot's deck-db executor (one thread, queue of 50), calls
+     * must never overlap, and every request gets exactly one reply: its result or "busy".
+     */
+    @Test
+    public void simultaneousCommandsRunOneAtATimeAndAllGetAReply() throws Exception {
+        ThreadPoolExecutor database = new ThreadPoolExecutor(1, 1, 0, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<>(50));
+        ExecutorService discord = Executors.newFixedThreadPool(8);
+        List<String> edits = Collections.synchronizedList(new ArrayList<>());
+        AtomicInteger running = new AtomicInteger();
+        AtomicInteger overlaps = new AtomicInteger();
+        CountDownLatch start = new CountDownLatch(1);
+        try {
+            for (int i = 0; i < 100; i++) {
+                discord.execute(() -> {
+                    try {
+                        start.await();
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        return;
+                    }
+                    DatabaseReplies.afterDefer(defer(true, recordingHook(edits)), database, "/points add", () -> {
+                        if (running.incrementAndGet() > 1) {
+                            overlaps.incrementAndGet();
+                        }
+                        LockSupport.parkNanos(1_000_000);
+                        running.decrementAndGet();
+                        return "done";
+                    });
+                });
+            }
+            start.countDown();
+            discord.shutdown();
+            assertTrue(discord.awaitTermination(30, TimeUnit.SECONDS));
+            database.shutdown();
+            assertTrue(database.awaitTermination(30, TimeUnit.SECONDS));
+        } finally {
+            discord.shutdownNow();
+            database.shutdownNow();
+        }
+        assertEquals(overlaps.get(), 0);
+        assertEquals(edits.size(), 100);
+        assertTrue(edits.stream().allMatch(e -> e.equals("done") || e.equals(LeaderboardCommand.BUSY)), edits.toString());
+        assertTrue(edits.contains("done"));
     }
 }
