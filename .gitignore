@@ -9,6 +9,9 @@ deploy.env
 CLAUDE.md
 context.md
 
+# Implementation plans (local only)
+plans/
+
 # Secrets
 bot.properties
 .env

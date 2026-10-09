@@ -6,6 +6,7 @@ import at.magi.ygodiscordbot.deck.DecklistRepository;
 import at.magi.ygodiscordbot.deck.DecklistRepository.SaveResult;
 import at.magi.ygodiscordbot.deck.Ydke;
 import at.magi.ygodiscordbot.deck.YdkeDeck;
+import at.magi.ygodiscordbot.format.DcMessageUtils;
 import org.testng.annotations.Test;
 
 import java.util.Collections;
@@ -94,7 +95,7 @@ public class DeckCommandTest {
         assertTrue(messages.size() > 1);
         assertTrue(messages.get(0).startsWith("Your decks (50):"));
         for (String message : messages) {
-            assertTrue(message.length() <= DeckCommand.MAX_MESSAGE_LENGTH, "too long: " + message.length());
+            assertTrue(message.length() <= DcMessageUtils.MAX_MESSAGE_LENGTH, "too long: " + message.length());
         }
         assertEquals(String.join("\n", messages).lines().filter(line -> line.startsWith("• ")).count(), 50L);
     }

@@ -10,11 +10,15 @@ import at.magi.ygodiscordbot.card.CardRepository;
 import at.magi.ygodiscordbot.command.BanlistCommand;
 import at.magi.ygodiscordbot.command.CommandRegistry;
 import at.magi.ygodiscordbot.command.DeckCommand;
+import at.magi.ygodiscordbot.command.LeaderboardAdminCommand;
+import at.magi.ygodiscordbot.command.LeaderboardCommand;
+import at.magi.ygodiscordbot.command.PlayerNames;
 import at.magi.ygodiscordbot.command.PingCommand;
 import at.magi.ygodiscordbot.config.BotConfig;
 import at.magi.ygodiscordbot.config.DatabaseConfig;
 import at.magi.ygodiscordbot.deck.DeckDatabase;
 import at.magi.ygodiscordbot.deck.DecklistRepository;
+import at.magi.ygodiscordbot.leaderboard.PlayerRepository;
 import at.magi.ygodiscordbot.runtime.Supervisor;
 import at.magi.ygodiscordbot.source.CardSource;
 import at.magi.ygodiscordbot.source.GenesysSource;
@@ -25,6 +29,7 @@ import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.exceptions.InvalidTokenException;
 import net.dv8tion.jda.api.requests.GatewayIntent;
+import net.dv8tion.jda.api.utils.cache.CacheFlag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,7 +55,7 @@ public final class YgoDiscordBot {
      */
     private static final Deque<Runnable> ON_SHUTDOWN = new ConcurrentLinkedDeque<>();
 
-    /** Pending /deck requests beyond this are rejected with a "busy" reply, which bounds memory. */
+    /** Pending /deck and /leaderboard requests beyond this are rejected with a "busy" reply, which bounds memory. */
     private static final int DECK_QUEUE_SIZE = 50;
 
     private YgoDiscordBot() {
@@ -87,7 +92,7 @@ public final class YgoDiscordBot {
         if (config.database() != null) {
             deckDatabase = openDeckDatabase(config.database());
         } else {
-            log.warn("DB_URL is not set, /deck is disabled");
+            log.warn("DB_URL is not set, /deck and /leaderboard are disabled");
         }
         if (deckDatabase != null) {
             deckExecutor = deckExecutor();
@@ -106,12 +111,20 @@ public final class YgoDiscordBot {
             ON_SHUTDOWN.push(cardRefresher::close);
 
             commands.register(new DeckCommand(decks, cards, deckExecutor));
+
+            PlayerRepository players = new PlayerRepository(deckDatabase);
+            deckExecutor.execute(() -> createPlayersSchema(players, config.database()));
+            PlayerNames playerNames = new PlayerNames(clock);
+            commands.register(new LeaderboardCommand(players, playerNames, deckExecutor));
+            commands.register(new LeaderboardAdminCommand(players, playerNames, deckExecutor));
         }
 
         // Slash commands need no privileged intents, so the default (empty) set is enough.
         JDA jda;
         try {
             jda = JDABuilder.createLight(config.token(), EnumSet.noneOf(GatewayIntent.class))
+                    // Per-member channel overrides, so /leaderboard-admin share checks the organizer's real permissions
+                    .enableCache(CacheFlag.MEMBER_OVERRIDES)
                     .addEventListeners(commands)
                     .build()
                     .awaitReady();
@@ -166,7 +179,8 @@ public final class YgoDiscordBot {
         try {
             return DeckDatabase.open(database);
         } catch (RuntimeException e) {
-            log.error("Invalid decklist database settings ({}), /deck is disabled: {}", database, e.getMessage());
+            log.error("Invalid decklist database settings ({}), /deck and /leaderboard are disabled: {}",
+                    database, e.getMessage());
             return null;
         }
     }
@@ -187,6 +201,15 @@ public final class YgoDiscordBot {
         } catch (SQLException | RuntimeException e) {
             // Retried on the first /deck call
             log.error("Could not reach the decklist database {}: {}", database.safeUrl(), e.getMessage());
+        }
+    }
+
+    private static void createPlayersSchema(PlayerRepository players, DatabaseConfig database) {
+        try {
+            players.ensureSchema();
+        } catch (SQLException | RuntimeException e) {
+            // Retried on the first /leaderboard call
+            log.error("Could not create the players table in {}: {}", database.safeUrl(), e.getMessage());
         }
     }
 

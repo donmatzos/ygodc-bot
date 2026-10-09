@@ -6,6 +6,7 @@ import at.magi.ygodiscordbot.deck.Decklist;
 import at.magi.ygodiscordbot.deck.DecklistRepository;
 import at.magi.ygodiscordbot.deck.Ydke;
 import at.magi.ygodiscordbot.deck.YdkeDeck;
+import at.magi.ygodiscordbot.format.DcMessageUtils;
 import at.magi.ygodiscordbot.format.DeckMessages;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.interactions.InteractionContextType;
@@ -15,12 +16,10 @@ import net.dv8tion.jda.api.interactions.commands.build.Commands;
 import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import net.dv8tion.jda.api.interactions.commands.build.SlashCommandData;
 import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
-import net.dv8tion.jda.api.requests.RestAction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
@@ -38,9 +37,6 @@ public final class DeckCommand implements SlashCommand {
     static final int MAX_MAIN = 60;
     static final int MAX_EXTRA = 15;
     static final int MAX_SIDE = 15;
-
-    /** Discord's limit for message content sent by bots. */
-    static final int MAX_MESSAGE_LENGTH = 2000;
 
     static final String UNAVAILABLE = "Deck storage is not available right now. Please try again later.";
     static final String BUSY = "Too many deck requests right now. Please try again in a moment.";
@@ -180,19 +176,8 @@ public final class DeckCommand implements SlashCommand {
         if (names.isEmpty()) {
             return List.of("You have no saved decks. Save one with `/deck save`.");
         }
-        List<String> messages = new ArrayList<>();
-        StringBuilder reply = new StringBuilder("Your decks (" + names.size() + "):");
-        for (String name : names) {
-            String line = "\n• " + name;
-            if (reply.length() + line.length() > MAX_MESSAGE_LENGTH) {
-                messages.add(reply.toString());
-                reply = new StringBuilder(line.substring(1));
-            } else {
-                reply.append(line);
-            }
-        }
-        messages.add(reply.toString());
-        return messages;
+        return DcMessageUtils.packLines("Your decks (" + names.size() + "):",
+                names.stream().map(name -> "• " + name).toList());
     }
 
     private static String counts(YdkeDeck deck) {
@@ -229,10 +214,7 @@ public final class DeckCommand implements SlashCommand {
 
     /** Replaces the deferred reply with the first message; the rest follow in order, also only visible to the user. */
     private static void send(SlashCommandInteractionEvent event, List<String> replies) {
-        RestAction<?> chain = event.getHook().editOriginal(replies.get(0));
-        for (String reply : replies.subList(1, replies.size())) {
-            chain = chain.flatMap(previous -> event.getHook().sendMessage(reply).setEphemeral(true));
-        }
-        chain.queue(null, error -> log.warn("Could not send /deck reply to {}", event.getUser().getId(), error));
+        MessageSender.replyAll(event.getHook(), replies, true)
+                .queue(null, error -> log.warn("Could not send /deck reply to {}", event.getUser().getId(), error));
     }
 }

@@ -29,13 +29,13 @@ public final class DeckMessages {
             return List.of(intro + "\n_Card names are not loaded yet, try again in a few minutes._" + uri);
         }
 
-        List<MessagePacker.Section> sections = new ArrayList<>();
+        List<DcMessageUtils.Section> sections = new ArrayList<>();
         addZone(sections, "Main Deck", deck.main(), names);
         addZone(sections, "Extra Deck", deck.extra(), names);
         addZone(sections, "Side Deck", deck.side(), names);
-        List<String> messages = new ArrayList<>(MessagePacker.pack(intro, sections));
+        List<String> messages = new ArrayList<>(DcMessageUtils.packTables(intro, sections));
         int last = messages.size() - 1;
-        if (messages.get(last).length() + uri.length() <= MessagePacker.MAX_MESSAGE_LENGTH) {
+        if (messages.get(last).length() + uri.length() <= DcMessageUtils.MAX_MESSAGE_LENGTH) {
             messages.set(last, messages.get(last) + uri);
         } else {
             messages.add(uri.strip());
@@ -69,7 +69,7 @@ public final class DeckMessages {
         return unknown;
     }
 
-    private static void addZone(List<MessagePacker.Section> sections, String title, List<Long> passcodes,
+    private static void addZone(List<DcMessageUtils.Section> sections, String title, List<Long> passcodes,
                                 CardNames names) {
         if (passcodes.isEmpty()) {
             return;
@@ -80,9 +80,9 @@ public final class DeckMessages {
             copies.merge(passcode, 1, Integer::sum);
         }
         List<String> rows = new ArrayList<>(copies.size());
-        copies.forEach((passcode, count) -> rows.add(count + "x " + MessagePacker.safe(
+        copies.forEach((passcode, count) -> rows.add(count + "x " + DcMessageUtils.safe(
                 names.name(passcode).orElse("Unknown card (" + passcode + ")"))));
-        sections.add(new MessagePacker.Section("**" + title + "** · " + passcodes.size(),
+        sections.add(new DcMessageUtils.Section("**" + title + "** · " + passcodes.size(),
                 "**" + title + "** (continued)", "", rows));
     }
 }

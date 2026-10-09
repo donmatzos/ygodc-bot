@@ -75,7 +75,7 @@ public class DeckMessagesTest {
         assertTrue(messages.size() > 1);
         String all = String.join("\n", messages);
         for (String message : messages) {
-            assertTrue(message.length() <= MessagePacker.MAX_MESSAGE_LENGTH, "message too long: " + message.length());
+            assertTrue(message.length() <= DcMessageUtils.MAX_MESSAGE_LENGTH, "message too long: " + message.length());
             assertEquals(message.split("```", -1).length % 2, 1, "unbalanced code block: " + message);
         }
         LongStream.range(0, 90).forEach(i -> assertTrue(all.contains("Number " + i + "\n"), "missing card " + i));

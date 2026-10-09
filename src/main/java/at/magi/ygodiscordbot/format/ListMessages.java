@@ -5,7 +5,7 @@ import at.magi.ygodiscordbot.entity.Banlist;
 import at.magi.ygodiscordbot.entity.BanlistEntry;
 import at.magi.ygodiscordbot.entity.GenesysPointEntry;
 import at.magi.ygodiscordbot.entity.GenesysPointlist;
-import at.magi.ygodiscordbot.format.MessagePacker.Section;
+import at.magi.ygodiscordbot.format.DcMessageUtils.Section;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -38,7 +38,7 @@ public final class ListMessages {
             }
             List<String> rows = new ArrayList<>();
             for (int i = 0; i < entries.size(); i++) {
-                rows.add(String.format("%3d  %s", i + 1, MessagePacker.safe(entries.get(i).cardName())));
+                rows.add(String.format("%3d  %s", i + 1, DcMessageUtils.safe(entries.get(i).cardName())));
             }
             String name = icon(status) + " " + status.label();
             sections.add(new Section(
@@ -47,7 +47,7 @@ public final class ListMessages {
                     "  #  Card\n" + rule(3) + "  " + rule(longest(entries.stream().map(BanlistEntry::cardName).toList())),
                     rows));
         }
-        return MessagePacker.pack(intro, sections);
+        return DcMessageUtils.packTables(intro, sections);
     }
 
     public static List<String> genesys(GenesysPointlist pointlist) {
@@ -65,7 +65,7 @@ public final class ListMessages {
                 continue;
             }
             List<String> rows = entries.stream()
-                    .map(entry -> String.format("%3d  %s", entry.points(), MessagePacker.safe(entry.cardName())))
+                    .map(entry -> String.format("%3d  %s", entry.points(), DcMessageUtils.safe(entry.cardName())))
                     .toList();
             sections.add(new Section(
                     "## " + tier.label + " · " + entries.size() + " cards",
@@ -73,7 +73,7 @@ public final class ListMessages {
                     "Pts  Card\n" + rule(3) + "  " + rule(longest(entries.stream().map(GenesysPointEntry::cardName).toList())),
                     rows));
         }
-        return MessagePacker.pack(intro, sections);
+        return DcMessageUtils.packTables(intro, sections);
     }
 
     /** Discord timestamp markup: rendered in each viewer's own time zone. */
