@@ -14,8 +14,11 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.List;
+import java.util.Optional;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 
 /**
@@ -52,7 +55,7 @@ public class PlayerRepositoryTest {
         repository = new PlayerRepository(dataSource);
     }
 
-    /** Point input comes in a later plan, so tests write rows directly. */
+    /** Tests write rows directly where the repository has no method for it. */
     private void insert(long id, long points) throws SQLException {
         repository.ensureSchema();
         try (Connection connection = dataSource.getConnection();
@@ -125,5 +128,53 @@ public class PlayerRepositoryTest {
         assertEquals(page.page(), 5);
         assertEquals(page.pageCount(), 1);
         assertTrue(page.rows().isEmpty());
+    }
+
+    @Test
+    public void createAddsPlayerWithZeroPointsOnce() throws SQLException {
+        assertTrue(repository.create(7));
+        assertFalse(repository.create(7));
+        assertEquals(repository.find(7), Optional.of(new RankedPlayer(1, 7, 0)));
+    }
+
+    @Test
+    public void findReturnsCompetitionRank() throws SQLException {
+        insert(1, 50);
+        insert(2, 80);
+        insert(3, 80);
+        assertEquals(repository.find(1), Optional.of(new RankedPlayer(3, 1, 50)));
+        assertEquals(repository.find(3), Optional.of(new RankedPlayer(1, 3, 80)));
+        assertEquals(repository.find(99), Optional.empty());
+    }
+
+    @Test
+    public void setPointsOnlyUpdatesExistingPlayers() throws SQLException {
+        insert(1, 120);
+        assertEquals(repository.setPoints(1, 50), new PointChange(120, 50, false));
+        assertNull(repository.setPoints(2, 50));
+        assertEquals(repository.find(2), Optional.empty());
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void setPointsRejectsNegative() throws SQLException {
+        repository.setPoints(1, -1);
+    }
+
+    @Test
+    public void changePointsClampsAndCreates() throws SQLException {
+        assertEquals(repository.changePoints(1, 3), new PointChange(0, 3, true));
+        assertEquals(repository.changePoints(1, -5), new PointChange(3, 0, false));
+        assertNull(repository.changePoints(2, -5));
+        insert(3, Points.MAX - 1);
+        assertEquals(repository.changePoints(3, 99), new PointChange(Points.MAX - 1, Points.MAX, false));
+        assertEquals(repository.find(3).orElseThrow().points(), Points.MAX);
+    }
+
+    @Test
+    public void resetAllPointsKeepsPlayers() throws SQLException {
+        insert(1, 10);
+        insert(2, 20);
+        assertEquals(repository.resetAllPoints(), 2);
+        assertEquals(repository.page(1).rows(), List.of(new RankedPlayer(1, 1, 0), new RankedPlayer(1, 2, 0)));
     }
 }
