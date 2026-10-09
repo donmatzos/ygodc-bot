@@ -154,13 +154,17 @@ public class PlayerRepository {
         }
     }
 
-    /** Reads the current points under a row lock, so concurrent writers can't lose an update. */
+    /**
+     * Reads the current points under a row lock, so concurrent writers can't lose an update. A missing player is
+     * inserted first in its own statement: locking a row that doesn't exist takes a gap lock, and two writers
+     * holding it would deadlock on their inserts.
+     */
     private PointChange write(long id, LongUnaryOperator change, boolean createIfMissing) throws SQLException {
-        ensureSchema();
+        boolean created = createIfMissing && create(id);
         try (Connection connection = dataSource.getConnection()) {
             connection.setAutoCommit(false);
             try {
-                PointChange result = writeLocked(connection, id, change, createIfMissing);
+                PointChange result = writeLocked(connection, id, change, created);
                 connection.commit();
                 return result;
             } catch (SQLException | RuntimeException e) {
@@ -172,29 +176,24 @@ public class PlayerRepository {
         }
     }
 
-    private static PointChange writeLocked(Connection connection, long id, LongUnaryOperator change,
-                                           boolean createIfMissing) throws SQLException {
-        Long before = null;
+    private static PointChange writeLocked(Connection connection, long id, LongUnaryOperator change, boolean created)
+            throws SQLException {
+        long before;
         try (PreparedStatement select = connection.prepareStatement("SELECT points FROM players WHERE id = ? FOR UPDATE")) {
             select.setLong(1, id);
             try (ResultSet result = select.executeQuery()) {
-                if (result.next()) {
-                    before = result.getLong(1);
+                if (!result.next()) {
+                    return null;
                 }
+                before = result.getLong(1);
             }
         }
-        if (before == null && !createIfMissing) {
-            return null;
+        long after = change.applyAsLong(before);
+        try (PreparedStatement update = connection.prepareStatement("UPDATE players SET points = ? WHERE id = ?")) {
+            update.setLong(1, after);
+            update.setLong(2, id);
+            update.executeUpdate();
         }
-        long after = change.applyAsLong(before == null ? 0 : before);
-        String sql = before == null
-                ? "INSERT INTO players (points, id) VALUES (?, ?)"
-                : "UPDATE players SET points = ? WHERE id = ?";
-        try (PreparedStatement write = connection.prepareStatement(sql)) {
-            write.setLong(1, after);
-            write.setLong(2, id);
-            write.executeUpdate();
-        }
-        return new PointChange(before == null ? 0 : before, after, before == null);
+        return new PointChange(before, after, created);
     }
 }
