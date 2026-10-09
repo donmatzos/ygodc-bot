@@ -1,7 +1,6 @@
 package at.magi.ygodiscordbot;
 
 import at.magi.ygodiscordbot.command.CommandRegistry;
-import at.magi.ygodiscordbot.command.HelpCommand;
 import at.magi.ygodiscordbot.command.PingCommand;
 import at.magi.ygodiscordbot.config.BotConfig;
 import at.magi.ygodiscordbot.config.DatabaseConfig;
@@ -19,6 +18,7 @@ import at.magi.ygodiscordbot.impl.card.CardSource;
 import at.magi.ygodiscordbot.impl.deck.DeckCommand;
 import at.magi.ygodiscordbot.impl.deck.DeckDatabase;
 import at.magi.ygodiscordbot.impl.deck.DecklistRepository;
+import at.magi.ygodiscordbot.impl.help.HelpCommand;
 import at.magi.ygodiscordbot.impl.leaderboard.LeaderboardAdminCommand;
 import at.magi.ygodiscordbot.impl.leaderboard.LeaderboardCommand;
 import at.magi.ygodiscordbot.impl.leaderboard.PlayerNames;
