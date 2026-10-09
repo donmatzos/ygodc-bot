@@ -222,7 +222,7 @@ order on any exit.
 
 ### 2. Commands
 
-Every command implements `command/SlashCommand`, and `CommandRegistry` routes interactions to it by name.
+Every command implements `impl/command/SlashCommand`, and `CommandRegistry` routes interactions to it by name.
 To add one:
 
 ```java
@@ -245,18 +245,18 @@ commands.register(new HelloCommand());
 Never block JDA's event thread with network or database work. Hand it to an executor and answer with
 `deferReply()` plus `getHook().editOriginal(...)`, as `DeckCommand` does.
 
-Output longer than Discord's 2000-character limit is split by `format/DcMessageUtils` (code-block tables with
-repeated headers, or plain lines) and sent in order by `command/MessageSender` (channel, interaction reply
+Output longer than Discord's 2000-character limit is split by `utils/discord/DcMessageUtils` (code-block tables with
+repeated headers, or plain lines) and sent in order by `utils/discord/MessageSender` (channel, interaction reply
 with follow-ups, or DMs).
 
 ### 3. Banlists
 
-- `source/YgoProDeckSource` (TCG, OCG) and `source/GenesysSource` (Konami's HTML, parsed with jsoup) fetch
+- `impl/banlist/YgoProDeckSource` (TCG, OCG) and `impl/banlist/GenesysSource` (Konami's HTML, parsed with jsoup) fetch
   the lists. Suspiciously small results are rejected, so a broken response never replaces a good list.
-- `banlist/BanlistRefresher` fetches daily at 03:00 Europe/Vienna, swaps a new immutable `BanlistSnapshot`
+- `impl/banlist/BanlistRefresher` fetches daily at 03:00 Europe/Vienna, swaps a new immutable `BanlistSnapshot`
   into `BanlistRepository`, and stores it in `data/banlists.json`. A failed source keeps its previous list
   and is retried hourly; a run missed while the bot was offline is caught up at startup.
-- `format/ListMessages` and `DcMessageUtils` render headings and code-block tables, split at Discord's
+- `impl/banlist/ListMessages` and `DcMessageUtils` render headings and code-block tables, split at Discord's
   **2000-character limit**.
 
 ### 4. YDKE, the deck format
@@ -282,12 +282,12 @@ So the same card can appear in a deck under different numbers. The bot maps ever
 card's name (see [Card names](#6-card-names)). Copies are grouped per passcode, so 2 original and 1 alternate
 Blue-Eyes show as two lines, `2x` and `1x`.
 
-`deck/Ydke` parses and encodes the URIs. Before anything is stored, `DeckCommand` checks that a URI starts
+`entity/deck/Ydke` parses and encodes the URIs. Before anything is stored, `DeckCommand` checks that a URI starts
 with `ydke://`, decodes completely, and has 1 to 60/15/15 cards.
 
 ### 5. Decklist storage (plain JDBC)
 
-The table is created on first use (`deck/DeckDatabase.SCHEMA`, MySQL 8+ / MariaDB 10.2+):
+The table is created on first use (`impl/deck/DecklistRepository.SCHEMA`, MySQL 8+ / MariaDB 10.2+):
 
 ```sql
 CREATE TABLE IF NOT EXISTS decklist (
@@ -303,23 +303,26 @@ CREATE TABLE IF NOT EXISTS decklist (
 ) ENGINE = InnoDB
 ```
 
-- `deck/DecklistRepository` uses plain JDBC with prepared statements, pooled by HikariCP (at most 2
-  connections). The pool starts without a database, so the bot runs even while the database is down.
+- `impl/deck/DecklistRepository` uses plain JDBC with prepared statements, pooled by HikariCP
+  (`impl/database/DatabasePool`, at most 2 connections, shared with the leaderboard). The pool starts without a database, so the bot runs even while the database is down.
 - A duplicate name is rejected by the unique key (MySQL error 1062) and reported as "name taken".
-- All database work runs on one `deck-db` thread with a queue of 50; when it is full, users get a "busy" reply.
+- All database work (/deck, /leaderboard, /points) runs on one `db` thread with a queue of 50; when it is full,
+  users get a "busy" reply.
+- `impl/command/DatabaseReplies` starts that work only after Discord accepted the deferred reply, so a command that
+  timed out (and may be retried) never writes in the background. Its log lines name the user who ran it.
 
 Hibernate was tried and dropped: for one table it cost ~63 MB of extra memory and 2.4 s of startup CPU,
 plain JDBC ~12 MB and 0.5 s.
 
 ### 6. Card names
 
-YDKE only contains artwork passcodes, so `card/CardRefresher` keeps a passcode → name list of every card:
+YDKE only contains artwork passcodes, so `impl/card/CardRefresher` keeps a passcode → name list of every card:
 
 1. **Every 3 days** it calls `checkDBVer.php` and downloads the full card list only if the version changed.
-2. `source/CardSource` reads the 21 MB response token by token with Jackson's streaming parser, straight from
+2. `impl/card/CardSource` reads the 21 MB response token by token with Jackson's streaming parser, straight from
    the gzip stream. It keeps only `id`, `name` and `card_images[].id`, the artwork passcodes, which all map
    to the card's name. The whole document is never in memory; this works within a 16 MB heap.
-3. `card/CardNames` stores the ~14,800 passcodes as a sorted `int[]` with a parallel `String[]` (about 3 MB),
+3. `entity/card/CardNames` stores the ~14,800 passcodes as a sorted `int[]` with a parallel `String[]` (about 3 MB),
    looked up by binary search.
 4. The list is saved to `data/cards.json` (~0.5 MB), so restarts don't download again.
 
@@ -327,7 +330,7 @@ A failed check keeps the current names and is retried hourly, up to 3 times.
 
 ### 7. Files, shutdown and memory
 
-- `storage/AtomicFiles` writes to a temporary file and then renames it, so a crash never leaves a half-written
+- `utils/io/AtomicFiles` writes to a temporary file and then renames it, so a crash never leaves a half-written
   file; leftovers of a killed process are deleted at the next start.
 - On shutdown, both refreshers interrupt a running download and wait up to 10 s, so a file write in progress
   always completes.
@@ -340,22 +343,29 @@ A failed check keeps the current names and is retried hourly, up to 3 times.
 ```
 src/main/java/at/magi/ygodiscordbot/
   YgoDiscordBot.java        entry point: wiring, Discord login, command registration, shutdown steps
-  runtime/                  Supervisor (child JVM, memory flags, restarts), RestartPolicy
-  config/                   BotConfig, DatabaseConfig (bot.properties / environment variables)
-  command/                  SlashCommand, CommandRegistry, BanlistCommand, DeckCommand, LeaderboardCommand,
-                            LeaderboardAdminCommand, PointsCommand, HelpCommand, PingCommand, MessageSender,
-                            DatabaseReplies, PlayerNames (cached names)
-  banlist/                  BanlistSnapshot, BanlistRepository, BanlistRefresher, SnapshotFileStore, StaticBanlists
-  card/                     CardNames, CardCatalog, CardRepository, CardRefresher, CardFileStore
-  deck/                     Ydke, YdkeDeck, Decklist, DeckDatabase (pool + schema), DecklistRepository (JDBC)
-  leaderboard/              RankedPlayer, LeaderboardPage, PlayerRepository (JDBC, RANK() per query),
-                            Points (0 … 999,999), PointChange
-  source/                   HttpDownloader, YgoProDeckSource, GenesysSource, CardSource
-  format/                   ListMessages, DeckMessages, LeaderboardMessages, HelpMessages,
-                            DcMessageUtils (2000-character split)
-  entity/                   immutable banlist records
-  storage/                  AtomicFiles
-  json/                     shared Jackson mapper
+  entity/                   data types and pure logic, no I/O; never depends on impl or utils
+    banlist/                Banlist and its records (TCG, OCG, Goat, Edison, Genesys), BanStatus, BanlistSnapshot
+    card/                   CardNames (passcode → name), CardCatalog
+    deck/                   Decklist, YdkeDeck, Ydke (YDKE parser/encoder)
+    leaderboard/            RankedPlayer, LeaderboardPage, Points (0 … 999,999), PointChange
+  impl/                     the bot, one package per feature
+    command/                SlashCommand, CommandRegistry, PingCommand, DatabaseReplies (DB work after the defer)
+    banlist/                BanlistCommand, ListMessages, BanlistRepository, BanlistRefresher, SnapshotFileStore,
+                            StaticBanlists, YgoProDeckSource, GenesysSource
+    card/                   CardRepository, CardRefresher, CardFileStore, CardSource
+    deck/                   DeckCommand, DeckMessages, DecklistRepository (JDBC + schema)
+    leaderboard/            LeaderboardCommand, LeaderboardAdminCommand, PointsCommand, LeaderboardMessages,
+                            PlayerRepository (JDBC, RANK() per query), PlayerNames (cached names)
+    help/                   HelpCommand, HelpMessages
+    database/               DatabasePool (HikariCP, shared by deck and leaderboard)
+    config/                 BotConfig, DatabaseConfig (bot.properties / environment variables)
+    runtime/                Supervisor (child JVM, memory flags, restarts), RestartPolicy
+  utils/                    feature-agnostic helpers; never depend on entity or impl
+    discord/                DcMessageUtils (2000-character split), MessageSender (ordered sends, DMs)
+    http/                   HttpDownloader, ListFetcher
+    io/                     AtomicFiles
+    json/                   JsonUtils (shared Jackson mapper)
+    text/                   LenientDecoder
 src/main/resources/banlists/  goat.json, edison.json (frozen lists)
 deploy.sh                     build + SFTP upload of the jar
 ```
