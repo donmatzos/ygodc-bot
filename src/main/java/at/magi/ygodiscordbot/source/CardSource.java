@@ -1,6 +1,6 @@
 package at.magi.ygodiscordbot.source;
 
-import at.magi.ygodiscordbot.card.CardNames;
+import at.magi.ygodiscordbot.entity.card.CardNames;
 import at.magi.ygodiscordbot.utils.http.HttpDownloader;
 import at.magi.ygodiscordbot.utils.json.JsonUtils;
 import com.fasterxml.jackson.core.JsonParser;

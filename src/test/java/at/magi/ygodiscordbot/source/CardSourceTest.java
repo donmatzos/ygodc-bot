@@ -1,6 +1,6 @@
 package at.magi.ygodiscordbot.source;
 
-import at.magi.ygodiscordbot.card.CardNames;
+import at.magi.ygodiscordbot.entity.card.CardNames;
 import org.testng.annotations.Test;
 
 import java.io.ByteArrayInputStream;

@@ -1,4 +1,4 @@
-package at.magi.ygodiscordbot.card;
+package at.magi.ygodiscordbot.entity.card;
 
 import java.util.Arrays;
 import java.util.Map;
@@ -43,11 +43,11 @@ public final class CardNames {
         return passcodes.length;
     }
 
-    int passcodeAt(int index) {
+    public int passcodeAt(int index) {
         return passcodes[index];
     }
 
-    String nameAt(int index) {
+    public String nameAt(int index) {
         return names[index];
     }
 }

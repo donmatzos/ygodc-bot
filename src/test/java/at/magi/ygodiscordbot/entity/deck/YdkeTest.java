@@ -1,4 +1,4 @@
-package at.magi.ygodiscordbot.deck;
+package at.magi.ygodiscordbot.entity.deck;
 
 import org.testng.annotations.Test;
 
@@ -11,7 +11,7 @@ import static org.testng.Assert.assertTrue;
 public class YdkeTest {
 
     // Blue-Eyes White Dragon x3, Dark Magician | Blue-Eyes Ultimate Dragon | Pot of Greed
-    static final YdkeDeck DECK = new YdkeDeck(
+    public static final YdkeDeck DECK = new YdkeDeck(
             List.of(89631139L, 89631139L, 89631139L, 46986414L), List.of(23995346L), List.of(55144522L));
 
     @Test

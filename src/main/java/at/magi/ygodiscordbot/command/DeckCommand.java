@@ -1,11 +1,11 @@
 package at.magi.ygodiscordbot.command;
 
-import at.magi.ygodiscordbot.card.CardNames;
 import at.magi.ygodiscordbot.card.CardRepository;
-import at.magi.ygodiscordbot.deck.Decklist;
 import at.magi.ygodiscordbot.deck.DecklistRepository;
-import at.magi.ygodiscordbot.deck.Ydke;
-import at.magi.ygodiscordbot.deck.YdkeDeck;
+import at.magi.ygodiscordbot.entity.card.CardNames;
+import at.magi.ygodiscordbot.entity.deck.Decklist;
+import at.magi.ygodiscordbot.entity.deck.Ydke;
+import at.magi.ygodiscordbot.entity.deck.YdkeDeck;
 import at.magi.ygodiscordbot.format.DeckMessages;
 import at.magi.ygodiscordbot.utils.discord.DcMessageUtils;
 import at.magi.ygodiscordbot.utils.discord.MessageSender;

@@ -1,5 +1,8 @@
 package at.magi.ygodiscordbot.card;
 
+import at.magi.ygodiscordbot.entity.card.CardCatalog;
+import at.magi.ygodiscordbot.entity.card.CardNames;
+
 import java.util.Optional;
 
 /** Current card names. Replaced as a whole by {@link CardRefresher}, so readers never need a lock. */

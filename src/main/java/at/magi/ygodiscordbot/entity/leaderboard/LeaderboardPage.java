@@ -1,4 +1,4 @@
-package at.magi.ygodiscordbot.leaderboard;
+package at.magi.ygodiscordbot.entity.leaderboard;
 
 import java.util.List;
 

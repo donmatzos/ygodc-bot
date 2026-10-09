@@ -1,6 +1,6 @@
 package at.magi.ygodiscordbot.source;
 
-import at.magi.ygodiscordbot.entity.GenesysPointEntry;
+import at.magi.ygodiscordbot.entity.banlist.GenesysPointEntry;
 import org.testng.annotations.Test;
 
 import java.io.IOException;

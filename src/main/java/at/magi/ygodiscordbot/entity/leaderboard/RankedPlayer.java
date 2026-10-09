@@ -1,4 +1,4 @@
-package at.magi.ygodiscordbot.leaderboard;
+package at.magi.ygodiscordbot.entity.leaderboard;
 
 /**
  * One leaderboard row. The rank is computed when querying, never stored: players with equal points share

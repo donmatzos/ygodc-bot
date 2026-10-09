@@ -1,8 +1,9 @@
 package at.magi.ygodiscordbot.banlist;
 
-import at.magi.ygodiscordbot.entity.GenesysPointlist;
-import at.magi.ygodiscordbot.entity.OcgBanlist;
-import at.magi.ygodiscordbot.entity.TcgBanlist;
+import at.magi.ygodiscordbot.entity.banlist.BanlistSnapshot;
+import at.magi.ygodiscordbot.entity.banlist.GenesysPointlist;
+import at.magi.ygodiscordbot.entity.banlist.OcgBanlist;
+import at.magi.ygodiscordbot.entity.banlist.TcgBanlist;
 import at.magi.ygodiscordbot.utils.http.ListFetcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

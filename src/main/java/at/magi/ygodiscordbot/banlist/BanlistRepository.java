@@ -1,10 +1,11 @@
 package at.magi.ygodiscordbot.banlist;
 
-import at.magi.ygodiscordbot.entity.EdisonBanlist;
-import at.magi.ygodiscordbot.entity.GenesysPointlist;
-import at.magi.ygodiscordbot.entity.GoatBanlist;
-import at.magi.ygodiscordbot.entity.OcgBanlist;
-import at.magi.ygodiscordbot.entity.TcgBanlist;
+import at.magi.ygodiscordbot.entity.banlist.BanlistSnapshot;
+import at.magi.ygodiscordbot.entity.banlist.EdisonBanlist;
+import at.magi.ygodiscordbot.entity.banlist.GenesysPointlist;
+import at.magi.ygodiscordbot.entity.banlist.GoatBanlist;
+import at.magi.ygodiscordbot.entity.banlist.OcgBanlist;
+import at.magi.ygodiscordbot.entity.banlist.TcgBanlist;
 
 import java.util.Objects;
 import java.util.Optional;

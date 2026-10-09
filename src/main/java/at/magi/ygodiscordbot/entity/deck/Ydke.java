@@ -1,4 +1,4 @@
-package at.magi.ygodiscordbot.deck;
+package at.magi.ygodiscordbot.entity.deck;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;

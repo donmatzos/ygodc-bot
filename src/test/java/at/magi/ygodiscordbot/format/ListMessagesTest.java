@@ -1,11 +1,11 @@
 package at.magi.ygodiscordbot.format;
 
 import at.magi.ygodiscordbot.banlist.StaticBanlists;
-import at.magi.ygodiscordbot.entity.BanStatus;
-import at.magi.ygodiscordbot.entity.BanlistEntry;
-import at.magi.ygodiscordbot.entity.GenesysPointEntry;
-import at.magi.ygodiscordbot.entity.GenesysPointlist;
-import at.magi.ygodiscordbot.entity.TcgBanlist;
+import at.magi.ygodiscordbot.entity.banlist.BanStatus;
+import at.magi.ygodiscordbot.entity.banlist.BanlistEntry;
+import at.magi.ygodiscordbot.entity.banlist.GenesysPointEntry;
+import at.magi.ygodiscordbot.entity.banlist.GenesysPointlist;
+import at.magi.ygodiscordbot.entity.banlist.TcgBanlist;
 import at.magi.ygodiscordbot.source.FixtureLists;
 import at.magi.ygodiscordbot.utils.discord.DcMessageUtils;
 import org.testng.annotations.Test;

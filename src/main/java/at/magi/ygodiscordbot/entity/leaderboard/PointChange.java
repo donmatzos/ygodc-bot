@@ -1,4 +1,4 @@
-package at.magi.ygodiscordbot.leaderboard;
+package at.magi.ygodiscordbot.entity.leaderboard;
 
 /**
  * Result of a write to one player's points.

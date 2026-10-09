@@ -1,5 +1,6 @@
 package at.magi.ygodiscordbot.banlist;
 
+import at.magi.ygodiscordbot.entity.banlist.BanlistSnapshot;
 import at.magi.ygodiscordbot.utils.io.AtomicFiles;
 import at.magi.ygodiscordbot.utils.json.JsonUtils;
 import org.slf4j.Logger;

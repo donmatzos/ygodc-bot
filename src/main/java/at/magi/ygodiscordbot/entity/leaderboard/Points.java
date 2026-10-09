@@ -1,4 +1,4 @@
-package at.magi.ygodiscordbot.leaderboard;
+package at.magi.ygodiscordbot.entity.leaderboard;
 
 /** Limits for a player's points: never below 0, never above {@link #MAX}. */
 public final class Points {

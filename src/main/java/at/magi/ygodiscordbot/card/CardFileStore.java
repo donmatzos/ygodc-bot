@@ -1,5 +1,7 @@
 package at.magi.ygodiscordbot.card;
 
+import at.magi.ygodiscordbot.entity.card.CardCatalog;
+import at.magi.ygodiscordbot.entity.card.CardNames;
 import at.magi.ygodiscordbot.utils.io.AtomicFiles;
 import at.magi.ygodiscordbot.utils.json.JsonUtils;
 import com.fasterxml.jackson.core.JsonGenerator;

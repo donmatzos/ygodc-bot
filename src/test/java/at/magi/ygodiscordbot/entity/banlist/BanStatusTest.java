@@ -1,4 +1,4 @@
-package at.magi.ygodiscordbot.entity;
+package at.magi.ygodiscordbot.entity.banlist;
 
 import org.testng.annotations.Test;
 

@@ -1,4 +1,4 @@
-package at.magi.ygodiscordbot.card;
+package at.magi.ygodiscordbot.entity.card;
 
 import org.testng.annotations.Test;
 

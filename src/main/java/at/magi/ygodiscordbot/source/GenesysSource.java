@@ -1,7 +1,7 @@
 package at.magi.ygodiscordbot.source;
 
-import at.magi.ygodiscordbot.entity.GenesysPointEntry;
-import at.magi.ygodiscordbot.entity.GenesysPointlist;
+import at.magi.ygodiscordbot.entity.banlist.GenesysPointEntry;
+import at.magi.ygodiscordbot.entity.banlist.GenesysPointlist;
 import at.magi.ygodiscordbot.utils.http.HttpDownloader;
 import at.magi.ygodiscordbot.utils.text.LenientDecoder;
 import org.jsoup.Jsoup;

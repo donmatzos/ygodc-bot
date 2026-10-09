@@ -1,6 +1,6 @@
 package at.magi.ygodiscordbot.command;
 
-import at.magi.ygodiscordbot.leaderboard.RankedPlayer;
+import at.magi.ygodiscordbot.entity.leaderboard.RankedPlayer;
 import org.testng.annotations.Test;
 
 import java.time.Clock;

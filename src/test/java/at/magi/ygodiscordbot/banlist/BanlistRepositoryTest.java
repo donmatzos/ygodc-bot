@@ -1,5 +1,6 @@
 package at.magi.ygodiscordbot.banlist;
 
+import at.magi.ygodiscordbot.entity.banlist.BanlistSnapshot;
 import org.testng.annotations.Test;
 
 import java.time.Instant;

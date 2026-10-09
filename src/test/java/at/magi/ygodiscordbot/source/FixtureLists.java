@@ -1,7 +1,7 @@
 package at.magi.ygodiscordbot.source;
 
-import at.magi.ygodiscordbot.entity.GenesysPointlist;
-import at.magi.ygodiscordbot.entity.TcgBanlist;
+import at.magi.ygodiscordbot.entity.banlist.GenesysPointlist;
+import at.magi.ygodiscordbot.entity.banlist.TcgBanlist;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;

@@ -1,7 +1,7 @@
 package at.magi.ygodiscordbot.source;
 
-import at.magi.ygodiscordbot.entity.BanStatus;
-import at.magi.ygodiscordbot.entity.BanlistEntry;
+import at.magi.ygodiscordbot.entity.banlist.BanStatus;
+import at.magi.ygodiscordbot.entity.banlist.BanlistEntry;
 import org.testng.annotations.Test;
 
 import java.io.IOException;

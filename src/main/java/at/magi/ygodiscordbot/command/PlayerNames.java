@@ -1,6 +1,6 @@
 package at.magi.ygodiscordbot.command;
 
-import at.magi.ygodiscordbot.leaderboard.RankedPlayer;
+import at.magi.ygodiscordbot.entity.leaderboard.RankedPlayer;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.requests.RestAction;

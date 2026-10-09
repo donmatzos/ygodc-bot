@@ -1,4 +1,4 @@
-package at.magi.ygodiscordbot.card;
+package at.magi.ygodiscordbot.entity.card;
 
 import java.time.Instant;
 
@@ -10,7 +10,7 @@ import java.time.Instant;
  */
 public record CardCatalog(String version, Instant checkedAt, CardNames names) {
 
-    CardCatalog checkedAgain(Instant now) {
+    public CardCatalog checkedAgain(Instant now) {
         return new CardCatalog(version, now, names);
     }
 }

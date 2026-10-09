@@ -1,7 +1,7 @@
 package at.magi.ygodiscordbot.banlist;
 
-import at.magi.ygodiscordbot.entity.EdisonBanlist;
-import at.magi.ygodiscordbot.entity.GoatBanlist;
+import at.magi.ygodiscordbot.entity.banlist.EdisonBanlist;
+import at.magi.ygodiscordbot.entity.banlist.GoatBanlist;
 import at.magi.ygodiscordbot.utils.json.JsonUtils;
 
 import java.io.IOException;

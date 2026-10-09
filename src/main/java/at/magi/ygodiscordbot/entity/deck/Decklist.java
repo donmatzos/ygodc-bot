@@ -1,4 +1,4 @@
-package at.magi.ygodiscordbot.deck;
+package at.magi.ygodiscordbot.entity.deck;
 
 /**
  * A deck a user saved under a name. Names are unique per user, ignoring case.

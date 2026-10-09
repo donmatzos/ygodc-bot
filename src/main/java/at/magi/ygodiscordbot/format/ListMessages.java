@@ -1,10 +1,10 @@
 package at.magi.ygodiscordbot.format;
 
-import at.magi.ygodiscordbot.entity.BanStatus;
-import at.magi.ygodiscordbot.entity.Banlist;
-import at.magi.ygodiscordbot.entity.BanlistEntry;
-import at.magi.ygodiscordbot.entity.GenesysPointEntry;
-import at.magi.ygodiscordbot.entity.GenesysPointlist;
+import at.magi.ygodiscordbot.entity.banlist.BanStatus;
+import at.magi.ygodiscordbot.entity.banlist.Banlist;
+import at.magi.ygodiscordbot.entity.banlist.BanlistEntry;
+import at.magi.ygodiscordbot.entity.banlist.GenesysPointEntry;
+import at.magi.ygodiscordbot.entity.banlist.GenesysPointlist;
 import at.magi.ygodiscordbot.utils.discord.DcMessageUtils.Section;
 import at.magi.ygodiscordbot.utils.discord.DcMessageUtils;
 

@@ -1,5 +1,8 @@
 package at.magi.ygodiscordbot.leaderboard;
 
+import at.magi.ygodiscordbot.entity.leaderboard.PointChange;
+import at.magi.ygodiscordbot.entity.leaderboard.Points;
+import at.magi.ygodiscordbot.entity.leaderboard.RankedPlayer;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import org.testng.SkipException;

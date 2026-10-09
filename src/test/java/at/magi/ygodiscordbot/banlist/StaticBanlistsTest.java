@@ -1,8 +1,8 @@
 package at.magi.ygodiscordbot.banlist;
 
-import at.magi.ygodiscordbot.entity.BanStatus;
-import at.magi.ygodiscordbot.entity.EdisonBanlist;
-import at.magi.ygodiscordbot.entity.GoatBanlist;
+import at.magi.ygodiscordbot.entity.banlist.BanStatus;
+import at.magi.ygodiscordbot.entity.banlist.EdisonBanlist;
+import at.magi.ygodiscordbot.entity.banlist.GoatBanlist;
 import org.testng.annotations.Test;
 
 import static org.testng.Assert.assertEquals;
