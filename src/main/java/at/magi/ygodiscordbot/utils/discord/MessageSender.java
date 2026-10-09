@@ -74,15 +74,15 @@ public final class MessageSender {
         } else {
             log.warn("Could not send {} to {} via DM", what, who(event), error);
         }
-        return dmFailureMessage(error, retryHint);
+        return dmFailureMessage(error, what, retryHint);
     }
 
-    static String dmFailureMessage(Throwable error, String retryHint) {
+    static String dmFailureMessage(Throwable error, String what, String retryHint) {
         if (isDmClosed(error)) {
             return "I can't send you direct messages. Allow DMs from this server's members "
                     + "(server name → Privacy Settings), or open a DM with me and use " + retryHint + " there.";
         }
-        return "Something went wrong while sending the list. Please try again later.";
+        return "Something went wrong while sending " + what + ". Please try again later.";
     }
 
     private static boolean isDmClosed(Throwable error) {

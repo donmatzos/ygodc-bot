@@ -8,7 +8,9 @@ public class MessageSenderTest {
 
     @Test
     public void genericDmFailure() {
-        assertEquals(MessageSender.dmFailureMessage(new RuntimeException("boom"), "`/banlist`"),
-                "Something went wrong while sending the list. Please try again later.");
+        String reply = MessageSender.dmFailureMessage(new RuntimeException("boom"), "the leaderboard",
+                "`/leaderboard page`");
+        assertEquals(reply,
+                "Something went wrong while sending the leaderboard. Please try again later.");
     }
 }
