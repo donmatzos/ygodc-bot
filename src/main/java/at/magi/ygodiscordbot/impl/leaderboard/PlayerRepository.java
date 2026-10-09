@@ -1,4 +1,4 @@
-package at.magi.ygodiscordbot.leaderboard;
+package at.magi.ygodiscordbot.impl.leaderboard;
 
 import at.magi.ygodiscordbot.entity.leaderboard.LeaderboardPage;
 import at.magi.ygodiscordbot.entity.leaderboard.PointChange;

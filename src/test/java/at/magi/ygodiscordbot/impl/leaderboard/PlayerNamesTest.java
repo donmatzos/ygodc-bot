@@ -1,4 +1,4 @@
-package at.magi.ygodiscordbot.command;
+package at.magi.ygodiscordbot.impl.leaderboard;
 
 import at.magi.ygodiscordbot.entity.leaderboard.RankedPlayer;
 import org.testng.annotations.Test;

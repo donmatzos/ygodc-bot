@@ -1,4 +1,4 @@
-package at.magi.ygodiscordbot.command;
+package at.magi.ygodiscordbot.impl.leaderboard;
 
 import net.dv8tion.jda.api.interactions.InteractionHook;
 import net.dv8tion.jda.api.requests.RestAction;
