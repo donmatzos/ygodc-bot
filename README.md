@@ -377,7 +377,14 @@ mvn test
   ```
 
   **The `decklist` and `players` tables in that database are dropped before each test.** Never point these variables at
-  the production database.
+  the production database. A throwaway MariaDB for this:
+
+  ```sh
+  docker run -d --rm --name ygo-test-db -p 3307:3306 -e MARIADB_ROOT_PASSWORD=test -e MARIADB_DATABASE=ygotest mariadb:11
+  TEST_DB_URL=jdbc:mysql://127.0.0.1:3307/ygotest TEST_DB_USER=root TEST_DB_PASSWORD=test mvn test
+  ```
+- `PlayerRepositoryConcurrencyTest` (same database) is a race smoke test: 8 threads with their own connections change
+  the same players at once. It caught a deadlock when several writers added a new player at the same time.
 
 ---
 
@@ -388,6 +395,7 @@ mvn test
 | `Communications link failure … Connection refused` | Wrong database host. On Waifly, use `172.18.0.1:3306`: `db.waifly.com` is the container's own host, and connections from a container to its host's public IP are refused |
 | `Access denied for user '…'@'172.18.0.x'` | The database only accepts certain IPs. Recreate it with **Connections from** left empty (the bot connects from Docker's internal network) |
 | `DB_URL is not set, /deck is disabled` | Add `DB_URL`, `DB_USER` and `DB_PASSWORD` to the server's `bot.properties` |
+| Who changed a player's points? | The console log: every command call is logged once (command, options with user IDs, user, server or DM), every leaderboard write as `Points of player <id> …: before → after`, and refused calls with the reason |
 | A command doesn't show up in Discord | Reload the Discord app (Ctrl+R). Also check **Server Settings → Integrations → the bot** for hidden commands |
 | Commands don't work in DMs | `DEV_GUILD_ID` is set; leave it empty to register commands globally |
 | `Bot stopped because of a configuration error` | Missing or invalid `DISCORD_TOKEN` (exit code 78, not restarted) |
