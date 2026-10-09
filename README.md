@@ -9,6 +9,9 @@ It is built to run on a free hosting plan with about 300 MB of RAM.
   shows them with real card names.
 - **Leaderboard:** `/leaderboard` shows tournament points, ranked highest first; organizers manage points with
   `/points` and `/leaderboard add|update`, and post the top 20 into a channel with `/leaderboard-admin share`.
+- **Tournaments:** organizers start Swiss tournaments for 2–32 players with `/tournament start`; the bot pairs every
+  round without rematches, players report results with `/match finish` (or `/match doubleloss` when time runs out),
+  and the winner and match wins earn leaderboard points.
 - **Hosting:** runs on [Waifly](https://waifly.com)'s free tier, a [Pterodactyl](https://pterodactyl.io) panel with
   ~300 MB of RAM and a Java image (start command `java -jar ygo-discord-bot.jar`). The database is the
   panel's MySQL, reached from inside the container at `172.18.0.1:3306`, not at the public `db.waifly.com`.
@@ -42,6 +45,14 @@ Contents:
 | `/leaderboard update player:<@user> points:<n>` | Sets a player's points (Manage Server) |
 | `/points add\|remove player:<@user> amount:<1-99>` | Adds or removes points (Manage Server, hidden from others) |
 | `/leaderboard-admin share [channel:<#channel>]` | Posts the top 20 into a channel (default: this one) |
+| `/tournament start players:<@mentions>` | Starts a Swiss tournament with 2–32 players in this channel (Manage Server) |
+| `/tournament continue id:<n>` | Starts the next round once all results are in (Manage Server) |
+| `/tournament standings id:<n>` | Shows standings and open matches (Manage Server) |
+| `/tournament cancel id:<n>` | Ends a tournament without a winner (Manage Server) |
+| `/tournament drop id:<n> player:<@user>` | Removes a player from the remaining rounds; their open match is lost (Manage Server) |
+| `/match finish id:<match ID> winner:<@user>` | Reports the winner of your own match |
+| `/match doubleloss id:<match ID>` | Time ran out without a winner in your match: both players get a loss |
+| `/match-admin finish id:<match ID> winner:<@user>`, `/match-admin doubleloss id:<match ID>` | Sets or corrects any result of the open round (Manage Server) |
 | `/ping` | Checks that the bot is alive |
 
 **`/banlist`** keeps server channels clean. Used in a server, it sends the list to the user's DMs and replies
@@ -65,6 +76,19 @@ All of these replies are only visible to you. Resetting all points to 0 is only 
 roles (or limit it to channels) under *Server Settings → Integrations → YGO DC Bot*; the bot does not check
 Manage Server itself, so those settings work. `share` only posts if both you and the bot can send messages
 in the target channel. Needs `DB_URL`, like `/deck`.
+
+**Tournaments** (tables `tournament`, `tournament_player`, `tournament_match`): Swiss system. Players are entered
+as @-mentions in one text option, since a command can have at most 25 options. Round 1 is random, later rounds pair
+players with the same win-loss record who haven't met yet (backtracking; a rematch only if no other pairing exists).
+With an odd number of players one gets a free win: random in round 1, then the player with the most losses. If time
+runs out without a winner, `/match doubleloss` scores a loss for both players. When the last match of a round is
+reported, the bot posts the results and either the winner (the only player with the fewest losses; after a double
+loss or a drop only once ⌈log₂ players⌉ rounds are played) or the next pairings, which an organizer starts with
+`/tournament continue`. Points on finish: 1 per match win (free wins excluded) + the number of rounds for the
+winner. Match IDs live in memory; after a restart the bot posts new IDs for the open matches. Tournaments still
+running 48 h after their start are abandoned (no points). `/tournament` and `/match-admin` are hidden from members
+without **Manage Server** like `/leaderboard-admin`; `/match` is for everyone, but only the two players of a match
+can report it.
 
 **`/help`** replies where you used it, visible only to you. The list is built from the registered commands, so
 it shows exactly what this bot instance offers (no `/deck` or `/leaderboard` without `DB_URL`). In a server it
@@ -156,7 +180,7 @@ Everything the bot contacts at runtime. All HTTP requests send the `User-Agent` 
 | YGOProDeck card list | `https://db.ygoprodeck.com/api/v7/cardinfo.php` | Card names for `/deck` (passcode → name, including alternate artworks) | only when the version changed, at most every 3 days | 21 MB, 2.9 MB gzipped |
 | Konami Genesys page | `https://www.yugioh-card.com/en/genesys/` | TCG Genesys points (HTML table, parsed with jsoup) | daily, 03:00 Europe/Vienna | one HTML page |
 | Discord gateway and REST API | `wss://gateway.discord.gg`, `https://discord.com/api` (through JDA) | Login, receiving slash commands, sending replies, registering commands | permanent connection | n/a |
-| MySQL / MariaDB | `jdbc:mysql://172.18.0.1:3306/<db>` (on Waifly) | `decklist` and `players` tables | per `/deck`, `/leaderboard` and `/points` command | tiny |
+| MySQL / MariaDB | `jdbc:mysql://172.18.0.1:3306/<db>` (on Waifly) | `decklist`, `players` and the three tournament tables | per `/deck`, `/leaderboard`, `/points`, `/tournament` and `/match` command | tiny |
 
 Not contacted at runtime:
 - **[Format Library](https://www.formatlibrary.com):** source of the Goat (April 2005) and Edison (March 2010)
@@ -306,7 +330,7 @@ CREATE TABLE IF NOT EXISTS decklist (
 - `impl/deck/DecklistRepository` uses plain JDBC with prepared statements, pooled by HikariCP
   (`impl/database/DatabasePool`, at most 2 connections, shared with the leaderboard). The pool starts without a database, so the bot runs even while the database is down.
 - A duplicate name is rejected by the unique key (MySQL error 1062) and reported as "name taken".
-- All database work (/deck, /leaderboard, /points) runs on one `db` thread with a queue of 50; when it is full,
+- All database work (/deck, /leaderboard, /points, /tournament, /match) runs on one `db` thread with a queue of 50; when it is full,
   users get a "busy" reply.
 - `impl/command/DatabaseReplies` starts that work only after Discord accepted the deferred reply, so a command that
   timed out (and may be retried) never writes in the background. Its log lines name the user who ran it.
@@ -348,6 +372,7 @@ src/main/java/at/magi/ygodiscordbot/
     card/                   CardNames (passcode → name), CardCatalog
     deck/                   Decklist, YdkeDeck, Ydke (YDKE parser/encoder)
     leaderboard/            RankedPlayer, LeaderboardPage, Points (0 … 999,999), PointChange
+    tournament/             MatchRecord, Standings, SwissPairer (backtracking), WinnerRule, TournamentPoints
   impl/                     the bot, one package per feature
     command/                SlashCommand, CommandRegistry, PingCommand, DatabaseReplies (DB work after the defer)
     banlist/                BanlistCommand, ListMessages, BanlistRepository, BanlistRefresher, SnapshotFileStore,
@@ -356,6 +381,8 @@ src/main/java/at/magi/ygodiscordbot/
     deck/                   DeckCommand, DeckMessages, DecklistRepository (JDBC + schema)
     leaderboard/            LeaderboardCommand, LeaderboardAdminCommand, PointsCommand, LeaderboardMessages,
                             PlayerRepository (JDBC, RANK() per query), PlayerNames (cached names)
+    tournament/             TournamentCommand, MatchCommand, TournamentService (all state, db thread only),
+                            TournamentRepository (JDBC), TournamentMessages, JdaTournamentAnnouncer, TournamentTimer
     help/                   HelpCommand, HelpMessages
     database/               DatabasePool (HikariCP, shared by deck and leaderboard)
     config/                 BotConfig, DatabaseConfig (bot.properties / environment variables)
@@ -386,7 +413,7 @@ mvn test
   TEST_DB_URL=jdbc:mysql://127.0.0.1:3306/test TEST_DB_USER=... TEST_DB_PASSWORD=... mvn test
   ```
 
-  **The `decklist` and `players` tables in that database are dropped before each test.** Never point these variables at
+  **The `decklist`, `players` and tournament tables in that database are dropped before each test.** Never point these variables at
   the production database. A throwaway MariaDB for this:
 
   ```sh

@@ -25,6 +25,12 @@ import at.magi.ygodiscordbot.impl.leaderboard.PlayerNames;
 import at.magi.ygodiscordbot.impl.leaderboard.PlayerRepository;
 import at.magi.ygodiscordbot.impl.leaderboard.PointsCommand;
 import at.magi.ygodiscordbot.impl.runtime.Supervisor;
+import at.magi.ygodiscordbot.impl.tournament.JdaTournamentAnnouncer;
+import at.magi.ygodiscordbot.impl.tournament.MatchCommand;
+import at.magi.ygodiscordbot.impl.tournament.TournamentCommand;
+import at.magi.ygodiscordbot.impl.tournament.TournamentRepository;
+import at.magi.ygodiscordbot.impl.tournament.TournamentService;
+import at.magi.ygodiscordbot.impl.tournament.TournamentTimer;
 import at.magi.ygodiscordbot.utils.http.HttpDownloader;
 import com.zaxxer.hikari.HikariDataSource;
 import net.dv8tion.jda.api.JDA;
@@ -41,6 +47,7 @@ import java.sql.SQLException;
 import java.time.Clock;
 import java.util.Deque;
 import java.util.EnumSet;
+import java.util.Random;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ExecutorService;
@@ -57,7 +64,7 @@ public final class YgoDiscordBot {
      */
     private static final Deque<Runnable> ON_SHUTDOWN = new ConcurrentLinkedDeque<>();
 
-    /** Pending /deck, /leaderboard and /points requests beyond this are rejected with a "busy" reply, which bounds memory. */
+    /** Pending /deck, /leaderboard, /points, /tournament and /match requests beyond this are rejected with a "busy" reply, which bounds memory. */
     private static final int DATABASE_QUEUE_SIZE = 50;
 
     private YgoDiscordBot() {
@@ -91,12 +98,14 @@ public final class YgoDiscordBot {
         commands.register(new HelpCommand(commands::commandData));
         commands.register(new BanlistCommand(banlists));
 
+        TournamentService tournaments = null;
+        JdaTournamentAnnouncer tournamentAnnouncer = null;
         HikariDataSource database = null;
         ExecutorService databaseExecutor = null;
         if (config.database() != null) {
             database = openDatabase(config.database());
         } else {
-            log.warn("DB_URL is not set, /deck, /leaderboard and /points are disabled");
+            log.warn("DB_URL is not set, /deck, /leaderboard, /points, /tournament and /match are disabled");
         }
         if (database != null) {
             databaseExecutor = databaseExecutor();
@@ -122,17 +131,30 @@ public final class YgoDiscordBot {
             commands.register(new LeaderboardCommand(players, playerNames, databaseExecutor));
             commands.register(new LeaderboardAdminCommand(players, playerNames, databaseExecutor));
             commands.register(new PointsCommand(players, databaseExecutor));
+
+            TournamentRepository tournamentStore = new TournamentRepository(database);
+            databaseExecutor.execute(() -> createTournamentSchema(tournamentStore, config.database()));
+            tournamentAnnouncer = new JdaTournamentAnnouncer();
+            tournaments = new TournamentService(tournamentStore,
+                    (player, points) -> players.changePoints(player, points), tournamentAnnouncer, clock, new Random());
+            commands.register(new TournamentCommand(tournaments, databaseExecutor));
+            commands.register(MatchCommand.forPlayers(tournaments, databaseExecutor));
+            commands.register(MatchCommand.forAdmins(tournaments, databaseExecutor));
         }
 
         // Slash commands need no privileged intents, so the default (empty) set is enough.
         JDA jda;
         try {
-            jda = JDABuilder.createLight(config.token(), EnumSet.noneOf(GatewayIntent.class))
+            JDA built = JDABuilder.createLight(config.token(), EnumSet.noneOf(GatewayIntent.class))
                     // Per-member channel overrides, so /leaderboard-admin share checks the organizer's real permissions
                     .enableCache(CacheFlag.MEMBER_OVERRIDES)
                     .addEventListeners(commands)
-                    .build()
-                    .awaitReady();
+                    .build();
+            // Before any command can arrive, so tournament posts always have a connection
+            if (tournamentAnnouncer != null) {
+                tournamentAnnouncer.attach(built);
+            }
+            jda = built.awaitReady();
         } catch (InvalidTokenException e) {
             exitWithConfigError("Discord rejected the token: " + e.getMessage());
             return;
@@ -151,6 +173,15 @@ public final class YgoDiscordBot {
         } else {
             jda.updateCommands().addCommands(commands.commandData()).queue();
             log.info("Registered {} global command(s)", commands.size());
+        }
+
+        if (tournaments != null) {
+            TournamentService service = tournaments;
+            // Posts new match IDs of running tournaments, so it waits until JDA is ready
+            databaseExecutor.execute(() -> recoverTournaments(service));
+            TournamentTimer timer = new TournamentTimer(service::abandonExpired, databaseExecutor);
+            timer.start();
+            ON_SHUTDOWN.push(timer::close);
         }
 
         log.info("Logged in as {}", jda.getSelfUser().getAsTag());
@@ -184,7 +215,7 @@ public final class YgoDiscordBot {
         try {
             return DatabasePool.open(database);
         } catch (RuntimeException e) {
-            log.error("Invalid database settings ({}), /deck, /leaderboard and /points are disabled: {}",
+            log.error("Invalid database settings ({}), /deck, /leaderboard, /points, /tournament and /match are disabled: {}",
                     database, e.getMessage());
             return null;
         }
@@ -215,6 +246,24 @@ public final class YgoDiscordBot {
         } catch (SQLException | RuntimeException e) {
             // Retried on the first /leaderboard call
             log.error("Could not create the players table in {}: {}", database.safeUrl(), e.getMessage());
+        }
+    }
+
+    private static void createTournamentSchema(TournamentRepository tournaments, DatabaseConfig database) {
+        try {
+            tournaments.ensureSchema();
+        } catch (SQLException | RuntimeException e) {
+            // Retried on the first /tournament or /match call
+            log.error("Could not create the tournament tables in {}: {}", database.safeUrl(), e.getMessage());
+        }
+    }
+
+    private static void recoverTournaments(TournamentService tournaments) {
+        try {
+            tournaments.recover();
+        } catch (SQLException | RuntimeException e) {
+            // Retried on the next tournament command or timer check
+            log.error("Could not load running tournaments: {}", e.getMessage());
         }
     }
 
