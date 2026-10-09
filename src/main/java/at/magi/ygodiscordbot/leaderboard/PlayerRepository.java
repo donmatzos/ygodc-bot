@@ -163,16 +163,37 @@ public class PlayerRepository {
         boolean created = createIfMissing && create(id);
         try (Connection connection = dataSource.getConnection()) {
             connection.setAutoCommit(false);
+            boolean ended = false;
             try {
                 PointChange result = writeLocked(connection, id, change, created);
                 connection.commit();
+                ended = true;
                 return result;
             } catch (SQLException | RuntimeException e) {
-                connection.rollback();
+                try {
+                    connection.rollback();
+                    ended = true;
+                } catch (SQLException rollbackError) {
+                    // The original error is the one worth reporting
+                    e.addSuppressed(rollbackError);
+                }
                 throw e;
             } finally {
-                connection.setAutoCommit(true);
+                // setAutoCommit(true) would COMMIT a transaction that failed to roll back; the pool rolls it back
+                // (or drops the connection) when it is returned instead
+                if (ended) {
+                    restoreAutoCommit(connection);
+                }
             }
+        }
+    }
+
+    /** Never throws: after a commit the change is done, and the pool resets auto-commit on return anyway. */
+    private static void restoreAutoCommit(Connection connection) {
+        try {
+            connection.setAutoCommit(true);
+        } catch (SQLException e) {
+            log.warn("Could not restore auto-commit, the connection pool resets it", e);
         }
     }
 
