@@ -13,6 +13,22 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+
+    # Throwaway database for the DB tests (they drop their tables); same image as the local test database
+    services:
+      mariadb:
+        image: mariadb:11
+        env:
+          MARIADB_ROOT_PASSWORD: test
+          MARIADB_DATABASE: ygotest
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "healthcheck.sh --connect --innodb_initialized"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
     steps:
       - uses: actions/checkout@v5
 
@@ -22,9 +38,13 @@ jobs:
           java-version: '17'
           cache: maven
 
-      # Compiles, runs the tests and builds the fat jar. DB tests are skipped (no TEST_DB_URL).
+      # Compiles, runs all tests (including the DB tests against the service above) and builds the fat jar
       - name: Build and test
         run: mvn -B verify
+        env:
+          TEST_DB_URL: jdbc:mysql://127.0.0.1:3306/ygotest
+          TEST_DB_USER: root
+          TEST_DB_PASSWORD: test
 
       - name: Test report
         uses: dorny/test-reporter@v2

@@ -1,31 +1,31 @@
 package at.magi.ygodiscordbot;
 
-import at.magi.ygodiscordbot.banlist.BanlistRefresher;
-import at.magi.ygodiscordbot.banlist.BanlistRepository;
-import at.magi.ygodiscordbot.banlist.SnapshotFileStore;
-import at.magi.ygodiscordbot.banlist.StaticBanlists;
-import at.magi.ygodiscordbot.card.CardFileStore;
-import at.magi.ygodiscordbot.card.CardRefresher;
-import at.magi.ygodiscordbot.card.CardRepository;
-import at.magi.ygodiscordbot.command.BanlistCommand;
-import at.magi.ygodiscordbot.command.CommandRegistry;
-import at.magi.ygodiscordbot.command.DeckCommand;
-import at.magi.ygodiscordbot.command.HelpCommand;
-import at.magi.ygodiscordbot.command.LeaderboardAdminCommand;
-import at.magi.ygodiscordbot.command.LeaderboardCommand;
-import at.magi.ygodiscordbot.command.PlayerNames;
-import at.magi.ygodiscordbot.command.PingCommand;
-import at.magi.ygodiscordbot.command.PointsCommand;
-import at.magi.ygodiscordbot.config.BotConfig;
-import at.magi.ygodiscordbot.config.DatabaseConfig;
-import at.magi.ygodiscordbot.deck.DeckDatabase;
-import at.magi.ygodiscordbot.deck.DecklistRepository;
-import at.magi.ygodiscordbot.leaderboard.PlayerRepository;
-import at.magi.ygodiscordbot.runtime.Supervisor;
-import at.magi.ygodiscordbot.source.CardSource;
-import at.magi.ygodiscordbot.source.GenesysSource;
-import at.magi.ygodiscordbot.source.HttpDownloader;
-import at.magi.ygodiscordbot.source.YgoProDeckSource;
+import at.magi.ygodiscordbot.impl.banlist.BanlistCommand;
+import at.magi.ygodiscordbot.impl.banlist.BanlistRefresher;
+import at.magi.ygodiscordbot.impl.banlist.BanlistRepository;
+import at.magi.ygodiscordbot.impl.banlist.GenesysSource;
+import at.magi.ygodiscordbot.impl.banlist.SnapshotFileStore;
+import at.magi.ygodiscordbot.impl.banlist.StaticBanlists;
+import at.magi.ygodiscordbot.impl.banlist.YgoProDeckSource;
+import at.magi.ygodiscordbot.impl.card.CardFileStore;
+import at.magi.ygodiscordbot.impl.card.CardRefresher;
+import at.magi.ygodiscordbot.impl.card.CardRepository;
+import at.magi.ygodiscordbot.impl.card.CardSource;
+import at.magi.ygodiscordbot.impl.command.CommandRegistry;
+import at.magi.ygodiscordbot.impl.command.PingCommand;
+import at.magi.ygodiscordbot.impl.config.BotConfig;
+import at.magi.ygodiscordbot.impl.config.DatabaseConfig;
+import at.magi.ygodiscordbot.impl.database.DatabasePool;
+import at.magi.ygodiscordbot.impl.deck.DeckCommand;
+import at.magi.ygodiscordbot.impl.deck.DecklistRepository;
+import at.magi.ygodiscordbot.impl.help.HelpCommand;
+import at.magi.ygodiscordbot.impl.leaderboard.LeaderboardAdminCommand;
+import at.magi.ygodiscordbot.impl.leaderboard.LeaderboardCommand;
+import at.magi.ygodiscordbot.impl.leaderboard.PlayerNames;
+import at.magi.ygodiscordbot.impl.leaderboard.PlayerRepository;
+import at.magi.ygodiscordbot.impl.leaderboard.PointsCommand;
+import at.magi.ygodiscordbot.impl.runtime.Supervisor;
+import at.magi.ygodiscordbot.utils.http.HttpDownloader;
 import com.zaxxer.hikari.HikariDataSource;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
@@ -58,7 +58,7 @@ public final class YgoDiscordBot {
     private static final Deque<Runnable> ON_SHUTDOWN = new ConcurrentLinkedDeque<>();
 
     /** Pending /deck, /leaderboard and /points requests beyond this are rejected with a "busy" reply, which bounds memory. */
-    private static final int DECK_QUEUE_SIZE = 50;
+    private static final int DATABASE_QUEUE_SIZE = 50;
 
     private YgoDiscordBot() {
     }
@@ -91,20 +91,20 @@ public final class YgoDiscordBot {
         commands.register(new HelpCommand(commands::commandData));
         commands.register(new BanlistCommand(banlists));
 
-        HikariDataSource deckDatabase = null;
-        ExecutorService deckExecutor = null;
+        HikariDataSource database = null;
+        ExecutorService databaseExecutor = null;
         if (config.database() != null) {
-            deckDatabase = openDeckDatabase(config.database());
+            database = openDatabase(config.database());
         } else {
             log.warn("DB_URL is not set, /deck, /leaderboard and /points are disabled");
         }
-        if (deckDatabase != null) {
-            deckExecutor = deckExecutor();
-            ExecutorService executor = deckExecutor;
-            HikariDataSource database = deckDatabase;
-            ON_SHUTDOWN.push(() -> closeDeckDatabase(executor, database));
-            DecklistRepository decks = new DecklistRepository(deckDatabase, clock);
-            deckExecutor.execute(() -> createSchema(decks, config.database()));
+        if (database != null) {
+            databaseExecutor = databaseExecutor();
+            ExecutorService executor = databaseExecutor;
+            HikariDataSource pool = database;
+            ON_SHUTDOWN.push(() -> closeDatabase(executor, pool));
+            DecklistRepository decks = new DecklistRepository(database, clock);
+            databaseExecutor.execute(() -> createSchema(decks, config.database()));
 
             // Card names are only needed for /deck, so they are only downloaded when it is enabled
             CardRepository cards = new CardRepository();
@@ -114,14 +114,14 @@ public final class YgoDiscordBot {
             cardRefresher.start();
             ON_SHUTDOWN.push(cardRefresher::close);
 
-            commands.register(new DeckCommand(decks, cards, deckExecutor));
+            commands.register(new DeckCommand(decks, cards, databaseExecutor));
 
-            PlayerRepository players = new PlayerRepository(deckDatabase);
-            deckExecutor.execute(() -> createPlayersSchema(players, config.database()));
+            PlayerRepository players = new PlayerRepository(database);
+            databaseExecutor.execute(() -> createPlayersSchema(players, config.database()));
             PlayerNames playerNames = new PlayerNames(clock);
-            commands.register(new LeaderboardCommand(players, playerNames, deckExecutor));
-            commands.register(new LeaderboardAdminCommand(players, playerNames, deckExecutor));
-            commands.register(new PointsCommand(players, deckExecutor));
+            commands.register(new LeaderboardCommand(players, playerNames, databaseExecutor));
+            commands.register(new LeaderboardAdminCommand(players, playerNames, databaseExecutor));
+            commands.register(new PointsCommand(players, databaseExecutor));
         }
 
         // Slash commands need no privileged intents, so the default (empty) set is enough.
@@ -168,8 +168,8 @@ public final class YgoDiscordBot {
         }
     }
 
-    /** Lets running /deck requests finish before the pool closes. */
-    private static void closeDeckDatabase(ExecutorService executor, HikariDataSource database) {
+    /** Lets running database requests finish before the pool closes. */
+    private static void closeDatabase(ExecutorService executor, HikariDataSource database) {
         executor.shutdown();
         try {
             executor.awaitTermination(5, TimeUnit.SECONDS);
@@ -180,21 +180,21 @@ public final class YgoDiscordBot {
     }
 
     /** A broken database setting disables /deck instead of stopping the whole bot. */
-    private static HikariDataSource openDeckDatabase(DatabaseConfig database) {
+    private static HikariDataSource openDatabase(DatabaseConfig database) {
         try {
-            return DeckDatabase.open(database);
+            return DatabasePool.open(database);
         } catch (RuntimeException e) {
-            log.error("Invalid decklist database settings ({}), /deck, /leaderboard and /points are disabled: {}",
+            log.error("Invalid database settings ({}), /deck, /leaderboard and /points are disabled: {}",
                     database, e.getMessage());
             return null;
         }
     }
 
     /** One thread: queries are tiny, and it keeps at most one connection busy. */
-    private static ExecutorService deckExecutor() {
-        return new ThreadPoolExecutor(1, 1, 0, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<>(DECK_QUEUE_SIZE),
+    private static ExecutorService databaseExecutor() {
+        return new ThreadPoolExecutor(1, 1, 0, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<>(DATABASE_QUEUE_SIZE),
                 runnable -> {
-                    Thread thread = new Thread(runnable, "deck-db");
+                    Thread thread = new Thread(runnable, "db");
                     thread.setDaemon(true);
                     return thread;
                 });
