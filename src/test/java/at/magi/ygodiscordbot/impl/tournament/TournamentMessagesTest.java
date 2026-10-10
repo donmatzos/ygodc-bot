@@ -27,18 +27,34 @@ public class TournamentMessagesTest {
 
     @Test
     public void standingsTableSharesRanksAndMarksDrops() {
+        // Yugi and Joey are equal on everything (only the lot orders them), so are Kaiba and Mai
         Standings standings = Standings.of(List.of(1L, 2L, 3L, 4L), Set.of(4L), List.of(
                 new MatchRecord(1, 1, 2L, 1L), new MatchRecord(1, 3, 4L, 3L)));
+        List<Long> order = standings.ranked().stream().map(Standings.Entry::player).toList();
+        assertEquals(Set.copyOf(order.subList(0, 2)), Set.of(1L, 3L));
         assertEquals(TournamentMessages.standingsTable(standings, NAMES), List.of("""
                 **Standings**
                 ```
-                Rank  Player  W-L
-                ----  ------  ---
-                   1  Yugi    1-0
-                   1  Joey    1-0
-                   3  Kaiba   0-1
-                   3  Mai     0-1 (dropped)
-                ```"""));
+                Rank  Player  W-L  OMW%%
+                ----  ------  ---  ----
+                   1  %-6s  1-0    33
+                   1  %-6s  1-0    33
+                   3  %-6s  0-1   100%s
+                   3  %-6s  0-1   100%s
+                ```""".formatted(NAMES.get(order.get(0)), NAMES.get(order.get(1)),
+                NAMES.get(order.get(2)), order.get(2) == 4L ? " (dropped)" : "",
+                NAMES.get(order.get(3)), order.get(3) == 4L ? " (dropped)" : "")));
+    }
+
+    @Test
+    public void standingsTableRanksByTieBreakers() {
+        // Round 1: Yugi beat Joey, Kaiba beat Mai. Round 2: Yugi and Kaiba double loss, Joey beat Mai.
+        // Yugi, Kaiba, Joey are 1-1; Yugi has the best OMW% (50 %), Kaiba and Joey 42 %.
+        String table = String.join("\n", TournamentMessages.standingsTable(workedExample(), NAMES));
+        assertTrue(table.contains("   1  Yugi    1-1    50"), table);
+        assertTrue(table.contains("   2  "), table);
+        assertTrue(table.contains("  1-1    42"), table);
+        assertTrue(table.contains("   4  Mai     0-2    50"), table);
     }
 
     @Test
@@ -159,6 +175,39 @@ public class TournamentMessagesTest {
         assertTrue(post.contains("<@1> +2"), post);
         assertTrue(post.contains("not saved"), post);
         assertTrue(post.contains("**Standings**"), post);
+    }
+
+    private static Standings workedExample() {
+        return Standings.of(List.of(1L, 2L, 3L, 4L), Set.of(), List.of(
+                new MatchRecord(1, 1, 3L, 1L), new MatchRecord(1, 2, 4L, 2L),
+                new MatchRecord(2, 1, 2L, null, true), new MatchRecord(2, 3, 4L, 3L)));
+    }
+
+    @Test
+    public void winnerPostNamesTheDecidingTieBreaker() {
+        Standings standings = workedExample();
+        long runnerUp = standings.ranked().get(1).player();
+        String post = render(TournamentMessages.winner(CODE, 1, 2, standings, Map.of(), List.of()));
+        assertTrue(post.contains("Tied on 1 loss with <@" + runnerUp
+                + ">, decided by opponents' win rate (50% vs 42%)."), post);
+    }
+
+    @Test
+    public void winnerPostNamesTheLot() {
+        Standings standings = Standings.of(List.of(1L, 2L), Set.of(), List.of(
+                new MatchRecord(1, 1, 2L, null, true)));
+        long winner = standings.ranked().get(0).player();
+        long runnerUp = standings.ranked().get(1).player();
+        String post = render(TournamentMessages.winner(CODE, winner, 1, standings, Map.of(), List.of()));
+        assertTrue(post.contains("Tied on 1 loss with <@" + runnerUp + ">, all tie-breakers equal, decided by lot."),
+                post);
+    }
+
+    @Test
+    public void clearWinnerHasNoTieLine() {
+        Standings standings = Standings.of(List.of(1L, 2L), Set.of(), List.of(new MatchRecord(1, 1, 2L, 1L)));
+        String post = render(TournamentMessages.winner(CODE, 1, 1, standings, Map.of(), List.of()));
+        assertTrue(!post.contains("Tied"), post);
     }
 
     @Test

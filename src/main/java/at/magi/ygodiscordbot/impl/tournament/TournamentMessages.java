@@ -63,7 +63,7 @@ final class TournamentMessages {
 
     // --- Standings table (posts and /tournament standings) ---
 
-    /** Rank / Player / W-L code block; equal records share a rank (1, 1, 3). */
+    /** Rank / Player / W-L / OMW% code block; players only the lot separates share a rank (1, 1, 3). */
     static List<String> standingsTable(Standings standings, Map<Long, String> names) {
         List<Standings.Entry> ranked = standings.ranked();
         int width = "Player".length();
@@ -71,20 +71,43 @@ final class TournamentMessages {
             width = Math.max(width, name(names, entry.player()).length());
         }
         List<String> rows = new ArrayList<>();
-        int rank = 0;
-        for (int i = 0; i < ranked.size(); i++) {
-            Standings.Entry entry = ranked.get(i);
-            Standings.Entry previous = i == 0 ? null : ranked.get(i - 1);
-            if (previous == null || previous.wins() != entry.wins() || previous.losses() != entry.losses()) {
-                rank = i + 1;
-            }
-            rows.add(String.format("%4d  %-" + width + "s  %d-%d%s", rank, name(names, entry.player()),
-                    entry.wins(), entry.losses(), entry.dropped() ? " (dropped)" : ""));
+        for (Standings.Entry entry : ranked) {
+            rows.add(String.format("%4d  %-" + width + "s  %d-%d  %4d%s", standings.rank(entry.player()),
+                    name(names, entry.player()), entry.wins(), entry.losses(),
+                    percent(standings.tieBreaks(entry.player()).omw()), entry.dropped() ? " (dropped)" : ""));
         }
-        String header = String.format("%-4s  %-" + width + "s  %s", "Rank", "Player", "W-L") + "\n"
-                + "----  " + "-".repeat(width) + "  ---";
+        String header = String.format("%-4s  %-" + width + "s  %s  %s", "Rank", "Player", "W-L", "OMW%") + "\n"
+                + "----  " + "-".repeat(width) + "  ---  ----";
         return DcMessageUtils.packTables("", List.of(
                 new DcMessageUtils.Section("**Standings**", "**Standings** (continued)", header, rows)));
+    }
+
+    private static long percent(double rate) {
+        return Math.round(rate * 100);
+    }
+
+    /** How the winner got ahead of the next active player with as few losses; null if nobody had as few. */
+    private static String tieLine(long winner, Standings standings) {
+        Standings.Entry runnerUp = standings.ranked().stream()
+                .filter(entry -> !entry.dropped() && entry.player() != winner).findFirst().orElse(null);
+        Standings.Entry first = standings.entry(winner);
+        if (runnerUp == null || runnerUp.losses() != first.losses()) {
+            return null;
+        }
+        Standings.TieBreaks mine = standings.tieBreaks(winner);
+        Standings.TieBreaks theirs = standings.tieBreaks(runnerUp.player());
+        String reason = switch (standings.decidedBy(winner, runnerUp.player())) {
+            case RECORD -> "decided by more wins (" + first.wins() + " vs " + runnerUp.wins() + ")";
+            case OMW -> "decided by opponents' win rate (" + percent(mine.omw()) + "% vs "
+                    + percent(theirs.omw()) + "%)";
+            case OOMW -> "decided by opponents' opponents' win rate (" + percent(mine.oomw()) + "% vs "
+                    + percent(theirs.oomw()) + "%)";
+            case HEAD_TO_HEAD -> "decided by head-to-head (" + mention(winner) + " beat "
+                    + mention(runnerUp.player()) + ")";
+            case LOT -> "all tie-breakers equal, decided by lot";
+        };
+        return "Tied on " + first.losses() + (first.losses() == 1 ? " loss" : " losses") + " with "
+                + mention(runnerUp.player()) + ", " + reason + ".";
     }
 
     // --- Channel posts ---
@@ -150,6 +173,10 @@ final class TournamentMessages {
                             List<Long> failed) {
         List<String> lines = new ArrayList<>();
         lines.add("🏆 " + mention(winner) + " wins after " + rounds + (rounds == 1 ? " round!" : " rounds!"));
+        String tie = tieLine(winner, standings);
+        if (tie != null) {
+            lines.add(tie);
+        }
         if (!points.isEmpty()) {
             lines.add("");
             lines.add("**Leaderboard points**");
