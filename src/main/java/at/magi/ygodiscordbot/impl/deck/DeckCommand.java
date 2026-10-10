@@ -94,10 +94,11 @@ public final class DeckCommand implements SlashCommand {
                     replyError(event, error);
                     return;
                 }
+                String stored = canonicalYdke(ydke);
                 if (subcommand.equals("save")) {
-                    runInDatabase(event, () -> save(userId, name, ydke));
+                    runInDatabase(event, () -> save(userId, name, stored));
                 } else {
-                    runInDatabase(event, () -> decks.update(userId, name, ydke)
+                    runInDatabase(event, () -> decks.update(userId, name, stored)
                             .map(deck -> deckReply("You updated the following deck", deck, cards.names()))
                             .orElseGet(() -> List.of(notFound(name))));
                 }
@@ -145,6 +146,11 @@ public final class DeckCommand implements SlashCommand {
         return null;
     }
 
+    /** The URI as stored: re-encoded from the parsed deck, so nothing but the cards is kept. */
+    static String canonicalYdke(String ydke) {
+        return Ydke.encode(Ydke.parse(ydke));
+    }
+
     static String saveError(DecklistRepository.SaveResult result, String name) {
         return switch (result) {
             case SAVED -> throw new IllegalArgumentException("not an error");
@@ -156,9 +162,10 @@ public final class DeckCommand implements SlashCommand {
 
     /** E.g. "You saved the following deck **Dragons**:" followed by the card list and the YDKE URI. */
     static List<String> deckReply(String action, Decklist deck, CardNames names) {
-        // Stored URIs were validated on save
-        return DeckMessages.deck(action + " **" + deck.name() + "**:", deck.updatedAt(), deck.ydke(),
-                Ydke.parse(deck.ydke()), names);
+        // Stored URIs were validated on save; shown canonical so rows saved with junk still render safely
+        YdkeDeck cards = Ydke.parse(deck.ydke());
+        return DeckMessages.deck(action + " **" + deck.name() + "**:", deck.updatedAt(), Ydke.encode(cards),
+                cards, names);
     }
 
     /** 50 decks with 50-character names exceed one Discord message, so long lists are split. */

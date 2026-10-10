@@ -33,8 +33,11 @@ public final class Ydke {
             throw new IllegalArgumentException("must start with " + PREFIX);
         }
         String[] parts = uri.substring(PREFIX.length()).split("!", -1);
-        if (parts.length < 3) {
-            throw new IllegalArgumentException("expected three sections separated by \"!\"");
+        // Three sections, optionally with the trailing "!" (an empty fourth part); nothing may follow
+        boolean valid = parts.length == 3 || parts.length == 4 && parts[3].isEmpty();
+        if (!valid) {
+            throw new IllegalArgumentException(
+                    "expected three sections separated by \"!\" and nothing after the last \"!\"");
         }
         return new YdkeDeck(decodeZone(parts[0]), decodeZone(parts[1]), decodeZone(parts[2]));
     }

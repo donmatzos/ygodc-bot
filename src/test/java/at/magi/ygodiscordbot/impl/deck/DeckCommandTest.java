@@ -56,6 +56,21 @@ public class DeckCommandTest {
     }
 
     @Test
+    public void canonicalYdkeIsWhatGetsStored() {
+        String canonical = Ydke.encode(Ydke.parse("ydke://o6lXBQ==!!"));
+        assertEquals(DeckCommand.canonicalYdke("ydke://o6lXBQ==!!"), canonical);
+        assertTrue(canonical.endsWith("!"));
+    }
+
+    @Test
+    public void deckReplyShowsTheCanonicalYdkeForOldRows() {
+        // a row saved before junk after the third "!" was rejected, but which still parses
+        Decklist deck = new Decklist(1, 2, "Dragons", "ydke://o6lXBQ==!!", 0, 1_760_000_000_000L);
+        String reply = String.join("\n", DeckCommand.deckReply("Showing deck", deck, TestCards.names()));
+        assertTrue(reply.contains("```\nydke://o6lXBQ==!!!\n```"), reply);
+    }
+
+    @Test
     public void largestValidDeckFitsInOneMessage() {
         // name (50) + summary + code block must stay below Discord's 2000 character limit
         assertTrue(deck(60, 15, 15).length() + 50 + 100 < 2000);

@@ -299,7 +299,7 @@ with follow-ups, or DMs).
 
 ### 4. YDKE, the deck format
 
-A YDKE URI has the form `ydke://<main>!<extra>!<side>!`. Each section is Base64; decoded, it is a sequence of
+A YDKE URI has the form `ydke://<main>!<extra>!<side>!` (the last `!` may be left out; anything after it is rejected, and the bot stores and shows the re-encoded canonical form). Each section is Base64; decoded, it is a sequence of
 **4-byte little-endian unsigned integers**, one per card copy:
 
 ```

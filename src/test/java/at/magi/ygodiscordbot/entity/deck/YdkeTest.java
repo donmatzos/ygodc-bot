@@ -1,5 +1,6 @@
 package at.magi.ygodiscordbot.entity.deck;
 
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.util.List;
@@ -49,6 +50,28 @@ public class YdkeTest {
     @Test
     public void rejectsMissingSections() {
         assertThrows(IllegalArgumentException.class, () -> Ydke.parse("ydke://o5pXBQ==!"));
+    }
+
+    @DataProvider
+    public Object[][] junkUris() {
+        return new Object[][]{
+                {"ydke://o6lXBQ==!!!junk"},
+                {"ydke://o6lXBQ==!!!!"},
+                {"ydke://o6lXBQ==!!!!!"},
+                {"ydke://o6lXBQ==!!side!"},
+                {"ydke://o6lXBQ==!!!`"},
+                {"ydke://o6lXBQ==!!!\u00e4"},
+        };
+    }
+
+    @Test(dataProvider = "junkUris")
+    public void rejectsAnythingAfterTheThirdSeparator(String uri) {
+        assertThrows(IllegalArgumentException.class, () -> Ydke.parse(uri));
+    }
+
+    @Test
+    public void acceptsThreeSectionsWithoutTrailingSeparator() {
+        assertEquals(Ydke.parse("ydke://o6lXBQ==!!").main(), List.of(89631139L));
     }
 
     @Test
