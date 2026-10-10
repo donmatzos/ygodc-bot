@@ -26,25 +26,34 @@ public final class LeaderboardMessages {
     public static List<String> page(String title, LeaderboardPage page, Map<Long, String> names) {
         List<RankedPlayer> players = page.rows();
         List<String> playerNames = new ArrayList<>(players.size());
-        int width = PLAYER.length();
         for (RankedPlayer player : players) {
-            String name = DcMessageUtils.safe(
-                    names.getOrDefault(player.userId(), "Unknown user (" + player.userId() + ")"));
-            playerNames.add(name);
+            playerNames.add(DcMessageUtils.safe(
+                    names.getOrDefault(player.userId(), "Unknown user (" + player.userId() + ")")));
+        }
+        Table table = table(players, playerNames);
+        String summary = "Page " + page.page() + " of " + page.pageCount() + " · " + page.totalPlayers()
+                + (page.totalPlayers() == 1 ? " player" : " players");
+        return DcMessageUtils.packTables("## " + title,
+                List.of(new Section(summary, summary + " (continued)", table.header(), table.rows())));
+    }
+
+    /** Header (titles + rule) and rows of a Rank / Player / Points table. */
+    private record Table(String header, List<String> rows) {
+    }
+
+    private static Table table(List<RankedPlayer> players, List<String> playerNames) {
+        int width = PLAYER.length();
+        for (String name : playerNames) {
             width = Math.max(width, name.length());
         }
-
         String rowFormat = "%4d  %-" + width + "s  %6d";
         List<String> rows = new ArrayList<>(players.size());
         for (int i = 0; i < players.size(); i++) {
             rows.add(String.format(rowFormat, players.get(i).rank(), playerNames.get(i), players.get(i).points()));
         }
-        String tableHeader = String.format("%-4s  %-" + width + "s  %6s", "Rank", PLAYER, "Points") + "\n"
+        String header = String.format("%-4s  %-" + width + "s  %6s", "Rank", PLAYER, "Points") + "\n"
                 + "----  " + "-".repeat(width) + "  ------";
-        String summary = "Page " + page.page() + " of " + page.pageCount() + " · " + page.totalPlayers()
-                + (page.totalPlayers() == 1 ? " player" : " players");
-        return DcMessageUtils.packTables("## " + title,
-                List.of(new Section(summary, summary + " (continued)", tableHeader, rows)));
+        return new Table(header, rows);
     }
 
     public static String empty() {
@@ -57,7 +66,8 @@ public final class LeaderboardMessages {
     }
 
     public static String playerPoints(String name, RankedPlayer player) {
-        return bold(name) + " has " + points(player.points()) + " (rank " + player.rank() + ").";
+        Table table = table(List.of(player), List.of(DcMessageUtils.safe(name)));
+        return "```\n" + table.header() + "\n" + table.rows().get(0) + "\n```";
     }
 
     public static String notOnBoard(String name) {

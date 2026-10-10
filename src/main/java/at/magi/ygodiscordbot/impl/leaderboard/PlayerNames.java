@@ -9,6 +9,7 @@ import net.dv8tion.jda.api.utils.Result;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -44,10 +45,16 @@ public final class PlayerNames {
 
     /** Looks up the names of all rows, from the cache where possible, and passes them to {@code onDone}. */
     void resolve(JDA jda, List<RankedPlayer> rows, Consumer<Map<Long, String>> onDone, Consumer<Throwable> onError) {
-        List<Long> ids = rows.stream().map(RankedPlayer::userId).toList();
-        Map<Long, String> names = new HashMap<>(cached(ids));
+        resolveIds(jda, rows.stream().map(RankedPlayer::userId).toList(), onDone, onError);
+    }
+
+    /** Looks up display names of {@code ids}, from the cache where possible. Unknown users are left out. */
+    public void resolveIds(JDA jda, Collection<Long> ids, Consumer<Map<Long, String>> onDone,
+                           Consumer<Throwable> onError) {
+        List<Long> wanted = List.copyOf(ids);
+        Map<Long, String> names = new HashMap<>(cached(wanted));
         List<RestAction<Result<User>>> lookups = new ArrayList<>();
-        for (long id : ids) {
+        for (long id : wanted) {
             if (!names.containsKey(id)) {
                 lookups.add(jda.retrieveUserById(id).mapToResult());
             }
