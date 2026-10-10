@@ -83,9 +83,13 @@ as @-mentions in one text option, since a command can have at most 25 options. R
 players with the same win-loss record who haven't met yet (backtracking; a rematch only if no other pairing exists).
 With an odd number of players one gets a free win: random in round 1, then the player with the most losses. If time
 runs out without a winner, `/match doubleloss` scores a loss for both players. When the last match of a round is
-reported, the bot posts the results, a standings table and either the winner (the only player with the fewest losses;
-after a double loss or a drop only once ⌈log₂ players⌉ rounds are played) or the next pairings, which an organizer
-starts with `/tournament continue`. Points on finish: 1 per match win (free wins excluded) + the number of rounds for
+reported, the bot posts the results, a standings table and either the winner or the next pairings, which an organizer
+starts with `/tournament continue`. The winner is the only player with the fewest losses (after a double loss or a
+drop only once ⌈log₂ players⌉ rounds are played); leaders still tied after ⌈log₂ players⌉ rounds are decided by the
+tie-breakers, so no tournament runs longer. Tie-breakers, as in Magic tournaments: OMW% (average match-win rate of a
+player's opponents; every rate counts at least 33 %, free wins are no opponents, dropped players still count), then
+OOMW% (average OMW% of the opponents), then head-to-head (only between exactly two equal players), then a lot that is
+fixed per tournament. The winner post names the tie-breaker that decided. Points on finish: 1 per match win (free wins excluded) + the number of rounds for
 the winner. Tournaments still running 48 h after their start are abandoned (no points).
 
 Tournament IDs look like `k7m2x9qp4-26-10-10` (9-character key + start day in Vienna time, stored as `code` and
@@ -93,7 +97,7 @@ Tournament IDs look like `k7m2x9qp4-26-10-10` (9-character key + start day in Vi
 as `id:`. The channel only gets the start, one post per completed round, the continue post (matchups with match IDs +
 standings) and the end. Match results (also organizer corrections), drops and the new match IDs after a restart go to
 the players by DM, because a channel message can't be shown to only two people. Standings are code-block tables
-(Rank, Player, W-L). `/tournament list` is for everyone; the other `/tournament` subcommands need **Manage Server**,
+(Rank, Player, W-L, OMW%; only players the lot separates share a rank). `/tournament list` is for everyone; the other `/tournament` subcommands need **Manage Server**,
 which the bot checks itself. Integrations overrides can still hide or restrict the whole `/tournament` command
 (including `list`), but can't grant the organizer subcommands to members without Manage Server. `/match-admin` is hidden from members without **Manage Server**; `/match` is for everyone, but
 only the two players of a match can report it.
@@ -380,7 +384,7 @@ src/main/java/at/magi/ygodiscordbot/
     card/                   CardNames (passcode → name), CardCatalog
     deck/                   Decklist, YdkeDeck, Ydke (YDKE parser/encoder)
     leaderboard/            RankedPlayer, LeaderboardPage, Points (0 … 999,999), PointChange
-    tournament/             MatchRecord, Standings, SwissPairer (backtracking), WinnerRule, TournamentPoints
+    tournament/             MatchRecord, Standings (incl. tie-breakers), SwissPairer (backtracking), WinnerRule, TournamentPoints
   impl/                     the bot, one package per feature
     command/                SlashCommand, CommandRegistry, PingCommand, DatabaseReplies (DB work after the defer)
     banlist/                BanlistCommand, ListMessages, BanlistRepository, BanlistRefresher, SnapshotFileStore,
