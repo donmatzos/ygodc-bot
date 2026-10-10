@@ -2,6 +2,7 @@ package at.magi.ygodiscordbot.impl.tournament;
 
 import at.magi.ygodiscordbot.entity.tournament.MatchRecord;
 import at.magi.ygodiscordbot.entity.tournament.Standings;
+import at.magi.ygodiscordbot.entity.tournament.TournamentListPage;
 import at.magi.ygodiscordbot.entity.tournament.TournamentRecord;
 import at.magi.ygodiscordbot.entity.tournament.TournamentStatus;
 import org.testng.annotations.Test;
@@ -49,7 +50,7 @@ public class TournamentServiceTest extends TournamentServiceTestBase {
     public void startPostsRoundOneWithMatchIdsAndPings() throws SQLException {
         String reply = service.start(GUILD, CHANNEL, ADMIN, FOUR);
         long id = store.lastId();
-        assertTrue(reply.contains("Tournament #" + id + " started with 4 players"), reply);
+        assertTrue(reply.contains("Tournament `" + code(id) + "` started with 4 players"), reply);
         assertEquals(stored(id).status(), TournamentStatus.RUNNING);
         List<ActiveMatch> open = service.openMatches(id);
         assertEquals(open.size(), 2);
@@ -100,12 +101,12 @@ public class TournamentServiceTest extends TournamentServiceTestBase {
     public void fourPlayersFinishAfterTwoRoundsWithPoints() throws SQLException {
         long id = start(FOUR);
         String reply = playRound(id);
-        assertTrue(reply.contains("Round 1 is complete"), reply);
-        assertTrue(announcer.posts.get(announcer.posts.size() - 2).text().contains("Round 1 results"));
+        assertTrue(reply.contains("Round 1 of Tournament `" + code(id) + "` is complete"), reply);
+        assertTrue(announcer.last().contains("Round 1 results"), announcer.last());
         assertTrue(announcer.last().contains("Round 2 pairings"), announcer.last());
         assertTrue(service.openMatches(id).isEmpty());
 
-        assertTrue(service.continueRound(id, GUILD).contains("Round 2 of tournament #" + id + " started"));
+        assertTrue(service.continueRound(code(id), GUILD).contains("Round 2 of tournament `" + code(id) + "` started"));
         assertEquals(service.openMatches(id).size(), 2);
         playRound(id);
 
@@ -120,7 +121,7 @@ public class TournamentServiceTest extends TournamentServiceTestBase {
         assertEquals(awarded.values().stream().mapToLong(Long::longValue).sum(), 6); // + two 1-1 players
         assertTrue(announcer.last().contains("wins after 2 rounds"), announcer.last());
         assertTrue(service.openMatches(id).isEmpty());
-        assertTrue(service.continueRound(id, GUILD).contains("already finished"));
+        assertTrue(service.continueRound(code(id), GUILD).contains("already finished"));
     }
 
     @Test
@@ -136,7 +137,7 @@ public class TournamentServiceTest extends TournamentServiceTestBase {
         service.finishMatch(other.id(), GUILD, other.player1(), other.player1(), false);
         // other.player1() is the only player without a loss, but 4 players play at least 2 rounds
         assertEquals(stored(id).status(), TournamentStatus.RUNNING);
-        assertTrue(announcer.posts.get(announcer.posts.size() - 2).text().contains("both lose (time limit)"));
+        assertTrue(announcer.last().contains("both lose (time limit)"), announcer.last());
         assertTrue(announcer.last().contains("Round 2 pairings"), announcer.last());
         Standings standings = Standings.of(stored(id).players(), Set.of(), stored(id).matches());
         assertEquals(standings.entry(timedOut.player1()).losses(), 1);
@@ -160,7 +161,7 @@ public class TournamentServiceTest extends TournamentServiceTestBase {
         assertTrue(announcer.last().contains("gets a free win"), announcer.last());
         assertEquals(service.openMatches(id).size(), 1);
         playRound(id);
-        service.continueRound(id, GUILD);
+        service.continueRound(code(id), GUILD);
         playRound(id);
         TournamentRecord record = stored(id);
         assertEquals(record.status(), TournamentStatus.FINISHED);
@@ -171,20 +172,20 @@ public class TournamentServiceTest extends TournamentServiceTestBase {
     @Test
     public void continueRefusedWhileMatchesAreOpen() throws SQLException {
         long id = start(FOUR);
-        assertTrue(service.continueRound(id, GUILD).contains("still has 2 open matches"));
+        assertTrue(service.continueRound(code(id), GUILD).contains("still has 2 open matches"));
     }
 
     @Test
     public void otherServersSeeNoTournament() throws SQLException {
         long id = start(FOUR);
-        assertTrue(service.continueRound(id, GUILD + 1).contains("no tournament #" + id));
-        assertTrue(service.standings(id, GUILD + 1).get(0).contains("no tournament #" + id));
+        assertTrue(service.continueRound(code(id), GUILD + 1).contains("no tournament `" + code(id) + "`"));
+        assertTrue(rendered(service.standings(code(id), GUILD + 1)).contains("no tournament `" + code(id) + "`"));
     }
 
     @Test
     public void standingsShowOpenMatches() throws SQLException {
         long id = start(FOUR);
-        String standings = String.join("\n", service.standings(id, GUILD));
+        String standings = rendered(service.standings(code(id), GUILD));
         assertTrue(standings.contains("Round 1"), standings);
         for (ActiveMatch match : service.openMatches(id)) {
             assertTrue(standings.contains("`" + match.id() + "`"), standings);
@@ -223,5 +224,99 @@ public class TournamentServiceTest extends TournamentServiceTestBase {
         assertEquals(stored(id).status(), TournamentStatus.FINISHED);
         assertTrue(announcer.last().contains("not saved"), announcer.last());
         assertTrue(service.openMatches(id).isEmpty());
+    }
+
+    @Test
+    public void startPostIncludesCodeAndPings() throws SQLException {
+        long id = start(FOUR);
+        RecordingAnnouncer.Post post = announcer.posts.get(0);
+        assertTrue(post.ping());
+        assertTrue(post.text().contains("Tournament `" + code(id) + "` · 2026-10-10 · Round 1"), post.text());
+    }
+
+    @Test
+    public void matchResultGoesToBothPlayersByDmNotToTheChannel() throws SQLException {
+        long id = start(FOUR);
+        int posts = announcer.posts.size();
+        ActiveMatch match = service.openMatches(id).get(0);
+        String reply = service.finishMatch(match.id(), GUILD, match.player1(), match.player1(), false);
+        assertTrue(reply.contains(code(id)), reply);
+        assertEquals(announcer.posts.size(), posts);
+        assertEquals(announcer.dmsTo(match.player1()).size(), 1);
+        assertEquals(announcer.dmsTo(match.player2()).size(), 1);
+        assertTrue(announcer.dmsTo(match.player2()).get(0).contains(code(id)));
+    }
+
+    @Test
+    public void adminCorrectionIsDmedToo() throws SQLException {
+        long id = start(FOUR);
+        List<ActiveMatch> open = service.openMatches(id);
+        ActiveMatch match = open.get(0);
+        service.finishMatch(match.id(), GUILD, match.player1(), match.player1(), false);
+        service.finishMatch(match.id(), GUILD, ADMIN, match.player2(), true);
+        assertEquals(announcer.dmsTo(match.player1()).size(), 2);
+        assertTrue(announcer.dmsTo(match.player1()).get(1).contains("corrected"));
+    }
+
+    @Test
+    public void fullRoundIsOnePostWithResultsStandingsAndPairings() throws SQLException {
+        long id = start(FOUR);
+        int posts = announcer.posts.size();
+        playRound(id);
+        assertEquals(announcer.posts.size(), posts + 1);
+        String post = announcer.last();
+        assertTrue(post.contains("Round 1 results"), post);
+        assertTrue(post.contains("**Standings**"), post);
+        assertTrue(post.contains("Round 2 pairings"), post);
+        assertTrue(post.indexOf("Round 1 results") < post.indexOf("Round 2 pairings"), post);
+    }
+
+    @Test
+    public void continueRepostsMatchupsAndStandings() throws SQLException {
+        long id = start(FOUR);
+        playRound(id);
+        service.continueRound(code(id), GUILD);
+        RecordingAnnouncer.Post post = announcer.posts.get(announcer.posts.size() - 1);
+        assertTrue(post.ping());
+        assertTrue(post.text().contains("Tournament `" + code(id) + "` · Round 2"), post.text());
+        assertTrue(post.text().contains("**Standings**"), post.text());
+        for (ActiveMatch match : service.openMatches(id)) {
+            assertTrue(post.text().contains("`" + match.id() + "`"), post.text());
+        }
+    }
+
+    @Test
+    public void lastRoundIsOnePostEndingWithTheWinner() throws SQLException {
+        long id = start(List.of(101L, 102L));
+        int posts = announcer.posts.size();
+        playRound(id);
+        assertEquals(announcer.posts.size(), posts + 1);
+        RecordingAnnouncer.Post post = announcer.posts.get(announcer.posts.size() - 1);
+        assertTrue(post.ping());
+        assertTrue(post.text().contains("Round 1 results"), post.text());
+        assertTrue(post.text().contains("wins after 1 round"), post.text());
+        assertEquals(post.text().split("\\*\\*Standings\\*\\*", -1).length - 1, 1, post.text()); // table once
+    }
+
+    @Test
+    public void closedDmsDoNotStopTheTournament() throws SQLException {
+        announcer.dmsClosed = true;
+        long id = start(FOUR);
+        playRound(id);
+        assertTrue(announcer.last().contains("Round 2 pairings"), announcer.last());
+    }
+
+    @Test
+    public void unknownCodeInAnotherServer() throws SQLException {
+        long id = start(FOUR);
+        assertTrue(service.continueRound(code(id), GUILD + 1).contains("no tournament `" + code(id) + "`"));
+    }
+
+    @Test
+    public void listPageReturnsStoredPage() throws SQLException {
+        long id = start(FOUR);
+        TournamentListPage page = service.listPage(GUILD, null, 1);
+        assertEquals(page.rows().get(0).code(), code(id));
+        assertEquals(service.listPage(GUILD + 1, null, 1).total(), 0);
     }
 }

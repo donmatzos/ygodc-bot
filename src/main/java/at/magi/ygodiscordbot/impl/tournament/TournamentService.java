@@ -6,6 +6,7 @@ import at.magi.ygodiscordbot.entity.tournament.Pairing;
 import at.magi.ygodiscordbot.entity.tournament.Standings;
 import at.magi.ygodiscordbot.entity.tournament.SwissPairer;
 import at.magi.ygodiscordbot.entity.tournament.TournamentCode;
+import at.magi.ygodiscordbot.entity.tournament.TournamentListPage;
 import at.magi.ygodiscordbot.entity.tournament.TournamentPoints;
 import at.magi.ygodiscordbot.entity.tournament.TournamentRecord;
 import at.magi.ygodiscordbot.entity.tournament.TournamentStatus;
@@ -72,8 +73,8 @@ public final class TournamentService {
 
     /**
      * Loads the running tournaments once: at startup, or on the first command after the database came back. Then
-     * resumes each: abandons it if it is older than 48 h, re-creates the open matches with new IDs (and posts them),
-     * or finishes a round end that was interrupted.
+     * resumes each: abandons it if it is older than 48 h, re-creates the open matches with new IDs (and DMs them to
+     * their players), or finishes a round end that was interrupted.
      */
     public void recover() throws SQLException {
         if (loaded) {
@@ -95,13 +96,21 @@ public final class TournamentService {
 
     private void resume(ActiveTournament tournament) throws SQLException {
         if (expired(tournament)) {
-            abandon(tournament, TournamentMessages.TIMEOUT_REASON);
+            announcer.post(tournament.channelId, abandon(tournament, TournamentMessages.TIMEOUT_REASON), false);
         } else if (!tournament.roundClosed()) {
-            createMatches(tournament, tournament.currentRound());
-            announcer.post(tournament.channelId, TournamentMessages.restarted(tournament.id,
-                    tournament.currentRound(), openMatches(tournament.id)), true);
+            int round = tournament.currentRound();
+            createMatches(tournament, round);
+            for (ActiveMatch match : openMatches(tournament.id)) {
+                List<String> dm = TournamentMessages.newMatchIdDm(tournament.code, round, match);
+                announcer.dm(match.player1(), dm);
+                announcer.dm(match.player2(), dm);
+            }
         } else {
-            prepareNextRound(tournament);
+            // The round was complete before the restart, so this is still a round-end post
+            Announcement prepared = prepareNextRound(tournament);
+            if (prepared != null) {
+                announcer.post(tournament.channelId, prepared.text(), prepared.ping());
+            }
         }
     }
 
@@ -137,8 +146,8 @@ public final class TournamentService {
         tournaments.put(id, tournament);
         List<ActiveMatch> created = createMatches(tournament, 1);
         log.info("Tournament {} started with {} players in channel {}", id, players.size(), channelId);
-        announcer.post(channelId, TournamentMessages.roundStart(id, 1, created, tournament.byes(1)), true);
-        return TournamentMessages.started(id, players.size());
+        announcer.post(channelId, TournamentMessages.announced(code, day, created, tournament.byes(1)), true);
+        return TournamentMessages.started(code, players.size());
     }
 
     /** {@code /match finish} ({@code admin = false}) and {@code /match-admin finish} ({@code admin = true}). */
@@ -177,120 +186,135 @@ public final class TournamentService {
             tournament.setDoubleLoss(match.round(), match.player1());
             log.info("Tournament {}: match {} is a double loss{}", tournament.id, matchId,
                     corrected ? " (corrected)" : "");
-            reply = TournamentMessages.doubleLossRecorded(matchId, match.player1(), match.player2(), corrected);
+            reply = TournamentMessages.doubleLossRecorded(tournament.code, matchId, match.player1(), match.player2(),
+                    corrected);
         } else {
             store.recordWinner(tournament.id, match.round(), match.player1(), winner);
             tournament.setWinner(match.round(), match.player1(), winner);
             log.info("Tournament {}: match {} won by {}{}", tournament.id, matchId, winner,
                     corrected ? " (corrected)" : "");
-            reply = TournamentMessages.matchFinished(matchId, winner, corrected);
+            reply = TournamentMessages.matchFinished(tournament.code, matchId, winner, corrected);
         }
+        MatchRecord saved = tournament.record(match.round(), match.player1());
+        List<String> dm = TournamentMessages.matchResultDm(tournament.code, match.round(), matchId, saved, corrected);
+        announcer.dm(match.player1(), dm);
+        announcer.dm(match.player2(), dm);
         String roundEnd = closeRoundIfDone(tournament);
         return roundEnd == null ? reply : reply + "\n" + roundEnd;
     }
 
-    public String continueRound(long tournamentId, long guildId) throws SQLException {
+    public String continueRound(String code, long guildId) throws SQLException {
         recover();
-        ActiveTournament tournament = running(tournamentId, guildId);
+        ActiveTournament tournament = running(code, guildId);
         if (tournament == null) {
-            return notRunning(tournamentId, guildId);
+            return notRunning(code, guildId);
         }
         if (!tournament.roundClosed()) {
-            return TournamentMessages.roundStillOpen(tournamentId, tournament.currentRound(),
-                    openMatches(tournamentId).size());
+            return TournamentMessages.roundStillOpen(code, tournament.currentRound(),
+                    openMatches(tournament.id).size());
         }
-        // Retries a round end that failed before (e.g. the database was down); may finish the tournament
-        prepareNextRound(tournament);
-        if (!tournaments.containsKey(tournamentId)) {
-            return TournamentMessages.endedInsteadOfContinue(tournamentId);
+        // Retries a round end that failed before (e.g. the database was down); may finish the tournament. New
+        // pairings are not posted on their own: the round start below shows them.
+        Announcement prepared = prepareNextRound(tournament);
+        if (!tournaments.containsKey(tournament.id)) {
+            announcer.post(tournament.channelId, prepared.text(), prepared.ping());
+            return TournamentMessages.endedInsteadOfContinue(code);
         }
         int next = tournament.currentRound() + 1;
-        store.startRound(tournamentId, next);
+        store.startRound(tournament.id, next);
         tournament.startRound(next);
         List<ActiveMatch> created = createMatches(tournament, next);
-        log.info("Tournament {}: round {} started", tournamentId, next);
-        announcer.post(tournament.channelId,
-                TournamentMessages.roundStart(tournamentId, next, created, tournament.byes(next)), true);
-        return TournamentMessages.roundStarted(tournamentId, next);
+        log.info("Tournament {}: round {} started", tournament.id, next);
+        announcer.post(tournament.channelId, TournamentMessages.roundStart(code, next, created,
+                tournament.byes(next), tournament.standings()), true);
+        return TournamentMessages.roundStarted(code, next);
     }
 
-    public List<String> standings(long tournamentId, long guildId) throws SQLException {
+    public NamedText standings(String code, long guildId) throws SQLException {
         recover();
-        ActiveTournament tournament = running(tournamentId, guildId);
+        ActiveTournament tournament = running(code, guildId);
         if (tournament != null) {
-            return TournamentMessages.standings(tournamentId, TournamentStatus.RUNNING, tournament.currentRound(),
-                    tournament.standings(), openMatches(tournamentId), null);
+            return TournamentMessages.standings(code, TournamentStatus.RUNNING, tournament.currentRound(),
+                    tournament.standings(), openMatches(tournament.id), null);
         }
-        Optional<TournamentRecord> stored = store.load(tournamentId).filter(record -> record.guildId() == guildId);
+        Optional<TournamentRecord> stored = store.loadByCode(code).filter(record -> record.guildId() == guildId);
         if (stored.isEmpty()) {
-            return List.of(TournamentMessages.tournamentNotFound(tournamentId));
+            return NamedText.plain(TournamentMessages.tournamentNotFound(code));
         }
         TournamentRecord record = stored.get();
         Standings standings = Standings.of(record.players(), record.droppedInRound().keySet(), record.matches());
-        return TournamentMessages.standings(tournamentId, record.status(), record.currentRound(), standings,
-                List.of(), record.winner());
+        return TournamentMessages.standings(code, record.status(), record.currentRound(), standings, List.of(),
+                record.winner());
     }
 
-    public String cancel(long tournamentId, long guildId) throws SQLException {
+    /** One page of this server's tournaments (no in-memory state involved). */
+    public TournamentListPage listPage(long guildId, LocalDate day, int page) throws SQLException {
+        return store.list(guildId, day, page);
+    }
+
+    public String cancel(String code, long guildId) throws SQLException {
         recover();
-        ActiveTournament tournament = running(tournamentId, guildId);
+        ActiveTournament tournament = running(code, guildId);
         if (tournament == null) {
-            return notRunning(tournamentId, guildId);
+            return notRunning(code, guildId);
         }
-        abandon(tournament, TournamentMessages.CANCELLED_REASON);
-        return TournamentMessages.cancelled(tournamentId);
+        announcer.post(tournament.channelId, abandon(tournament, TournamentMessages.CANCELLED_REASON), false);
+        return TournamentMessages.cancelled(code);
     }
 
     /**
-     * Removes a player from the remaining rounds. Their open match is won by the opponent; posted next pairings are
-     * made again without them (which may also decide the winner).
+     * Removes a player from the remaining rounds. Their open match is won by the opponent; prepared next pairings are
+     * made again without them (which may also decide the winner). The players are told by DM; the channel only gets a
+     * post when the drop ends the round or the tournament.
      */
-    public String drop(long tournamentId, long guildId, long player) throws SQLException {
+    public String drop(String code, long guildId, long player) throws SQLException {
         recover();
-        ActiveTournament tournament = running(tournamentId, guildId);
+        ActiveTournament tournament = running(code, guildId);
         if (tournament == null) {
-            return notRunning(tournamentId, guildId);
+            return notRunning(code, guildId);
         }
         if (!tournament.hasPlayer(player)) {
-            return TournamentMessages.notAPlayer(tournamentId, player);
+            return TournamentMessages.notAPlayer(code, player);
         }
         if (tournament.isDropped(player)) {
-            return TournamentMessages.alreadyDropped(tournamentId, player);
+            return TournamentMessages.alreadyDropped(code, player);
         }
         int round = tournament.currentRound();
-        ActiveMatch match = openMatches(tournamentId).stream()
+        ActiveMatch match = openMatches(tournament.id).stream()
                 .filter(open -> open.involves(player))
                 .findFirst()
                 .orElse(null);
         // The drop and the opponent's win are one write, so a failure can't leave the player dropped but playing
         MatchRecord forfeit = match == null ? null
                 : tournament.record(match.round(), match.player1()).withWinner(match.opponentOf(player));
-        store.drop(tournamentId, player, round, forfeit);
+        store.drop(tournament.id, player, round, forfeit);
         tournament.drop(player, round);
-        log.info("Tournament {}: player {} dropped in round {}", tournamentId, player, round);
-        StringBuilder reply = new StringBuilder(TournamentMessages.dropped(tournamentId, player));
+        log.info("Tournament {}: player {} dropped in round {}", tournament.id, player, round);
+        StringBuilder reply = new StringBuilder(TournamentMessages.dropped(code, player));
 
         if (match != null) {
             long opponent = match.opponentOf(player);
             tournament.setWinner(match.round(), match.player1(), opponent);
-            reply.append('\n').append(TournamentMessages.matchFinished(match.id(), opponent, false));
-            announcer.post(tournament.channelId,
-                    List.of(TournamentMessages.droppedPost(tournamentId, player, match.id(), opponent)), false);
-            String roundEnd = closeRoundIfDone(tournament);
+            reply.append('\n').append(TournamentMessages.matchFinished(code, match.id(), opponent, false));
+            announcer.dm(player, TournamentMessages.droppedDm(code));
+            announcer.dm(opponent, TournamentMessages.forfeitWinDm(code, player, match.id()));
+            String roundEnd = closeRoundIfDone(tournament); // posts the round end if this was the last match
             if (roundEnd != null) {
                 reply.append('\n').append(roundEnd);
             }
             return reply.toString();
         }
 
-        announcer.post(tournament.channelId,
-                List.of(TournamentMessages.droppedPost(tournamentId, player, null, null)), false);
+        announcer.dm(player, TournamentMessages.droppedDm(code));
         if (!tournament.pending().isEmpty()) {
             int next = round + 1;
-            store.deletePairings(tournamentId, next);
+            store.deletePairings(tournament.id, next);
             tournament.removeRound(next);
-            prepareNextRound(tournament);
-            if (tournaments.containsKey(tournamentId)) {
+            Announcement prepared = prepareNextRound(tournament);
+            if (!tournaments.containsKey(tournament.id)) {
+                // The drop ended the tournament: that is posted; new pairings are not (continue shows them)
+                announcer.post(tournament.channelId, prepared.text(), prepared.ping());
+            } else {
                 reply.append('\n').append(TournamentMessages.repaired(next));
             }
         }
@@ -302,7 +326,7 @@ public final class TournamentService {
         recover();
         for (ActiveTournament tournament : List.copyOf(tournaments.values())) {
             if (expired(tournament)) {
-                abandon(tournament, TournamentMessages.TIMEOUT_REASON);
+                announcer.post(tournament.channelId, abandon(tournament, TournamentMessages.TIMEOUT_REASON), false);
             }
         }
     }
@@ -326,51 +350,69 @@ public final class TournamentService {
 
     // --- Round end ---
 
-    /** After the last result of the current round: posts the results, then finishes or prepares the next round. */
+    /** What a round end announces after the results, and whether it notifies the players. */
+    private record Announcement(NamedText text, boolean ping) {
+    }
+
+    /**
+     * After the last result of the current round: finishes the tournament or pairs the next round, and posts the
+     * results with what follows them as one post.
+     */
     private String closeRoundIfDone(ActiveTournament tournament) {
         if (!tournament.roundClosed()) {
             return null;
         }
         int round = tournament.currentRound();
+        // Snapshots: the post is rendered later, on a JDA thread. Unplayed next pairings don't change standings.
+        List<MatchRecord> played = tournament.round(round);
+        Standings standings = tournament.standings();
         matches.values().removeIf(match -> match.tournamentId() == tournament.id);
         log.info("Tournament {}: round {} complete", tournament.id, round);
-        announcer.post(tournament.channelId, TournamentMessages.roundResults(tournament.id, round,
-                tournament.round(round), tournament.standings()), false);
         try {
-            prepareNextRound(tournament);
+            Announcement next = prepareNextRound(tournament);
+            boolean finished = !tournaments.containsKey(tournament.id);
+            // A finished tournament's winner post carries the final table, so the results skip theirs
+            NamedText results = TournamentMessages.roundResults(tournament.code, round, played,
+                    finished ? null : standings);
+            announcer.post(tournament.channelId, next == null ? results : results.then(next.text()),
+                    next != null && next.ping());
         } catch (SQLException | RuntimeException e) {
             // The result is saved; /tournament continue (or the next startup) prepares the round again
+            announcer.post(tournament.channelId,
+                    TournamentMessages.roundResults(tournament.code, round, played, standings), false);
             log.warn("Tournament {}: could not prepare the round after round {}", tournament.id, round, e);
-            return TournamentMessages.roundComplete(round) + "\n" + TournamentMessages.prepareFailed(tournament.id);
+            return TournamentMessages.roundComplete(tournament.code, round) + "\n"
+                    + TournamentMessages.prepareFailed(tournament.code);
         }
-        return TournamentMessages.roundComplete(round);
+        return TournamentMessages.roundComplete(tournament.code, round);
     }
 
-    /** For a closed round without posted next pairings: ends the tournament, or pairs and posts the next round. */
-    private void prepareNextRound(ActiveTournament tournament) throws SQLException {
+    /**
+     * For a closed round without prepared next pairings: ends the tournament or pairs the next round. Posts nothing;
+     * returns the announcement, or null if there was nothing to do.
+     */
+    private Announcement prepareNextRound(ActiveTournament tournament) throws SQLException {
         if (!tournament.roundClosed() || !tournament.pending().isEmpty()) {
-            return;
+            return null;
         }
         Standings standings = tournament.standings();
         if (standings.active().isEmpty()) {
-            abandon(tournament, TournamentMessages.NO_PLAYERS_REASON);
-            return;
+            return new Announcement(abandon(tournament, TournamentMessages.NO_PLAYERS_REASON), false);
         }
         Optional<Long> winner = WinnerRule.winner(standings, tournament.currentRound());
         if (winner.isPresent()) {
-            finish(tournament, winner.get(), standings);
-            return;
+            return new Announcement(finish(tournament, winner.get(), standings), true);
         }
         int next = tournament.currentRound() + 1;
         List<Pairing> pairings = SwissPairer.pair(standings, next, random);
         store.savePairings(tournament.id, next, pairings);
         tournament.addPairings(next, pairings);
         log.info("Tournament {}: round {} paired", tournament.id, next);
-        announcer.post(tournament.channelId,
-                TournamentMessages.nextPairings(tournament.id, next, tournament.pending()), false);
+        return new Announcement(TournamentMessages.nextPairings(tournament.code, next, tournament.pending()), false);
     }
 
-    private void finish(ActiveTournament tournament, long winner, Standings standings) throws SQLException {
+    /** Saves the winner and awards the points; returns the winner post (not posted yet). */
+    private NamedText finish(ActiveTournament tournament, long winner, Standings standings) throws SQLException {
         store.finish(tournament.id, winner, clock.instant());
         forget(tournament);
         int rounds = tournament.currentRound();
@@ -385,15 +427,15 @@ public final class TournamentService {
             }
         });
         log.info("Tournament {} finished after {} rounds, winner {}", tournament.id, rounds, winner);
-        announcer.post(tournament.channelId,
-                TournamentMessages.winner(tournament.id, winner, rounds, standings, earned, failed), true);
+        return TournamentMessages.winner(tournament.code, winner, rounds, standings, earned, List.copyOf(failed));
     }
 
-    private void abandon(ActiveTournament tournament, String reason) throws SQLException {
+    /** Marks the tournament abandoned; returns the post (not posted yet). */
+    private NamedText abandon(ActiveTournament tournament, String reason) throws SQLException {
         store.abandon(tournament.id, clock.instant());
         forget(tournament);
         log.info("Tournament {} abandoned: {}", tournament.id, reason);
-        announcer.post(tournament.channelId, TournamentMessages.abandoned(tournament.id, reason), false);
+        return TournamentMessages.abandoned(tournament.code, reason);
     }
 
     private void forget(ActiveTournament tournament) {
@@ -428,16 +470,18 @@ public final class TournamentService {
         return tournaments.values().stream().anyMatch(tournament -> tournament.isActivePlayer(player));
     }
 
-    /** The running tournament with this ID in this server, or null. */
-    private ActiveTournament running(long tournamentId, long guildId) {
-        ActiveTournament tournament = tournaments.get(tournamentId);
-        return tournament != null && tournament.guildId == guildId ? tournament : null;
+    /** The running tournament with this code in this server, or null. */
+    private ActiveTournament running(String code, long guildId) {
+        return tournaments.values().stream()
+                .filter(tournament -> tournament.code.equals(code) && tournament.guildId == guildId)
+                .findFirst()
+                .orElse(null);
     }
 
-    private String notRunning(long tournamentId, long guildId) throws SQLException {
-        return store.load(tournamentId)
+    private String notRunning(String code, long guildId) throws SQLException {
+        return store.loadByCode(code)
                 .filter(record -> record.guildId() == guildId)
-                .map(record -> TournamentMessages.notRunning(tournamentId, record.status()))
-                .orElse(TournamentMessages.tournamentNotFound(tournamentId));
+                .map(record -> TournamentMessages.notRunning(code, record.status()))
+                .orElse(TournamentMessages.tournamentNotFound(code));
     }
 }

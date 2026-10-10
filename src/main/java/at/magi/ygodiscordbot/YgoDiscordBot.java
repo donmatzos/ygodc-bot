@@ -134,7 +134,7 @@ public final class YgoDiscordBot {
 
             TournamentRepository tournamentStore = new TournamentRepository(database);
             databaseExecutor.execute(() -> createTournamentSchema(tournamentStore, config.database()));
-            tournamentAnnouncer = new JdaTournamentAnnouncer();
+            tournamentAnnouncer = new JdaTournamentAnnouncer(playerNames);
             tournaments = new TournamentService(tournamentStore,
                     (player, points) -> players.changePoints(player, points), tournamentAnnouncer, clock, new Random());
             commands.register(new TournamentCommand(tournaments, databaseExecutor));

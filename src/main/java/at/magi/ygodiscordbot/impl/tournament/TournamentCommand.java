@@ -23,6 +23,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.regex.Matcher;
@@ -83,19 +84,20 @@ public final class TournamentCommand implements SlashCommand {
     }
 
     private static OptionData idOption() {
-        return new OptionData(OptionType.INTEGER, ID, "Tournament ID", true).setMinValue(1);
+        // Interim until the command is reworked: the raw text is used as the tournament code
+        return new OptionData(OptionType.STRING, ID, "Tournament ID", true).setMaxLength(100);
     }
 
     @Override
     public void execute(SlashCommandInteractionEvent event) {
         long guild = event.getGuild().getIdLong();
-        long id = event.getOption(ID, 0L, OptionMapping::getAsLong);
+        String id = event.getOption(ID, "", OptionMapping::getAsString).strip();
         switch (String.valueOf(event.getSubcommandName())) {
             case "start" -> start(event, guild);
             case "continue" -> DatabaseReplies.replyEphemeral(event, dbExecutor, TEXTS,
                     () -> service.continueRound(id, guild));
             case "standings" -> DatabaseReplies.replyAllEphemeral(event, dbExecutor, TEXTS,
-                    () -> service.standings(id, guild));
+                    () -> service.standings(id, guild).render().apply(Map.of()));
             case "cancel" -> DatabaseReplies.replyEphemeral(event, dbExecutor, TEXTS,
                     () -> service.cancel(id, guild));
             case "drop" -> {
