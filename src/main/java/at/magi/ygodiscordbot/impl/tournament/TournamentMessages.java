@@ -302,6 +302,10 @@ final class TournamentMessages {
                 + " players, you listed " + count + ".";
     }
 
+    static String tooManyRunning(int max) {
+        return "❌ This server already has " + max + " running tournaments. Finish or cancel one first.";
+    }
+
     static String alreadyPlaying(List<Long> players) {
         return "❌ Already playing in a running tournament: "
                 + players.stream().map(TournamentMessages::mention).collect(Collectors.joining(", ")) + ".";

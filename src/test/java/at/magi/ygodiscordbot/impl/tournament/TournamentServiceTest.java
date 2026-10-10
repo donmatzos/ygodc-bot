@@ -10,6 +10,7 @@ import org.testng.annotations.Test;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
@@ -330,5 +331,49 @@ public class TournamentServiceTest extends TournamentServiceTestBase {
         TournamentListPage page = service.listPage(GUILD, null, 1);
         assertEquals(page.rows().get(0).code(), code(id));
         assertEquals(service.listPage(GUILD + 1, null, 1).total(), 0);
+    }
+
+    private TournamentService smallIdRange(int ids) {
+        return new TournamentService(store, (player, points) -> awarded.merge(player, points, Long::sum), announcer,
+                clock, new Random(1), 100, 100 + ids - 1);
+    }
+
+    @Test
+    public void closedMatchIdIsNeverIssuedAgain() throws SQLException {
+        service = smallIdRange(5);
+        Set<Integer> seen = new HashSet<>();
+        for (long player = 1; player <= 10; player += 2) {
+            service.start(GUILD, CHANNEL, ADMIN, List.of(player, player + 1));
+            long id = store.lastId();
+            for (ActiveMatch match : service.openMatches(id)) {
+                assertTrue(seen.add(match.id()), "reissued " + match.id());
+            }
+            playRound(id);
+        }
+        assertEquals(seen.size(), 5);
+    }
+
+    @Test
+    public void exhaustedMatchIdsFailClearly() throws SQLException {
+        service = smallIdRange(2);
+        service.start(GUILD, CHANNEL, ADMIN, List.of(1L, 2L));
+        playRound(store.lastId());
+        service.start(GUILD, CHANNEL, ADMIN, List.of(3L, 4L));
+        playRound(store.lastId());
+        IllegalStateException e = expectThrows(IllegalStateException.class,
+                () -> service.start(GUILD, CHANNEL, ADMIN, List.of(5L, 6L)));
+        assertTrue(e.getMessage().contains("match IDs"), e.getMessage());
+    }
+
+    @Test
+    public void eleventhTournamentInOneServerIsRefused() throws SQLException {
+        for (long i = 0; i < TournamentService.MAX_RUNNING_PER_GUILD; i++) {
+            assertTrue(service.start(GUILD, CHANNEL, ADMIN, List.of(1000 + 2 * i, 1001 + 2 * i)).contains("started"));
+        }
+        int stored = store.loadRunning().size();
+        String reply = service.start(GUILD, CHANNEL, ADMIN, List.of(5000L, 5001L));
+        assertTrue(reply.startsWith("❌") && reply.contains("10"), reply);
+        assertEquals(store.loadRunning().size(), stored);
+        assertTrue(service.start(GUILD + 1, CHANNEL, ADMIN, List.of(5000L, 5001L)).contains("started"));
     }
 }

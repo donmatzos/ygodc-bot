@@ -23,6 +23,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -45,6 +46,7 @@ public final class TournamentService {
     static final Duration TIMEOUT = Duration.ofHours(48);
     static final int MIN_MATCH_ID = 10_000;
     static final int MAX_MATCH_ID = 99_999;
+    static final int MAX_RUNNING_PER_GUILD = 10;
 
     /** Adds leaderboard points (the leaderboard's {@code changePoints}). */
     @FunctionalInterface
@@ -57,6 +59,10 @@ public final class TournamentService {
     private final TournamentAnnouncer announcer;
     private final Clock clock;
     private final Random random;
+    private final int minMatchId;
+    private final int maxMatchId;
+    /** Every match ID issued since the bot started, so a stale ID never points at another match. */
+    private final Set<Integer> issuedMatchIds = new HashSet<>();
     private final Map<Long, ActiveTournament> tournaments = new HashMap<>();
     /** Matches of the current rounds (finished ones too, so an organizer can correct them until the round closes). */
     private final Map<Integer, ActiveMatch> matches = new HashMap<>();
@@ -64,6 +70,14 @@ public final class TournamentService {
 
     public TournamentService(TournamentStore store, PointsAwarder points, TournamentAnnouncer announcer, Clock clock,
                              Random random) {
+        this(store, points, announcer, clock, random, MIN_MATCH_ID, MAX_MATCH_ID);
+    }
+
+    /** With a custom match ID range, so tests can exhaust it. */
+    TournamentService(TournamentStore store, PointsAwarder points, TournamentAnnouncer announcer, Clock clock,
+                      Random random, int minMatchId, int maxMatchId) {
+        this.minMatchId = minMatchId;
+        this.maxMatchId = maxMatchId;
         this.store = store;
         this.points = points;
         this.announcer = announcer;
@@ -118,6 +132,10 @@ public final class TournamentService {
         recover();
         if (players.size() < MIN_PLAYERS || players.size() > MAX_PLAYERS) {
             return TournamentMessages.playerCount(players.size());
+        }
+        long running = tournaments.values().stream().filter(tournament -> tournament.guildId == guildId).count();
+        if (running >= MAX_RUNNING_PER_GUILD) {
+            return TournamentMessages.tooManyRunning(MAX_RUNNING_PER_GUILD);
         }
         List<Long> busy = players.stream().filter(this::inRunningTournament).toList();
         if (!busy.isEmpty()) {
@@ -480,11 +498,16 @@ public final class TournamentService {
     }
 
     private int newMatchId() {
-        int id;
-        do {
-            id = MIN_MATCH_ID + random.nextInt(MAX_MATCH_ID - MIN_MATCH_ID + 1);
-        } while (matches.containsKey(id));
-        return id;
+        int range = maxMatchId - minMatchId + 1;
+        // Random pick first; if it is taken, scan from there for the next free ID (wrapping), so it always terminates
+        int start = random.nextInt(range);
+        for (int i = 0; i < range; i++) {
+            int id = minMatchId + (start + i) % range;
+            if (issuedMatchIds.add(id)) {
+                return id;
+            }
+        }
+        throw new IllegalStateException("All " + range + " match IDs are used up until the bot restarts");
     }
 
     private boolean inRunningTournament(long player) {
