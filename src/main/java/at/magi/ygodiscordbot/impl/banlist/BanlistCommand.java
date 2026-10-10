@@ -102,10 +102,12 @@ public final class BanlistCommand implements SlashCommand {
 
     private void sendToDirectMessages(SlashCommandInteractionEvent event, Format format, List<String> messages,
                                       Instant started) {
-        event.deferReply(true).queue();
-        MessageSender.sendToDirectMessages(event, messages, "the " + format.label + " list", "`/banlist`",
-                () -> log.info("Sent {} list ({} messages) to {} via DM, requested in server {}, took {} ms",
-                        format.label, messages.size(), who(event), event.getGuild().getId(), millisSince(started)));
+        // Only after Discord accepted the defer: an expired interaction would still DM, and the retry would DM again
+        event.deferReply(true).queue(
+                hook -> MessageSender.sendToDirectMessages(event, messages, "the " + format.label + " list",
+                        "`/banlist`", () -> log.info("Sent {} list ({} messages) to {} via DM, requested in server {}, took {} ms",
+                                format.label, messages.size(), who(event), event.getGuild().getId(), millisSince(started))),
+                failure -> log.warn("Could not acknowledge /banlist by {}, nothing was sent", who(event), failure));
     }
 
     private static String who(SlashCommandInteractionEvent event) {

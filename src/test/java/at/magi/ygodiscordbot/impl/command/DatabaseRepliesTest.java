@@ -154,6 +154,30 @@ public class DatabaseRepliesTest {
     }
 
     @Test
+    public void deferPassesTheEphemeralFlagAndRunsWorkOnlyAfterAcceptedDefer() {
+        List<Boolean> flags = new ArrayList<>();
+        List<String> edits = new ArrayList<>();
+        for (boolean ephemeral : new boolean[]{true, false}) {
+            DatabaseReplies.deferVia(flag -> {
+                flags.add(flag);
+                return defer(true, recordingHook(edits));
+            }, ephemeral, Runnable::run, TEXTS, "/leaderboard page", hook -> hook.editOriginal("page").queue());
+        }
+        assertEquals(flags, List.of(true, false));
+        assertEquals(edits, List.of("page", "page"));
+    }
+
+    @Test
+    public void deferWithFailedDeferRunsNothingInEitherMode() {
+        List<String> runs = new ArrayList<>();
+        for (boolean ephemeral : new boolean[]{true, false}) {
+            DatabaseReplies.deferVia(flag -> defer(false, null), ephemeral, Runnable::run, TEXTS,
+                    "/leaderboard page", hook -> runs.add("queried"));
+        }
+        assertTrue(runs.isEmpty(), "no query when the user was told the command failed");
+    }
+
+    @Test
     public void failedDeferNeverRunsHookWork() {
         List<String> runs = new ArrayList<>();
         DatabaseReplies.afterDefer(defer(false, null), Runnable::run, TEXTS, "/leaderboard-admin share",
