@@ -15,7 +15,8 @@ import java.util.Set;
  *
  * <p>Equal records are ranked by tie-breakers, as in Magic tournaments: OMW% (average match-win rate of the real
  * opponents of played matches; each rate floored at 1/3, byes are no opponents), then OOMW% (average OMW% of the same
- * opponents), then head-to-head (only for exactly two equal players), then a lot that is fixed per tournament.
+ * opponents), then head-to-head (only when exactly two active players are equal), then a lot that is fixed per
+ * tournament. {@link #ranked()}, {@link #rank} and {@link #decidedBy} all come from the one ordering in the constructor.
  */
 public final class Standings {
 
@@ -37,13 +38,20 @@ public final class Standings {
         RECORD, OMW, OOMW, HEAD_TO_HEAD, LOT
     }
 
-    /** Fewest losses, most wins, best OMW%, best OOMW%; the rates in units of 0.01 %, so float noise never decides. */
+    /**
+     * Fewest losses, most wins, best OMW%, best OOMW%; the rates in units of 0.1 % ({@link #permille}), the precision
+     * posts show, so float noise never decides and two rates that differ also look different.
+     */
     record Key(int losses, int wins, long omw, long oomw) {
 
         static Key of(Entry entry, TieBreaks tieBreaks) {
-            return new Key(entry.losses(), entry.wins(), Math.round(tieBreaks.omw() * 10_000),
-                    Math.round(tieBreaks.oomw() * 10_000));
+            return new Key(entry.losses(), entry.wins(), permille(tieBreaks.omw()), permille(tieBreaks.oomw()));
         }
+    }
+
+    /** A rate in units of 0.1 %, as compared and shown. */
+    public static long permille(double rate) {
+        return Math.round(rate * 1000);
     }
 
     static final Comparator<Key> BY_KEY = Comparator.comparingInt(Key::losses)
@@ -64,31 +72,52 @@ public final class Standings {
     private final Map<Long, TieBreaks> tieBreaks;
     private final Map<Long, Map<Long, Integer>> winsAgainst;
     private final long seed;
+    private final Map<Long, Key> keys = new HashMap<>();
+    /** Pairs of equal players that head-to-head ordered; every other equal pair is ordered by the lot. */
+    private final Set<Set<Long>> headToHeadPairs = new HashSet<>();
     private final List<Entry> ranked;
-    private final Map<Long, Integer> ranks;
+    private final Map<Long, Integer> ranks = new HashMap<>();
 
     private Standings(List<Long> players, Map<Long, Entry> entries, Map<Long, Set<Long>> opponents,
                       boolean doubleLossOrDrop, Map<Long, TieBreaks> tieBreaks,
-                      Map<Long, Map<Long, Integer>> winsAgainst) {
+                      Map<Long, Map<Long, Integer>> winsAgainst, long seed) {
         this.players = players;
         this.entries = entries;
         this.opponents = opponents;
         this.doubleLossOrDrop = doubleLossOrDrop;
         this.tieBreaks = tieBreaks;
         this.winsAgainst = winsAgainst;
-        // Entry order is stored with the tournament, so the lot is the same after a restart and in every post
-        this.seed = players.hashCode();
+        this.seed = seed;
+        entries.forEach((player, entry) -> keys.put(player, Key.of(entry, tieBreaks.get(player))));
         this.ranked = rank();
-        this.ranks = new HashMap<>();
+        // A player shares the rank of the group above when only the lot separates it from everyone in that group
+        List<Long> group = new ArrayList<>();
         for (int i = 0; i < ranked.size(); i++) {
             long player = ranked.get(i).player();
-            boolean shared = i > 0 && decidedBy(ranked.get(i - 1).player(), player) == Decider.LOT;
-            ranks.put(player, shared ? ranks.get(ranked.get(i - 1).player()) : i + 1);
+            if (!group.isEmpty() && group.stream().allMatch(other -> decidedBy(other, player) == Decider.LOT)) {
+                ranks.put(player, ranks.get(group.get(0)));
+            } else {
+                group.clear();
+                ranks.put(player, i + 1);
+            }
+            group.add(player);
         }
     }
 
-    /** @param players every player in entry order, dropped ones included */
+    /**
+     * Standings with lot seed 0. Only for callers that don't rank tied players (round-1 pairing) and for tests; a
+     * running tournament uses {@link #of(List, Set, List, long)} with its ID.
+     */
     public static Standings of(List<Long> players, Set<Long> dropped, List<MatchRecord> matches) {
+        return of(players, dropped, matches, 0);
+    }
+
+    /**
+     * @param players every player in entry order, dropped ones included
+     * @param seed    the tournament's ID: the lot is the same after a restart and in every post, but differs between
+     *                tournaments of the same players
+     */
+    public static Standings of(List<Long> players, Set<Long> dropped, List<MatchRecord> matches, long seed) {
         Map<Long, int[]> counts = new HashMap<>();
         Map<Long, Set<Long>> opponents = new HashMap<>();
         Map<Long, List<Long>> played = new HashMap<>();
@@ -131,7 +160,7 @@ public final class Standings {
         }
         boolean doubleLossOrDrop = !dropped.isEmpty() || matches.stream().anyMatch(MatchRecord::doubleLoss);
         return new Standings(List.copyOf(players), entries, opponents, doubleLossOrDrop,
-                tieBreaks(players, counts, played), winsAgainst);
+                tieBreaks(players, counts, played), winsAgainst, seed);
     }
 
     private static Map<Long, TieBreaks> tieBreaks(List<Long> players, Map<Long, int[]> counts,
@@ -159,28 +188,39 @@ public final class Standings {
                 : opponents.stream().mapToDouble(rates::get).average().getAsDouble();
     }
 
-    /** By key, then by lot; two players equal on their key are then ordered by head-to-head if one beat the other more. */
+    /**
+     * By key, then by lot. In a group of equal keys with exactly two active players, the one who beat the other more
+     * often goes first (they swap places if the lot had them the other way round); dropped players don't count.
+     */
     private List<Entry> rank() {
         List<Entry> sorted = new ArrayList<>(entries.values());
-        sorted.sort(Comparator.comparing((Entry entry) -> key(entry.player()), BY_KEY)
+        sorted.sort(Comparator.comparing((Entry entry) -> keys.get(entry.player()), BY_KEY)
                 .thenComparingLong(entry -> lot(entry.player())));
         int start = 0;
         while (start < sorted.size()) {
-            int end = start + 1;
-            Key key = key(sorted.get(start).player());
-            while (end < sorted.size() && key(sorted.get(end).player()).equals(key)) {
+            Key key = keys.get(sorted.get(start).player());
+            List<Integer> active = new ArrayList<>();
+            int end = start;
+            while (end < sorted.size() && keys.get(sorted.get(end).player()).equals(key)) {
+                if (!sorted.get(end).dropped()) {
+                    active.add(end);
+                }
                 end++;
             }
-            if (end - start == 2 && headToHead(sorted.get(start + 1).player(), sorted.get(start).player()) > 0) {
-                Collections.swap(sorted, start, start + 1);
+            if (active.size() == 2) {
+                long upper = sorted.get(active.get(0)).player();
+                long lower = sorted.get(active.get(1)).player();
+                int result = headToHead(upper, lower);
+                if (result != 0) {
+                    headToHeadPairs.add(Set.of(upper, lower));
+                }
+                if (result < 0) {
+                    Collections.swap(sorted, active.get(0), active.get(1));
+                }
             }
             start = end;
         }
         return List.copyOf(sorted);
-    }
-
-    private Key key(long player) {
-        return Key.of(entry(player), tieBreaks(player));
     }
 
     /** Positive when {@code player} won more matches against {@code other} than the other way round. */
@@ -220,10 +260,15 @@ public final class Standings {
         return ranks.get(player);
     }
 
-    /** The first ranking step that puts {@code better} ahead of {@code worse}. */
+    /** Players who have not dropped, best first. */
+    public List<Long> activeRanked() {
+        return ranked.stream().filter(entry -> !entry.dropped()).map(Entry::player).toList();
+    }
+
+    /** The ranking step that put {@code better} ahead of {@code worse}; {@code better} must rank above. */
     public Decider decidedBy(long better, long worse) {
-        Key first = key(better);
-        Key second = key(worse);
+        Key first = keys.get(entry(better).player());
+        Key second = keys.get(entry(worse).player());
         if (first.losses() != second.losses() || first.wins() != second.wins()) {
             return Decider.RECORD;
         }
@@ -233,7 +278,7 @@ public final class Standings {
         if (first.oomw() != second.oomw()) {
             return Decider.OOMW;
         }
-        return headToHead(better, worse) != 0 ? Decider.HEAD_TO_HEAD : Decider.LOT;
+        return headToHeadPairs.contains(Set.of(better, worse)) ? Decider.HEAD_TO_HEAD : Decider.LOT;
     }
 
     /** Players who have not dropped, in entry order. */

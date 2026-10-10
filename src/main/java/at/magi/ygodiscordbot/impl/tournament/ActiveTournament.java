@@ -48,7 +48,7 @@ final class ActiveTournament {
     }
 
     Standings standings() {
-        return Standings.of(players, droppedInRound.keySet(), matches);
+        return Standings.of(players, droppedInRound.keySet(), matches, id);
     }
 
     boolean hasPlayer(long player) {

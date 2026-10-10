@@ -156,43 +156,54 @@ public class StandingsTest {
     }
 
     @Test
-    public void lotDoesNotFollowUserIds() {
-        // Two players with equal everything (both 0-0): over many tournaments the lower ID must not always win
+    public void lotDiffersBetweenTournaments() {
+        // The same two players with equal everything: across tournaments either may come first
         boolean lowerFirst = false;
         boolean higherFirst = false;
-        for (long other = 2; other < 40; other++) {
-            long first = Standings.of(List.of(1L, other), Set.of(), List.of()).ranked().get(0).player();
-            lowerFirst |= first == 1L;
-            higherFirst |= first == other;
+        for (long tournament = 1; tournament < 40; tournament++) {
+            long first = Standings.of(List.of(A, B), Set.of(), List.of(), tournament).ranked().get(0).player();
+            lowerFirst |= first == A;
+            higherFirst |= first == B;
         }
         assertTrue(lowerFirst && higherFirst);
     }
 
     @Test
-    public void unplayedPairingsCountOnlyAsMet() {
-        Standings standings = Standings.of(List.of(A, B), Set.of(), List.of(new MatchRecord(1, A, B, null)));
-        assertTrue(standings.haveMet(A, B));
-        assertTrue(standings.haveMet(B, A));
-        assertEquals(standings.entry(A).wins(), 0);
-        assertEquals(standings.entry(B).losses(), 0);
+    public void headToHeadIsNotUsedForThreeEqualPlayers() {
+        // A beat B, C beat A, B beat C, each with one bye: all 2-1 with equal figures, so only the lot orders them
+        for (long tournament = 1; tournament < 20; tournament++) {
+            Standings standings = Standings.of(List.of(A, B, C), Set.of(), List.of(
+                    won(1, A, B), MatchRecord.of(1, Pairing.bye(C)),
+                    won(2, C, A), MatchRecord.of(2, Pairing.bye(B)),
+                    won(3, B, C), MatchRecord.of(3, Pairing.bye(A))), tournament);
+            List<Standings.Entry> ranked = standings.ranked();
+            assertEquals(standings.decidedBy(ranked.get(0).player(), ranked.get(1).player()), Standings.Decider.LOT);
+            assertEquals(standings.decidedBy(ranked.get(1).player(), ranked.get(2).player()), Standings.Decider.LOT);
+            assertEquals(standings.decidedBy(ranked.get(0).player(), ranked.get(2).player()), Standings.Decider.LOT);
+            assertEquals(List.of(standings.rank(A), standings.rank(B), standings.rank(C)), List.of(1, 1, 1));
+        }
     }
 
     @Test
-    public void byesAreNoMeeting() {
-        Standings standings = Standings.of(List.of(A, B, C), Set.of(), List.of(
-                won(1, A, B), MatchRecord.of(1, Pairing.bye(C))));
-        assertFalse(standings.haveMet(C, A));
-        assertFalse(standings.haveMet(C, B));
+    public void droppedPlayersDontBlockHeadToHead() {
+        // A beat B, X beat Y, Y beat A, B beat X: all four 1-1 with equal figures. X and Y dropped, so A and B are the
+        // only active players of the group and A's win over B decides, whatever the lot.
+        long x = 7, y = 8;
+        for (long tournament = 1; tournament < 20; tournament++) {
+            Standings standings = Standings.of(List.of(A, B, x, y), Set.of(x, y), List.of(
+                    won(1, A, B), won(1, x, y), won(2, y, A), won(2, B, x)), tournament);
+            assertEquals(standings.activeRanked(), List.of(A, B));
+            assertEquals(standings.decidedBy(A, B), Standings.Decider.HEAD_TO_HEAD);
+            assertTrue(standings.rank(B) > standings.rank(A), "tournament " + tournament);
+        }
     }
 
     @Test
-    public void droppedPlayersStayInStandingsButAreNotActive() {
-        Standings standings = Standings.of(List.of(A, B, C, D, E), Set.of(B), List.of());
-        assertEquals(standings.active(), List.of(A, C, D, E));
-        assertTrue(standings.entry(B).dropped());
-        assertEquals(standings.ranked().size(), 5);
+    public void activeRankedLeavesOutDroppedPlayers() {
+        Standings standings = Standings.of(List.of(A, B, C), Set.of(A), List.of(won(1, A, B)));
+        assertEquals(standings.activeRanked().size(), 2);
+        assertFalse(standings.activeRanked().contains(A));
     }
-
     @Test
     public void matchRecordHelpers() {
         MatchRecord open = new MatchRecord(2, A, B, null);
