@@ -253,4 +253,27 @@ public class TournamentRepositoryTest {
         new TournamentRepository(dataSource).ensureSchema(); // a second start changes nothing
         assertEquals(fresh.loadByCode(record.code()).orElseThrow().id(), record.id());
     }
+
+    @Test
+    public void finishesAHalfDoneMigration() throws SQLException {
+        try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement()) {
+            statement.execute("DROP TABLE IF EXISTS tournament_match, tournament_player, tournament");
+            statement.execute(OLD_TOURNAMENT_TABLE);
+            statement.execute("INSERT INTO tournament (guild_id, channel_id, created_by, status, started_at, current_round)"
+                    + " VALUES (1, 2, 3, 'RUNNING', " + Instant.parse("2026-10-09T23:30:00Z").toEpochMilli() + ", 1)");
+            // as if the first start died after adding the columns: no backfill, no index
+            statement.execute("ALTER TABLE tournament ADD COLUMN code VARCHAR(18) NULL, ADD COLUMN played_on DATE NULL");
+        }
+        TournamentRepository fresh = new TournamentRepository(dataSource);
+        fresh.ensureSchema();
+        TournamentRecord record = fresh.loadRunning().get(0);
+        assertEquals(record.playedOn(), LocalDate.of(2026, 10, 10));
+        assertEquals(TournamentCode.parse(record.code()), Optional.of(record.code()));
+        try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement();
+             java.sql.ResultSet result = statement.executeQuery("SELECT COUNT(*) FROM information_schema.STATISTICS"
+                     + " WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'tournament' AND INDEX_NAME = 'uq_tournament_code'")) {
+            result.next();
+            assertTrue(result.getInt(1) > 0);
+        }
+    }
 }

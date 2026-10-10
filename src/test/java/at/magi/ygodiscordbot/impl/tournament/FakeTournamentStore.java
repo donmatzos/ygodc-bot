@@ -45,6 +45,10 @@ final class FakeTournamentStore implements TournamentStore {
     /** When ≥ 0: that many more writes succeed, then the database is down. */
     int writesUntilFailure = -1;
 
+    /** The next this-many creates are refused as duplicate codes (recorded in {@link #rejectedCodes}). */
+    int collisions;
+    final List<String> rejectedCodes = new ArrayList<>();
+
     long lastId() {
         return nextId - 1;
     }
@@ -77,7 +81,11 @@ final class FakeTournamentStore implements TournamentStore {
     @Override
     public long create(NewTournament tournament, List<Pairing> round1) throws SQLException {
         write();
-        if (rows.values().stream().anyMatch(existing -> existing.tournament.code().equals(tournament.code()))) {
+        if (collisions > 0 || rows.values().stream().anyMatch(existing -> existing.tournament.code().equals(tournament.code()))) {
+            if (collisions > 0) {
+                collisions--;
+            }
+            rejectedCodes.add(tournament.code());
             throw new SQLIntegrityConstraintViolationException("Duplicate code");
         }
         Row row = new Row(tournament);

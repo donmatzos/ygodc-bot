@@ -30,13 +30,19 @@ public class TournamentServiceTest extends TournamentServiceTestBase {
 
     @Test
     public void startRetriesWhenTheCodeExists() throws SQLException {
-        long first = start(FOUR);
-        // same seed again generates the same first code; the retry must pick another
-        service = newService(42);
-        store.failWrites = false;
-        long second = start(List.of(201L, 202L, 203L, 204L));
-        assertTrue(second != first);
-        assertTrue(!code(first).equals(code(second)));
+        store.collisions = 1;
+        long id = start(FOUR);
+        assertEquals(store.rejectedCodes.size(), 1);
+        assertEquals(stored(id).status(), TournamentStatus.RUNNING);
+        assertTrue(!code(id).equals(store.rejectedCodes.get(0)));
+    }
+
+    @Test
+    public void startGivesUpWhenEveryCodeExists() {
+        store.collisions = TournamentService.CODE_ATTEMPTS;
+        expectThrows(java.sql.SQLIntegrityConstraintViolationException.class, () -> service.start(GUILD, CHANNEL, ADMIN, FOUR));
+        assertEquals(store.rejectedCodes.size(), TournamentService.CODE_ATTEMPTS);
+        assertEquals(store.loadRunning(), List.of());
     }
 
     @Test
