@@ -7,6 +7,7 @@ import at.magi.ygodiscordbot.entity.banlist.TcgBanlist;
 import at.magi.ygodiscordbot.utils.http.ListFetcher;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
@@ -15,12 +16,15 @@ import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.LockSupport;
 import java.util.stream.Stream;
 
@@ -160,6 +164,110 @@ public class BanlistRefresherTest {
         assertTrue(Duration.between(closing, Instant.now()).toSeconds() < 5, "close() took too long");
         assertFalse(laterFetchCalled.get(), "fetches must not start after close()");
         assertTrue(store.load().isEmpty());
+    }
+
+    private static final Instant FRESH = Instant.parse("2026-10-05T01:05:00Z"); // 03:05 Vienna, after the daily run
+    private static final Instant STALE = Instant.parse("2026-10-04T23:00:00Z"); // 01:00 Vienna, before the daily run
+
+    @DataProvider
+    public Object[][] storedFetchTimes() {
+        // tcg, ocg, genesys fetchedAt in the repository (null = missing), then expected fetch calls tcg, ocg, genesys
+        return new Object[][]{
+                {null, null, null, 1, 1, 1},
+                {STALE, STALE, STALE, 1, 1, 1},
+                {FRESH, FRESH, STALE, 0, 0, 1},
+                {FRESH, STALE, FRESH, 0, 1, 0},
+                {STALE, FRESH, FRESH, 1, 0, 0},
+                {FRESH, FRESH, null, 0, 0, 1},
+                {FRESH, FRESH, FRESH, 0, 0, 0},
+        };
+    }
+
+    @Test(dataProvider = "storedFetchTimes")
+    public void refreshFetchesOnlyListsOlderThanTheLastDailyRun(Instant tcgAt, Instant ocgAt, Instant genesysAt,
+                                                                int tcgCalls, int ocgCalls, int genesysCalls) {
+        repository.replace(new BanlistSnapshot(
+                tcgAt == null ? null : TestLists.tcg(tcgAt),
+                ocgAt == null ? null : TestLists.ocg(ocgAt),
+                genesysAt == null ? null : TestLists.genesys(genesysAt)));
+        AtomicInteger tcg = new AtomicInteger();
+        AtomicInteger ocg = new AtomicInteger();
+        AtomicInteger genesys = new AtomicInteger();
+
+        try (BanlistRefresher refresher = refresher(
+                () -> {
+                    tcg.incrementAndGet();
+                    return TestLists.tcg(NOW);
+                }, () -> {
+                    ocg.incrementAndGet();
+                    return TestLists.ocg(NOW);
+                }, () -> {
+                    genesys.incrementAndGet();
+                    return TestLists.genesys(NOW);
+                })) {
+            assertTrue(refresher.refresh());
+        }
+        assertEquals(new int[]{tcg.get(), ocg.get(), genesys.get()}, new int[]{tcgCalls, ocgCalls, genesysCalls});
+        BanlistSnapshot snapshot = repository.snapshot();
+        assertEquals(snapshot.tcg().fetchedAt(), tcgCalls == 1 ? NOW : tcgAt);
+        assertEquals(snapshot.ocg().fetchedAt(), ocgCalls == 1 ? NOW : ocgAt);
+        assertEquals(snapshot.genesys().fetchedAt(), genesysCalls == 1 ? NOW : genesysAt);
+    }
+
+    @Test
+    public void retryFetchesOnlyTheFailedListUntilTheNextDailyRun() {
+        AtomicReference<Instant> time = new AtomicReference<>(NOW);
+        Clock movingClock = new Clock() {
+            @Override
+            public ZoneId getZone() {
+                return BanlistRefresher.ZONE;
+            }
+
+            @Override
+            public Clock withZone(ZoneId zone) {
+                return this;
+            }
+
+            @Override
+            public Instant instant() {
+                return time.get();
+            }
+        };
+        AtomicInteger tcg = new AtomicInteger();
+        AtomicInteger ocg = new AtomicInteger();
+        AtomicInteger genesys = new AtomicInteger();
+        AtomicBoolean genesysDown = new AtomicBoolean(true);
+
+        try (BanlistRefresher refresher = new BanlistRefresher(repository, store,
+                () -> {
+                    tcg.incrementAndGet();
+                    return TestLists.tcg(time.get());
+                }, () -> {
+                    ocg.incrementAndGet();
+                    return TestLists.ocg(time.get());
+                }, () -> {
+                    genesys.incrementAndGet();
+                    if (genesysDown.get()) {
+                        throw new IOException("Konami is down");
+                    }
+                    return TestLists.genesys(time.get());
+                }, movingClock)) {
+            assertFalse(refresher.refresh());
+            assertEquals(new int[]{tcg.get(), ocg.get(), genesys.get()}, new int[]{1, 1, 1});
+
+            time.set(NOW.plus(Duration.ofHours(1)));
+            assertFalse(refresher.refresh());
+            assertEquals(new int[]{tcg.get(), ocg.get(), genesys.get()}, new int[]{1, 1, 2});
+
+            genesysDown.set(false);
+            time.set(NOW.plus(Duration.ofHours(2)));
+            assertTrue(refresher.refresh());
+            assertEquals(new int[]{tcg.get(), ocg.get(), genesys.get()}, new int[]{1, 1, 3});
+
+            time.set(Instant.parse("2026-10-06T01:00:00Z")); // next 03:00 Vienna
+            assertTrue(refresher.refresh());
+            assertEquals(new int[]{tcg.get(), ocg.get(), genesys.get()}, new int[]{2, 2, 4});
+        }
     }
 
     @Test
