@@ -110,8 +110,8 @@ public final class LeaderboardAdminCommand implements SlashCommand {
                 + ". Check that I can view the channel and send messages there.").queue();
     }
 
-    /** Why the leaderboard cannot be posted in the channel, or null if it can. */
-    static String channelProblem(boolean memberCanTalk, boolean botCanTalk, String channelMention) {
+    /** Why the bot should not post in the channel for this member, or null if it can. */
+    public static String channelProblem(boolean memberCanTalk, boolean botCanTalk, String channelMention) {
         if (!memberCanTalk) {
             return "❌ You can't send messages in " + channelMention + ", so I won't post there for you.";
         }
