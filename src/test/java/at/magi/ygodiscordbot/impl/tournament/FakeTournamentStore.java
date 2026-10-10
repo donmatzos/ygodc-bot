@@ -143,7 +143,8 @@ final class FakeTournamentStore implements TournamentStore {
     }
 
     @Override
-    public void drop(long tournamentId, long player, int round, MatchRecord forfeit) throws SQLException {
+    public void drop(long tournamentId, long player, int round, MatchRecord forfeit, boolean deletePendingRound)
+            throws SQLException {
         write(); // one transaction: one write
         Row row = row(tournamentId);
         if (forfeit != null) {
@@ -152,6 +153,9 @@ final class FakeTournamentStore implements TournamentStore {
                     .findFirst()
                     .orElseThrow(() -> new SQLException("No match of " + forfeit.player1()));
             row.matches.set(row.matches.indexOf(open), forfeit);
+        }
+        if (deletePendingRound) {
+            row.matches.removeIf(match -> match.round() == round + 1);
         }
         row.dropped.put(player, round);
     }

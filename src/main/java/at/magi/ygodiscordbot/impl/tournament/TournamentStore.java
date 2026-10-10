@@ -34,9 +34,11 @@ public interface TournamentStore {
 
     /**
      * Marks the player as dropped and, in the same transaction, stores {@code forfeit} (their open match, won by the
-     * opponent) if it is not null: both are saved or neither.
+     * opponent) if it is not null and, if {@code deletePendingRound}, the prepared pairings of round + 1: all are
+     * saved or none.
      */
-    void drop(long tournamentId, long player, int round, MatchRecord forfeit) throws SQLException;
+    void drop(long tournamentId, long player, int round, MatchRecord forfeit, boolean deletePendingRound)
+            throws SQLException;
 
     /** RUNNING → FINISHED with the winner; fails if the tournament is not running. */
     void finish(long tournamentId, long winner, Instant at) throws SQLException;

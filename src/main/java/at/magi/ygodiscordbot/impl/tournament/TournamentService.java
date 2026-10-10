@@ -298,8 +298,14 @@ public final class TournamentService {
         // The drop and the opponent's win are one write, so a failure can't leave the player dropped but playing
         MatchRecord forfeit = match == null ? null
                 : tournament.record(match.round(), match.player1()).withWinner(match.opponentOf(player));
-        store.drop(tournament.id, player, round, forfeit);
+        // Prepared pairings of the next round (only without an open match) go in the same write: a failed deletion
+        // must not leave the dropped player paired
+        boolean repair = match == null && !tournament.pending().isEmpty();
+        store.drop(tournament.id, player, round, forfeit, repair);
         tournament.drop(player, round);
+        if (repair) {
+            tournament.removeRound(round + 1);
+        }
         log.info("Tournament {}: player {} dropped in round {}", tournament.id, player, round);
         StringBuilder reply = new StringBuilder(TournamentMessages.dropped(code, player));
 
@@ -317,16 +323,19 @@ public final class TournamentService {
         }
 
         dm(player, TournamentMessages.droppedDm(code));
-        if (!tournament.pending().isEmpty()) {
-            int next = round + 1;
-            store.deletePairings(tournament.id, next);
-            tournament.removeRound(next);
-            Announcement prepared = prepareNextRound(tournament);
-            if (!tournaments.containsKey(tournament.id)) {
-                // The drop ended the tournament: that is posted; new pairings are not (continue shows them)
-                announcer.post(tournament.channelId, prepared.text(), prepared.ping());
-            } else {
-                reply.append('\n').append(TournamentMessages.repaired(next));
+        if (repair) {
+            try {
+                Announcement prepared = prepareNextRound(tournament);
+                if (!tournaments.containsKey(tournament.id)) {
+                    // The drop ended the tournament: that is posted; new pairings are not (continue shows them)
+                    announcer.post(tournament.channelId, prepared.text(), prepared.ping());
+                } else {
+                    reply.append('\n').append(TournamentMessages.repaired(round + 1));
+                }
+            } catch (SQLException | RuntimeException e) {
+                // The drop is saved; /tournament continue (or the next startup) pairs the round again
+                log.warn("Tournament {}: could not pair round {} again after the drop", tournament.id, round + 1, e);
+                reply.append('\n').append(TournamentMessages.prepareFailed(tournament.code));
             }
         }
         return reply.toString();

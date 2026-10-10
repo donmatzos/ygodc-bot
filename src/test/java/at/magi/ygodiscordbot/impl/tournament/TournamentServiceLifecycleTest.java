@@ -13,6 +13,7 @@ import java.util.Set;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.expectThrows;
 
 public class TournamentServiceLifecycleTest extends TournamentServiceTestBase {
 
@@ -208,6 +209,38 @@ public class TournamentServiceLifecycleTest extends TournamentServiceTestBase {
         assertEquals(announcer.posts.size(), posts);
         service.continueRound(code(id), GUILD);
         assertTrue(!announcer.last().contains("<@101> vs") && !announcer.last().contains("vs <@101>"), announcer.last());
+    }
+
+    @Test
+    public void failedDropBetweenRoundsChangesNothingAndCanBeRetried() throws SQLException {
+        long id = start(FOUR);
+        playRound(id);
+        List<MatchRecord> before = stored(id).matches();
+        store.writesUntilFailure = 0;
+        expectThrows(SQLException.class, () -> service.drop(code(id), GUILD, 101L));
+        assertEquals(stored(id).matches(), before); // prepared round 2 still there
+        assertTrue(stored(id).droppedInRound().isEmpty());
+        store.writesUntilFailure = -1;
+        assertTrue(service.drop(code(id), GUILD, 101L).contains("made again"));
+        assertEquals(stored(id).droppedInRound().get(101L), Integer.valueOf(1));
+        assertTrue(stored(id).matches().stream().filter(m -> m.round() == 2).noneMatch(m -> m.involves(101L)));
+    }
+
+    @Test
+    public void failedRepairAfterDropBetweenRoundsIsRepairedByContinue() throws SQLException {
+        long id = start(FOUR);
+        playRound(id);
+        store.writesUntilFailure = 1; // the drop (with the deletion of round 2) succeeds, the new pairings do not
+        String reply = service.drop(code(id), GUILD, 101L);
+        assertTrue(reply.contains("dropped out"), reply);
+        assertTrue(reply.contains("could not be prepared"), reply);
+        assertEquals(stored(id).droppedInRound().get(101L), Integer.valueOf(1));
+        assertTrue(stored(id).matches().stream().noneMatch(m -> m.round() == 2));
+        store.writesUntilFailure = -1;
+        service.continueRound(code(id), GUILD);
+        List<MatchRecord> round2 = stored(id).matches().stream().filter(m -> m.round() == 2).toList();
+        assertEquals(round2.size(), 2);
+        assertTrue(round2.stream().noneMatch(m -> m.involves(101L)));
     }
 
     @Test

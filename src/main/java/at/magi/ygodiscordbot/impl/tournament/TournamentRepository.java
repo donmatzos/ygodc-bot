@@ -264,7 +264,8 @@ public class TournamentRepository implements TournamentStore {
     }
 
     @Override
-    public void drop(long tournamentId, long player, int round, MatchRecord forfeit) throws SQLException {
+    public void drop(long tournamentId, long player, int round, MatchRecord forfeit, boolean deletePendingRound)
+            throws SQLException {
         inTransaction(connection -> {
             try (PreparedStatement drop = connection.prepareStatement(
                     "UPDATE tournament_player SET dropped_in_round = ? WHERE tournament_id = ? AND player_id = ?")) {
@@ -283,6 +284,14 @@ public class TournamentRepository implements TournamentStore {
                     win.setLong(4, forfeit.player1());
                     expectOneRow(win.executeUpdate(), "No match of player " + forfeit.player1() + " in round "
                             + forfeit.round() + " of tournament " + tournamentId);
+                }
+            }
+            if (deletePendingRound) {
+                try (PreparedStatement delete = connection.prepareStatement(
+                        "DELETE FROM tournament_match WHERE tournament_id = ? AND round = ?")) {
+                    delete.setLong(1, tournamentId);
+                    delete.setInt(2, round + 1);
+                    delete.executeUpdate();
                 }
             }
             return null;
