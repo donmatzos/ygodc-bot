@@ -68,6 +68,17 @@ public class TournamentCommandTest {
     }
 
     @Test
+    public void membersProblemRefusesTheFirstNonMember() {
+        assertEquals(TournamentCommand.membersProblem(List.of(FIRST, SECOND), Set.of(FIRST)),
+                "❌ <@" + SECOND + "> is not a member of this server.");
+    }
+
+    @Test
+    public void membersProblemIsNullWhenAllAreMembers() {
+        assertNull(TournamentCommand.membersProblem(List.of(FIRST, SECOND), Set.of(SECOND, FIRST)));
+    }
+
+    @Test
     public void listProblems() {
         assertEquals(TournamentCommand.listProblem(new TournamentListPage(1, 1, 0, List.of()), null),
                 "No tournaments in this server yet.");

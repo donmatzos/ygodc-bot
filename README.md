@@ -79,7 +79,7 @@ Manage Server itself, so those settings work. `share` only posts if both you and
 in the target channel. Needs `DB_URL`, like `/deck`.
 
 **Tournaments** (tables `tournament`, `tournament_player`, `tournament_match`): Swiss system. Players are entered
-as @-mentions in one text option, since a command can have at most 25 options. A server can have at most 10 running tournaments, and a match ID is never reused until the bot restarts. Round 1 is random, later rounds pair
+as @-mentions in one text option, since a command can have at most 25 options, and every player must be a member of the server. A player can be in only one running tournament per server (not across servers). A server can have at most 10 running tournaments, and a match ID is never reused until the bot restarts. Round 1 is random, later rounds pair
 players with the same win-loss record who haven't met yet (backtracking; a rematch only if no other pairing exists).
 With an odd number of players one gets a free win: random in round 1, then the player with the most losses. If time
 runs out without a winner, `/match doubleloss` scores a loss for both players. When the last match of a round is

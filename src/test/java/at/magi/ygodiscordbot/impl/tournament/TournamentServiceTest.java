@@ -65,6 +65,14 @@ public class TournamentServiceTest extends TournamentServiceTestBase {
     }
 
     @Test
+    public void startAllowsAPlayerRunningInAnotherServer() throws SQLException {
+        start(FOUR);
+        String reply = service.start(GUILD + 1, CHANNEL, ADMIN, List.of(101L, 105L));
+        assertTrue(!reply.contains("Already playing"), reply);
+        assertEquals(store.lastId(), 2);
+    }
+
+    @Test
     public void startRefusesPlayersOfARunningTournament() throws SQLException {
         start(FOUR);
         String reply = service.start(GUILD, CHANNEL, ADMIN, List.of(104L, 105L));

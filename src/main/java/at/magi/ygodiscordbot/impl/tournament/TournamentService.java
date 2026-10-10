@@ -137,7 +137,7 @@ public final class TournamentService {
         if (running >= MAX_RUNNING_PER_GUILD) {
             return TournamentMessages.tooManyRunning(MAX_RUNNING_PER_GUILD);
         }
-        List<Long> busy = players.stream().filter(this::inRunningTournament).toList();
+        List<Long> busy = players.stream().filter(player -> inRunningTournament(player, guildId)).toList();
         if (!busy.isEmpty()) {
             return TournamentMessages.alreadyPlaying(busy);
         }
@@ -551,8 +551,10 @@ public final class TournamentService {
         throw new IllegalStateException("All " + range + " match IDs are used up until the bot restarts");
     }
 
-    private boolean inRunningTournament(long player) {
-        return tournaments.values().stream().anyMatch(tournament -> tournament.isActivePlayer(player));
+    /** Whether the player is still playing in a running tournament of this server (other servers don't matter). */
+    private boolean inRunningTournament(long player, long guildId) {
+        return tournaments.values().stream()
+                .anyMatch(tournament -> tournament.guildId == guildId && tournament.isActivePlayer(player));
     }
 
     /** The running tournament with this code in this server, or null. */

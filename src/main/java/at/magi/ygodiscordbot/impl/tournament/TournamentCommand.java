@@ -221,6 +221,11 @@ public final class TournamentCommand implements SlashCommand {
             problem = "❌ Bots can't play in tournaments.";
         }
         if (problem == null) {
+            Set<Long> memberIds = option.getMentions().getMembers().stream()
+                    .map(Member::getIdLong).collect(Collectors.toSet());
+            problem = membersProblem(players.ids(), memberIds);
+        }
+        if (problem == null) {
             GuildMessageChannel channel = event.getGuildChannel();
             problem = LeaderboardAdminCommand.channelProblem(channel.canTalk(event.getMember()), channel.canTalk(),
                     channel.getAsMention());
@@ -234,6 +239,13 @@ public final class TournamentCommand implements SlashCommand {
         long admin = event.getUser().getIdLong();
         DatabaseReplies.replyEphemeral(event, dbExecutor, TEXTS,
                 () -> service.start(guild, channel, admin, players.ids()));
+    }
+
+    /** Refuses the first player who is not a member of this server (a raw ID can name anyone), else null. */
+    static String membersProblem(List<Long> ids, Set<Long> memberIds) {
+        return ids.stream().filter(id -> !memberIds.contains(id)).findFirst()
+                .map(id -> "❌ " + TournamentMessages.mention(id) + " is not a member of this server.")
+                .orElse(null);
     }
 
     /** Reads user mentions; anything else except spaces, commas and line breaks is refused, never skipped. */
