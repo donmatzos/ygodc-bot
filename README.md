@@ -370,7 +370,7 @@ A failed check keeps the current names and is retried hourly, up to 3 times.
 
 - `utils/io/AtomicFiles` writes to a temporary file and then renames it, so a crash never leaves a half-written
   file; leftovers of a killed process are deleted at the next start.
-- On shutdown, both refreshers interrupt a running download and wait up to 10 s, so a file write in progress
+- On shutdown, both refreshers interrupt a running download and wait up to 5 s each, so a file write in progress
   always completes.
 - Measured on Waifly at startup: heap 27 of 100 MB used (live data ~12 MB), metaspace 27 MB, non-heap 36 MB,
   6,155 classes. Worst case with a full heap: ~180 MB for the bot plus ~50 MB for the parent JVM, of 345 MB.

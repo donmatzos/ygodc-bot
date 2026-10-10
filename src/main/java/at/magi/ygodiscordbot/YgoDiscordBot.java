@@ -114,9 +114,9 @@ public final class YgoDiscordBot {
         }
         if (database != null) {
             databaseExecutor = databaseExecutor();
-            ExecutorService executor = databaseExecutor;
-            HikariDataSource pool = database;
-            ON_SHUTDOWN.push(() -> closeDatabase(executor, pool));
+            // Closes last of the database things: the requests are drained earlier (see below), so only JDA's
+            // own shutdown can still run after the drain; the pool has to outlive both
+            ON_SHUTDOWN.push(database::close);
             DecklistRepository decks = new DecklistRepository(database, clock);
             databaseExecutor.execute(() -> createSchema(decks, config.database()));
 
@@ -165,6 +165,11 @@ public final class YgoDiscordBot {
             return;
         }
         ON_SHUTDOWN.push(jda::shutdown);
+        // Pushed after jda::shutdown, so it runs before it: running requests can still send their reply
+        if (databaseExecutor != null) {
+            ExecutorService executor = databaseExecutor;
+            ON_SHUTDOWN.push(() -> drainDatabase(executor));
+        }
 
         // Guild commands update instantly; global ones can take up to an hour to show up.
         if (config.devGuildId() != null) {
@@ -204,15 +209,18 @@ public final class YgoDiscordBot {
         }
     }
 
-    /** Lets running database requests finish before the pool closes. */
-    private static void closeDatabase(ExecutorService executor, HikariDataSource database) {
+    /**
+     * Stops accepting database requests and lets the running ones finish (up to 5 s). The shutdown steps are
+     * budgeted at 5 s here + 5 s per refresher (their CLOSE_TIMEOUT) = about 15 s, below the supervisor's 20 s
+     * grace period before it kills the bot.
+     */
+    private static void drainDatabase(ExecutorService executor) {
         executor.shutdown();
         try {
             executor.awaitTermination(5, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
-        database.close();
     }
 
     /** A broken database setting disables /deck instead of stopping the whole bot. */

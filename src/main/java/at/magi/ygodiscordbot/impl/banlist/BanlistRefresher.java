@@ -32,8 +32,8 @@ public final class BanlistRefresher implements AutoCloseable {
     public static final LocalTime DAILY_RUN = LocalTime.of(3, 0);
     public static final ZoneId ZONE = ZoneId.of("Europe/Vienna");
     static final Duration RETRY_DELAY = Duration.ofHours(1);
-    /** Below the supervisor's 20 s grace period before it kills the bot. */
-    static final Duration CLOSE_TIMEOUT = Duration.ofSeconds(10);
+    /** Kept short so all shutdown steps together stay below the supervisor's 20 s grace period (see YgoDiscordBot). */
+    static final Duration CLOSE_TIMEOUT = Duration.ofSeconds(5);
 
     private final BanlistRepository repository;
     private final SnapshotFileStore store;

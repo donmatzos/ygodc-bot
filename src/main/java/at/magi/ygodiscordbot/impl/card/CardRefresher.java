@@ -32,8 +32,8 @@ public final class CardRefresher implements AutoCloseable {
     static final Duration CHECK_INTERVAL = Duration.ofDays(CHECK_INTERVAL_DAYS);
     static final Duration RETRY_DELAY = Duration.ofHours(1);
     static final int MAX_RETRIES = 3;
-    /** Below the supervisor's 20 s grace period before it kills the bot. */
-    static final Duration CLOSE_TIMEOUT = Duration.ofSeconds(10);
+    /** Kept short so all shutdown steps together stay below the supervisor's 20 s grace period (see YgoDiscordBot). */
+    static final Duration CLOSE_TIMEOUT = Duration.ofSeconds(5);
 
     private final CardRepository repository;
     private final CardFileStore store;
