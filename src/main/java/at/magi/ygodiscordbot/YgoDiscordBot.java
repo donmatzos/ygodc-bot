@@ -35,9 +35,11 @@ import at.magi.ygodiscordbot.utils.http.HttpDownloader;
 import com.zaxxer.hikari.HikariDataSource;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
+import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.exceptions.InvalidTokenException;
 import net.dv8tion.jda.api.requests.GatewayIntent;
 import net.dv8tion.jda.api.utils.cache.CacheFlag;
+import net.dv8tion.jda.api.utils.messages.MessageRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -73,6 +75,9 @@ public final class YgoDiscordBot {
     public static void main(String[] args) throws Exception {
         Supervisor.superviseUnlessChild(YgoDiscordBot.class);
         Runtime.getRuntime().addShutdownHook(new Thread(YgoDiscordBot::shutdown, "shutdown"));
+
+        // Only user pings by default (no @everyone/roles); callers that want fewer say so explicitly
+        MessageRequest.setDefaultMentions(EnumSet.of(Message.MentionType.USER));
 
         BotConfig config;
         try {

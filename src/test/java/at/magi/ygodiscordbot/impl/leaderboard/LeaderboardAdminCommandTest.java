@@ -14,6 +14,11 @@ import static org.testng.Assert.assertTrue;
 public class LeaderboardAdminCommandTest {
 
     @Test
+    public void sharedLeaderboardNeverPings() {
+        assertTrue(LeaderboardAdminCommand.SHARE_MENTIONS.isEmpty());
+    }
+
+    @Test
     public void allowedWhenBothCanTalk() {
         assertNull(LeaderboardAdminCommand.channelProblem(true, true, "#results"));
     }
