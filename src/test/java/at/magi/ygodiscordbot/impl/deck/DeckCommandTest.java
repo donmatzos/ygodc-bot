@@ -71,6 +71,16 @@ public class DeckCommandTest {
     }
 
     @Test
+    public void deckReplyForAnUnparsableStoredRowOnlyNamesTheDeck() {
+        Decklist deck = new Decklist(1, 2, "Dragons", "ydke://o6lXBQ==!!!junk", 0, 1_760_000_000_000L);
+        for (String action : List.of("Showing deck", "You deleted the following deck")) {
+            List<String> reply = DeckCommand.deckReply(action, deck, TestCards.names());
+            assertEquals(reply, List.of(action + " **Dragons**:\n"
+                    + "This deck's stored YDKE is invalid; save it again with /deck update."));
+        }
+    }
+
+    @Test
     public void largestValidDeckFitsInOneMessage() {
         // name (50) + summary + code block must stay below Discord's 2000 character limit
         assertTrue(deck(60, 15, 15).length() + 50 + 100 < 2000);

@@ -163,7 +163,14 @@ public final class DeckCommand implements SlashCommand {
     /** E.g. "You saved the following deck **Dragons**:" followed by the card list and the YDKE URI. */
     static List<String> deckReply(String action, Decklist deck, CardNames names) {
         // Stored URIs were validated on save; shown canonical so rows saved with junk still render safely
-        YdkeDeck cards = Ydke.parse(deck.ydke());
+        YdkeDeck cards;
+        try {
+            cards = Ydke.parse(deck.ydke());
+        } catch (IllegalArgumentException e) {
+            // Row saved before the stricter parser: still gettable, deletable and replaceable
+            return List.of(action + " **" + deck.name() + "**:\n"
+                    + "This deck's stored YDKE is invalid; save it again with /deck update.");
+        }
         return DeckMessages.deck(action + " **" + deck.name() + "**:", deck.updatedAt(), Ydke.encode(cards),
                 cards, names);
     }
