@@ -67,11 +67,28 @@ public class WinnerRuleTest {
     }
 
     @Test
-    public void tiedLeadersPlayOnAfterTheMinimum() {
-        // Both undefeated players ran out of time in round 2: A, B and C share 1 loss
+    public void tieBreakerDecidesTiedLeadersAfterTheMinimum() {
+        // Both undefeated players ran out of time in round 2: A, B and C share 1 loss, A has the best OMW%
         Standings standings = Standings.of(List.of(A, B, C, D), Set.of(), List.of(
                 won(1, A, C), won(1, B, D), new MatchRecord(2, A, B, null, true), won(2, C, D)));
-        assertEquals(WinnerRule.winner(standings, 2), Optional.empty());
+        assertEquals(WinnerRule.winner(standings, 2), Optional.of(A));
+    }
+
+    @Test
+    public void tiedLeadersBeforeTheMinimumPlayOn() {
+        Standings standings = Standings.of(List.of(A, B, C, D), Set.of(), List.of(
+                won(1, A, C), new MatchRecord(1, B, D, null, true)));
+        assertEquals(WinnerRule.winner(standings, 1), Optional.empty());
+    }
+
+    @Test
+    public void droppedPlayerNeverWinsOnTieBreak() {
+        // Same as above, but A dropped after round 2: B and C share the lead and are equal → the lot decides
+        Standings standings = Standings.of(List.of(A, B, C, D), Set.of(A), List.of(
+                won(1, A, C), won(1, B, D), new MatchRecord(2, A, B, null, true), won(2, C, D)));
+        Optional<Long> winner = WinnerRule.winner(standings, 2);
+        assertEquals(winner, Optional.of(standings.ranked().get(1).player()));
+        assertEquals(standings.ranked().get(0).player(), A);
     }
 
     @Test

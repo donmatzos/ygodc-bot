@@ -7,7 +7,8 @@ import java.util.Optional;
  * Checked after every closed round: the tournament is won once exactly one active (not dropped) player has the fewest
  * losses. Without double losses and drops that is the only undefeated player. After a double loss or a drop it also
  * needs {@link #minimumRounds} rounds, so those can't end a tournament early (e.g. a round-1 double loss leaving one
- * undefeated player among four). A last remaining player always wins.
+ * undefeated player among four). Leaders still tied after {@link #minimumRounds} rounds are decided by the
+ * tie-breakers of {@link Standings#ranked()}, so no tournament runs longer. A last remaining player always wins.
  */
 public final class WinnerRule {
 
@@ -22,7 +23,12 @@ public final class WinnerRule {
         if (active.isEmpty()) {
             return Optional.empty();
         }
-        if (standings.hasDoubleLossOrDrop() && roundsPlayed < minimumRounds(standings.playerCount())) {
+        boolean minimumPlayed = roundsPlayed >= minimumRounds(standings.playerCount());
+        if (minimumPlayed) {
+            return standings.ranked().stream().filter(entry -> !entry.dropped()).map(Standings.Entry::player)
+                    .findFirst();
+        }
+        if (standings.hasDoubleLossOrDrop()) {
             return Optional.empty();
         }
         int fewest = active.stream().mapToInt(player -> standings.entry(player).losses()).min().getAsInt();

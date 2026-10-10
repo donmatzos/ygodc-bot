@@ -93,8 +93,8 @@ public class SwissPairerTest {
     /**
      * With 5 players everyone has met all others after 4 rounds and a bye, and the forced bye can make the
      * rematch-free pairings split the two undefeated players. Then a rematch or a bye to the next player down is
-     * allowed, but only when no rematch-free pairing with a most-losses bye exists (checked by brute force), and the
-     * tournament still ends within ⌈log₂ 5⌉ + 3 rounds (the maximum measured over 6200 runs).
+     * allowed, but only when no rematch-free pairing with a most-losses bye exists (checked by brute force). Leaders
+     * still tied after ⌈log₂ 5⌉ rounds are decided by the tie-breakers.
      */
     @Test(timeOut = 20_000)
     public void fivePlayersRematchOnlyWhenUnavoidable() {
@@ -106,7 +106,7 @@ public class SwissPairerTest {
             int round = 0;
             while (winner.isEmpty()) {
                 round++;
-                assertTrue(round <= roundsFor(5) + 3, "seed " + seed + " needs round " + round);
+                assertTrue(round <= roundsFor(5), "seed " + seed + " needs round " + round);
                 Standings standings = Standings.of(players, Set.of(), matches);
                 List<Pairing> pairings = SwissPairer.pair(standings, round, random);
                 assertComplete(pairings, standings);
@@ -170,8 +170,8 @@ public class SwissPairerTest {
                 int round = 0;
                 while (winner.isEmpty()) {
                     round++;
-                    // A sanity bound for the test; in the bot the 48-hour timeout ends endless tournaments
-                    assertTrue(round <= 20, "size " + size + " seed " + seed + " needs round " + round);
+                    // Tied leaders are decided by the tie-breakers after ⌈log₂ n⌉ rounds
+                    assertTrue(round <= roundsFor(size), "size " + size + " seed " + seed + " needs round " + round);
                     Standings standings = Standings.of(players, Set.of(), matches);
                     List<Pairing> pairings = SwissPairer.pair(standings, round, random);
                     assertComplete(pairings, standings);
@@ -186,7 +186,7 @@ public class SwissPairerTest {
                     winner = WinnerRule.winner(Standings.of(players, Set.of(), matches), round);
                 }
                 Standings last = Standings.of(players, Set.of(), matches);
-                assertEquals(last.entry(winner.get()).losses(), last.ranked().get(0).losses());
+                assertEquals(winner.get(), Long.valueOf(last.ranked().get(0).player()));
                 if (last.hasDoubleLossOrDrop()) {
                     assertTrue(round >= WinnerRule.minimumRounds(size));
                 }
