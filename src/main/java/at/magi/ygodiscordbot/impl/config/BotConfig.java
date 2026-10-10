@@ -22,6 +22,12 @@ import java.util.Properties;
  */
 public record BotConfig(String token, String devGuildId, DatabaseConfig database) {
 
+    /** Keeps the token out of logs. */
+    @Override
+    public String toString() {
+        return "BotConfig[token=***, devGuildId=" + devGuildId + ", database=" + database + "]";
+    }
+
     public static final String CONFIG_FILE = "bot.properties";
 
     public static BotConfig load() {

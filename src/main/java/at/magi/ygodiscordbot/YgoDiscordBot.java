@@ -216,7 +216,7 @@ public final class YgoDiscordBot {
             return DatabasePool.open(database);
         } catch (RuntimeException e) {
             log.error("Invalid database settings ({}), /deck, /leaderboard, /points, /tournament and /match are disabled: {}",
-                    database, e.getMessage());
+                    database, database.describe(e));
             return null;
         }
     }
@@ -236,7 +236,7 @@ public final class YgoDiscordBot {
             decks.ensureSchema();
         } catch (SQLException | RuntimeException e) {
             // Retried on the first /deck call
-            log.error("Could not reach the decklist database {}: {}", database.safeUrl(), e.getMessage());
+            log.error("Could not reach the decklist database {}: {}", database.safeUrl(), database.describe(e));
         }
     }
 
@@ -245,7 +245,7 @@ public final class YgoDiscordBot {
             players.ensureSchema();
         } catch (SQLException | RuntimeException e) {
             // Retried on the first /leaderboard call
-            log.error("Could not create the players table in {}: {}", database.safeUrl(), e.getMessage());
+            log.error("Could not create the players table in {}: {}", database.safeUrl(), database.describe(e));
         }
     }
 
@@ -254,7 +254,7 @@ public final class YgoDiscordBot {
             tournaments.ensureSchema();
         } catch (SQLException | RuntimeException e) {
             // Retried on the first /tournament or /match call
-            log.error("Could not create the tournament tables in {}: {}", database.safeUrl(), e.getMessage());
+            log.error("Could not create the tournament tables in {}: {}", database.safeUrl(), database.describe(e));
         }
     }
 
