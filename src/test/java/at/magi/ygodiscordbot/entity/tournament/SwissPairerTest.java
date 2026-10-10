@@ -158,9 +158,13 @@ public class SwissPairerTest {
         return false;
     }
 
-    /** Same with 15 % double losses: rounds stay complete and the winner has the fewest losses. */
+    /**
+     * Same with 15 % double losses: rounds stay complete (play-offs: only the tied leaders play) and the winner has the
+     * fewest losses.
+     */
     @Test(timeOut = 20_000)
     public void doubleLossesStillEndWithAWinner() {
+        int playOffs = 0;
         for (int size = 2; size <= 32; size++) {
             for (int seed = 0; seed < 20; seed++) {
                 Random random = new Random(seed * 1000L + size);
@@ -170,11 +174,19 @@ public class SwissPairerTest {
                 int round = 0;
                 while (winner.isEmpty()) {
                     round++;
-                    // Tied leaders are decided by the tie-breakers after ⌈log₂ n⌉ rounds
-                    assertTrue(round <= roundsFor(size), "size " + size + " seed " + seed + " needs round " + round);
-                    Standings standings = Standings.of(players, Set.of(), matches);
+                    // Tied leaders are decided by the tie-breakers after ⌈log₂ n⌉ < 4 rounds, else they play off.
+                    // A sanity bound for the play-offs; in the bot the 48-hour timeout ends endless tournaments.
+                    int bound = roundsFor(size) < WinnerRule.PLAY_OFF_ROUNDS ? roundsFor(size) : 20;
+                    assertTrue(round <= bound, "size " + size + " seed " + seed + " needs round " + round);
+                    Standings standings = Standings.of(players, Set.of(), matches, seed);
                     List<Pairing> pairings = SwissPairer.pair(standings, round, random);
-                    assertComplete(pairings, standings);
+                    List<Long> playOff = WinnerRule.playOff(standings, round - 1);
+                    if (playOff.isEmpty()) {
+                        assertComplete(pairings, standings);
+                    } else {
+                        assertEquals(paired(pairings), Set.copyOf(playOff), "play-off of size " + size);
+                        playOffs++;
+                    }
                     for (Pairing pairing : pairings) {
                         MatchRecord match = MatchRecord.of(round, pairing);
                         if (!pairing.isBye()) {
@@ -183,15 +195,50 @@ public class SwissPairerTest {
                         }
                         matches.add(match);
                     }
-                    winner = WinnerRule.winner(Standings.of(players, Set.of(), matches), round);
+                    winner = WinnerRule.winner(Standings.of(players, Set.of(), matches, seed), round);
                 }
-                Standings last = Standings.of(players, Set.of(), matches);
+                Standings last = Standings.of(players, Set.of(), matches, seed);
                 assertEquals(winner.get(), Long.valueOf(last.ranked().get(0).player()));
                 if (last.hasDoubleLossOrDrop()) {
                     assertTrue(round >= WinnerRule.minimumRounds(size));
                 }
             }
         }
+        assertTrue(playOffs > 0, "no simulation reached a play-off");
+    }
+
+    private static Set<Long> paired(List<Pairing> pairings) {
+        Set<Long> paired = new HashSet<>();
+        for (Pairing pairing : pairings) {
+            paired.add(pairing.player1());
+            if (!pairing.isBye()) {
+                paired.add(pairing.player2());
+            }
+        }
+        return paired;
+    }
+
+    @Test
+    public void playOffPairsOnlyTheTiedLeaders() {
+        // A, B and C share 1 loss after 4 rounds (rounds 3 and 4 left out: only the records matter here)
+        Standings standings = Standings.of(List.of(1L, 2L, 3L, 4L), Set.of(), List.of(
+                new MatchRecord(1, 1, 3L, 1L), new MatchRecord(1, 2, 4L, 2L),
+                new MatchRecord(2, 1, 2L, null, true), new MatchRecord(2, 3, 4L, 3L)));
+        List<Pairing> pairings = SwissPairer.pair(standings, 5, new Random(1));
+        assertEquals(paired(pairings), Set.of(1L, 2L, 3L));
+        assertEquals(pairings.size(), 2);
+        assertTrue(pairings.get(1).isBye());
+    }
+
+    @Test
+    public void playOffAllowsARematch() {
+        // Two players, 1-1 each after beating each other once (rounds 3 and 4 left out): they meet again
+        Standings standings = Standings.of(List.of(1L, 2L), Set.of(), List.of(
+                new MatchRecord(1, 1, 2L, 1L), new MatchRecord(2, 1, 2L, 2L)));
+        assertEquals(WinnerRule.playOff(standings, 4), standings.activeRanked());
+        List<Pairing> pairings = SwissPairer.pair(standings, 5, new Random(1));
+        assertEquals(pairings.size(), 1);
+        assertEquals(Set.of(pairings.get(0).player1(), pairings.get(0).player2()), Set.of(1L, 2L));
     }
 
     @Test

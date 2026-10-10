@@ -85,11 +85,13 @@ With an odd number of players one gets a free win: random in round 1, then the p
 runs out without a winner, `/match doubleloss` scores a loss for both players. When the last match of a round is
 reported, the bot posts the results, a standings table and either the winner or the next pairings, which an organizer
 starts with `/tournament continue`. The winner is the only player with the fewest losses (after a double loss or a
-drop only once ⌈log₂ players⌉ rounds are played); leaders still tied after ⌈log₂ players⌉ rounds are decided by the
-tie-breakers, so no tournament runs longer. Tie-breakers, as in Magic tournaments: OMW% (average match-win rate of a
-player's opponents; every rate counts at least 33 %, free wins are no opponents, dropped players still count), then
-OOMW% (average OMW% of the opponents), then head-to-head (only between exactly two equal players), then a lot that is
-fixed per tournament. The winner post names the tie-breaker that decided. Points on finish: 1 per match win (free wins excluded) + the number of rounds for
+drop only once ⌈log₂ players⌉ rounds are played). Leaders still tied after ⌈log₂ players⌉ rounds are decided by the
+tie-breakers if fewer than 4 rounds were played (up to 8 players). From 4 rounds on they play it out instead: the next
+round is a **play-off** in which only the tied leaders play, rematches allowed, until one leader is left. Tie-breakers,
+as in Magic tournaments: OMW% (average match-win rate of a player's opponents; every rate counts at least 33 %, free
+wins are no opponents, dropped players still count), then OOMW% (average OMW% of the opponents), both compared to
+0.1 %, then head-to-head (only between exactly two equal active players), then a lot that is fixed per tournament
+(seeded with its ID). The winner post names the tie-breaker that decided. Points on finish: 1 per match win (free wins excluded) + the number of rounds for
 the winner. Tournaments still running 48 h after their start are abandoned (no points).
 
 Tournament IDs look like `k7m2x9qp4-26-10-10` (9-character key + start day in Vienna time, stored as `code` and

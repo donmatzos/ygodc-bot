@@ -6,6 +6,7 @@ import at.magi.ygodiscordbot.entity.tournament.TournamentCode;
 import at.magi.ygodiscordbot.entity.tournament.TournamentListPage;
 import at.magi.ygodiscordbot.entity.tournament.TournamentStatus;
 import at.magi.ygodiscordbot.entity.tournament.TournamentSummary;
+import at.magi.ygodiscordbot.entity.tournament.WinnerRule;
 import at.magi.ygodiscordbot.utils.discord.DcMessageUtils;
 
 import java.time.LocalDate;
@@ -72,26 +73,31 @@ final class TournamentMessages {
         }
         List<String> rows = new ArrayList<>();
         for (Standings.Entry entry : ranked) {
-            rows.add(String.format("%4d  %-" + width + "s  %d-%d  %4d%s", standings.rank(entry.player()),
+            rows.add(String.format("%4d  %-" + width + "s  %d-%d  %5s%s", standings.rank(entry.player()),
                     name(names, entry.player()), entry.wins(), entry.losses(),
                     percent(standings.tieBreaks(entry.player()).omw()), entry.dropped() ? " (dropped)" : ""));
         }
-        String header = String.format("%-4s  %-" + width + "s  %s  %s", "Rank", "Player", "W-L", "OMW%") + "\n"
-                + "----  " + "-".repeat(width) + "  ---  ----";
+        String header = String.format("%-4s  %-" + width + "s  %s  %5s", "Rank", "Player", "W-L", "OMW%") + "\n"
+                + "----  " + "-".repeat(width) + "  ---  -----";
         return DcMessageUtils.packTables("", List.of(
                 new DcMessageUtils.Section("**Standings**", "**Standings** (continued)", header, rows)));
     }
 
-    private static long percent(double rate) {
-        return Math.round(rate * 100);
+    /** A rate as a percentage with one decimal, the precision the tie-breakers are compared at. */
+    private static String percent(double rate) {
+        long permille = Standings.permille(rate);
+        return permille / 10 + "." + permille % 10;
     }
 
     /** How the winner got ahead of the next active player with as few losses; null if nobody had as few. */
     private static String tieLine(long winner, Standings standings) {
-        Standings.Entry runnerUp = standings.ranked().stream()
-                .filter(entry -> !entry.dropped() && entry.player() != winner).findFirst().orElse(null);
+        List<Long> active = standings.activeRanked();
+        if (active.size() < 2 || active.get(0) != winner) {
+            return null;
+        }
         Standings.Entry first = standings.entry(winner);
-        if (runnerUp == null || runnerUp.losses() != first.losses()) {
+        Standings.Entry runnerUp = standings.entry(active.get(1));
+        if (runnerUp.losses() != first.losses()) {
             return null;
         }
         Standings.TieBreaks mine = standings.tieBreaks(winner);
@@ -130,9 +136,11 @@ final class TournamentMessages {
 
     /** The continue post: the round's matchups, then the standings. */
     static NamedText roundStart(String code, int round, List<ActiveMatch> matches, List<Long> byes,
-                                Standings standings) {
-        List<String> head = DcMessageUtils.packLines("## 🏁 " + tournament(code) + " · Round " + round,
-                matchupLines(matches, byes));
+                                Standings standings, List<Long> playOff) {
+        List<String> lines = new ArrayList<>();
+        addPlayOffLine(lines, round, playOff);
+        lines.addAll(matchupLines(matches, byes));
+        List<String> head = DcMessageUtils.packLines("## 🏁 " + tournament(code) + " · Round " + round, lines);
         return new NamedText(players(standings), names -> concat(head, standingsTable(standings, names)));
     }
 
@@ -156,8 +164,10 @@ final class TournamentMessages {
         return new NamedText(players(standings), names -> concat(head, standingsTable(standings, names)));
     }
 
-    static NamedText nextPairings(String code, int round, List<MatchRecord> pending) {
+    /** @param playOff the tied leaders if this is a {@link WinnerRule#playOff} round, else empty */
+    static NamedText nextPairings(String code, int round, List<MatchRecord> pending, List<Long> playOff) {
         List<String> lines = new ArrayList<>();
+        addPlayOffLine(lines, round, playOff);
         for (MatchRecord pairing : pending) {
             lines.add(pairing.isBye()
                     ? mention(pairing.player1()) + " gets a free win"
@@ -166,6 +176,17 @@ final class TournamentMessages {
         lines.add("An organizer starts round " + round + " with `/tournament continue id:" + code + "`.");
         return NamedText.plain(DcMessageUtils.packLines("## ⏭️ " + tournament(code) + " · Round " + round
                 + " pairings", lines));
+    }
+
+    private static void addPlayOffLine(List<String> lines, int round, List<Long> playOff) {
+        if (playOff.isEmpty()) {
+            return;
+        }
+        List<String> mentions = playOff.stream().map(TournamentMessages::mention).toList();
+        String players = String.join(", ", mentions.subList(0, mentions.size() - 1)) + " and "
+                + mentions.get(mentions.size() - 1);
+        lines.add("⚔️ Play-off: " + players + " are still tied after " + (round - 1)
+                + " rounds, so only they play this round (rematches allowed).");
     }
 
     /** Always carries the final table: it is also posted without round results before it (drop, restart). */

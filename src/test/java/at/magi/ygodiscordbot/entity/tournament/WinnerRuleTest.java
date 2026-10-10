@@ -74,6 +74,53 @@ public class WinnerRuleTest {
         assertEquals(WinnerRule.winner(standings, 2), Optional.of(A));
     }
 
+    /** The tied leaders of {@link #tieBreakerDecidesTiedLeadersAfterTheMinimum} with more rounds played. */
+    private static Standings tiedLeaders() {
+        return Standings.of(List.of(A, B, C, D), Set.of(), List.of(
+                won(1, A, C), won(1, B, D), new MatchRecord(2, A, B, null, true), won(2, C, D)));
+    }
+
+    @Test
+    public void tieBreakerDecidesUpToThreeRounds() {
+        assertEquals(WinnerRule.winner(tiedLeaders(), 3), Optional.of(A));
+        assertEquals(WinnerRule.playOff(tiedLeaders(), 3), List.of());
+    }
+
+    @Test
+    public void tiedLeadersPlayOffFromFourRounds() {
+        for (int rounds = 4; rounds <= 6; rounds++) {
+            assertEquals(WinnerRule.winner(tiedLeaders(), rounds), Optional.empty());
+            assertEquals(WinnerRule.playOff(tiedLeaders(), rounds), tiedLeaders().activeRanked().subList(0, 3));
+        }
+    }
+
+    @Test
+    public void uniqueLeaderWinsAfterAPlayOff() {
+        // Play-off round 5: A beat B, C had the bye, so A and C are still tied; round 6: A beat C
+        List<MatchRecord> matches = new java.util.ArrayList<>(List.of(
+                won(1, A, C), won(1, B, D), new MatchRecord(2, A, B, null, true), won(2, C, D),
+                won(5, A, B), MatchRecord.of(5, Pairing.bye(C))));
+        Standings afterFive = Standings.of(List.of(A, B, C, D), Set.of(), matches);
+        assertEquals(WinnerRule.winner(afterFive, 5), Optional.empty());
+        assertEquals(Set.copyOf(WinnerRule.playOff(afterFive, 5)), Set.of(A, C));
+        matches.add(won(6, A, C));
+        Standings afterSix = Standings.of(List.of(A, B, C, D), Set.of(), matches);
+        assertEquals(WinnerRule.winner(afterSix, 6), Optional.of(A));
+        assertEquals(WinnerRule.playOff(afterSix, 6), List.of());
+    }
+
+    @Test
+    public void noPlayOffBeforeTheMinimum() {
+        // 16 players need 4 rounds; with two undefeated after 4 rounds they play off, after 3 they play on normally
+        List<Long> players = new java.util.ArrayList<>();
+        for (long player = 1; player <= 16; player++) {
+            players.add(player);
+        }
+        Standings standings = Standings.of(players, Set.of(), List.of(won(1, 1, 2), won(1, 3, 4)));
+        assertEquals(WinnerRule.playOff(standings, 3), List.of());
+        assertEquals(WinnerRule.playOff(standings, 4).size(), 14);   // everyone without a loss
+    }
+
     @Test
     public void tiedLeadersBeforeTheMinimumPlayOn() {
         Standings standings = Standings.of(List.of(A, B, C, D), Set.of(), List.of(

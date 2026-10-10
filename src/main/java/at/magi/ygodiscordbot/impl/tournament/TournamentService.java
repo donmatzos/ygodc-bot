@@ -225,8 +225,9 @@ public final class TournamentService {
         tournament.startRound(next);
         List<ActiveMatch> created = createMatches(tournament, next);
         log.info("Tournament {}: round {} started", tournament.id, next);
+        Standings standings = tournament.standings();
         announcer.post(tournament.channelId, TournamentMessages.roundStart(code, next, created,
-                tournament.byes(next), tournament.standings()), true);
+                tournament.byes(next), standings, WinnerRule.playOff(standings, next - 1)), true);
         return TournamentMessages.roundStarted(code, next);
     }
 
@@ -242,7 +243,8 @@ public final class TournamentService {
             return NamedText.plain(TournamentMessages.tournamentNotFound(code));
         }
         TournamentRecord record = stored.get();
-        Standings standings = Standings.of(record.players(), record.droppedInRound().keySet(), record.matches());
+        Standings standings = Standings.of(record.players(), record.droppedInRound().keySet(), record.matches(),
+                record.id());
         return TournamentMessages.standings(code, record.status(), record.currentRound(), standings, List.of(),
                 record.winner());
     }
@@ -417,7 +419,8 @@ public final class TournamentService {
         store.savePairings(tournament.id, next, pairings);
         tournament.addPairings(next, pairings);
         log.info("Tournament {}: round {} paired", tournament.id, next);
-        return new Announcement(TournamentMessages.nextPairings(tournament.code, next, tournament.pending()), false);
+        return new Announcement(TournamentMessages.nextPairings(tournament.code, next, tournament.pending(),
+                WinnerRule.playOff(standings, tournament.currentRound())), false);
     }
 
     /** Saves the winner and awards the points; returns the winner post (not posted yet). */

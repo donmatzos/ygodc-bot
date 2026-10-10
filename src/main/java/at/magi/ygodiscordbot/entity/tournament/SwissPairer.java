@@ -22,9 +22,14 @@ public final class SwissPairer {
     private SwissPairer() {
     }
 
-    /** The pairings of {@code round}; a bye, if any, comes last. */
+    /**
+     * The pairings of {@code round}; a bye, if any, comes last. All previous rounds must be closed. In a
+     * {@link WinnerRule#playOff} round only the tied leaders are paired, with the same rules among them (so a rematch
+     * only when they have all met); the others sit the round out.
+     */
     public static List<Pairing> pair(Standings standings, int round, Random random) {
-        List<Long> players = new ArrayList<>(standings.active());
+        List<Long> playOff = round > 1 ? WinnerRule.playOff(standings, round - 1) : List.of();
+        List<Long> players = new ArrayList<>(playOff.isEmpty() ? standings.active() : playOff);
         if (players.size() < 2) {
             throw new IllegalArgumentException("Need at least 2 active players: " + players);
         }
