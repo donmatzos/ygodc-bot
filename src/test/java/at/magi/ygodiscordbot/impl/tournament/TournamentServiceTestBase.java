@@ -52,6 +52,10 @@ abstract class TournamentServiceTestBase {
         return last;
     }
 
+    String code(long id) {
+        return stored(id).code();
+    }
+
     TournamentRecord stored(long id) {
         return store.load(id).orElseThrow();
     }

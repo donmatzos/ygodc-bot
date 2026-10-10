@@ -3,12 +3,16 @@ package at.magi.ygodiscordbot.impl.tournament;
 import at.magi.ygodiscordbot.entity.tournament.MatchRecord;
 import at.magi.ygodiscordbot.entity.tournament.NewTournament;
 import at.magi.ygodiscordbot.entity.tournament.Pairing;
+import at.magi.ygodiscordbot.entity.tournament.TournamentCode;
+import at.magi.ygodiscordbot.entity.tournament.TournamentListPage;
 import at.magi.ygodiscordbot.entity.tournament.TournamentRecord;
 import at.magi.ygodiscordbot.entity.tournament.TournamentStatus;
+import at.magi.ygodiscordbot.entity.tournament.TournamentSummary;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.sql.DataSource;
+import java.security.SecureRandom;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -16,11 +20,14 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Types;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Random;
 
 /**
  * Tournaments in plain JDBC. Times are epoch milliseconds like in {@code decklist}, so no time zone is involved.
@@ -41,6 +48,10 @@ public class TournamentRepository implements TournamentStore {
                 started_at    BIGINT      NOT NULL,
                 finished_at   BIGINT      NULL,
                 current_round INT         NOT NULL DEFAULT 0,
+                code          VARCHAR(18) NOT NULL,
+                played_on     DATE        NOT NULL,
+                UNIQUE INDEX uq_tournament_code (code),
+                INDEX idx_tournament_guild_day (guild_id, played_on),
                 INDEX idx_tournament_status (status)
             ) ENGINE = InnoDB
             """, """
@@ -73,7 +84,7 @@ public class TournamentRepository implements TournamentStore {
         T run(Connection connection) throws SQLException;
     }
 
-    private record Header(long guildId, long channelId, long createdBy, TournamentStatus status, Long winner,
+    private record Header(String code, LocalDate playedOn, long guildId, long channelId, long createdBy, TournamentStatus status, Long winner,
                           Instant startedAt, Instant finishedAt, int currentRound) {
     }
 
@@ -94,9 +105,69 @@ public class TournamentRepository implements TournamentStore {
             for (String table : SCHEMA) {
                 statement.execute(table);
             }
+            migrate(connection);
         }
         schemaReady = true;
         log.info("Tournament tables are ready");
+    }
+
+    /** Tables created before tournament codes existed: adds code + played_on and fills them for existing rows. */
+    private static void migrate(Connection connection) throws SQLException {
+        try (Statement statement = connection.createStatement()) {
+            if (!hasColumn(connection, "code")) {
+                statement.execute("ALTER TABLE tournament ADD COLUMN code VARCHAR(18) NULL, ADD COLUMN played_on DATE NULL");
+                log.info("Added code and played_on to the tournament table");
+            }
+            backfillCodes(connection);
+            if (!hasIndex(connection, "uq_tournament_code")) {
+                statement.execute("ALTER TABLE tournament ADD UNIQUE INDEX uq_tournament_code (code),"
+                        + " ADD INDEX idx_tournament_guild_day (guild_id, played_on)");
+            }
+        }
+    }
+
+    private static boolean hasColumn(Connection connection, String column) throws SQLException {
+        return exists(connection, "SELECT COUNT(*) FROM information_schema.COLUMNS"
+                + " WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'tournament' AND COLUMN_NAME = ?", column);
+    }
+
+    private static boolean hasIndex(Connection connection, String index) throws SQLException {
+        return exists(connection, "SELECT COUNT(*) FROM information_schema.STATISTICS"
+                + " WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'tournament' AND INDEX_NAME = ?", index);
+    }
+
+    private static boolean exists(Connection connection, String sql, String name) throws SQLException {
+        try (PreparedStatement select = connection.prepareStatement(sql)) {
+            select.setString(1, name);
+            try (ResultSet result = select.executeQuery()) {
+                result.next();
+                return result.getInt(1) > 0;
+            }
+        }
+    }
+
+    private static void backfillCodes(Connection connection) throws SQLException {
+        Map<Long, Long> startedAt = new LinkedHashMap<>();
+        try (Statement select = connection.createStatement();
+             ResultSet result = select.executeQuery("SELECT id, started_at FROM tournament WHERE code IS NULL")) {
+            while (result.next()) {
+                startedAt.put(result.getLong(1), result.getLong(2));
+            }
+        }
+        Random random = new SecureRandom();
+        try (PreparedStatement update = connection.prepareStatement(
+                "UPDATE tournament SET code = ?, played_on = ? WHERE id = ?")) {
+            for (Map.Entry<Long, Long> row : startedAt.entrySet()) {
+                LocalDate day = LocalDate.ofInstant(Instant.ofEpochMilli(row.getValue()), TournamentCode.ZONE);
+                update.setString(1, TournamentCode.generate(random, day));
+                update.setObject(2, day);
+                update.setLong(3, row.getKey());
+                update.executeUpdate();
+            }
+        }
+        if (!startedAt.isEmpty()) {
+            log.info("Gave {} existing tournament(s) a code", startedAt.size());
+        }
     }
 
     @Override
@@ -104,14 +175,17 @@ public class TournamentRepository implements TournamentStore {
         return inTransaction(connection -> {
             long id;
             try (PreparedStatement insert = connection.prepareStatement("""
-                    INSERT INTO tournament (guild_id, channel_id, created_by, status, started_at, current_round)
-                    VALUES (?, ?, ?, ?, ?, 1)
+                    INSERT INTO tournament (guild_id, channel_id, created_by, status, started_at, current_round,
+                                            code, played_on)
+                    VALUES (?, ?, ?, ?, ?, 1, ?, ?)
                     """, Statement.RETURN_GENERATED_KEYS)) {
                 insert.setLong(1, tournament.guildId());
                 insert.setLong(2, tournament.channelId());
                 insert.setLong(3, tournament.createdBy());
                 insert.setString(4, TournamentStatus.RUNNING.name());
                 insert.setLong(5, tournament.startedAt().toEpochMilli());
+                insert.setString(6, tournament.code());
+                insert.setObject(7, tournament.playedOn());
                 insert.executeUpdate();
                 try (ResultSet keys = insert.getGeneratedKeys()) {
                     keys.next();
@@ -261,10 +335,64 @@ public class TournamentRepository implements TournamentStore {
         }
     }
 
+    @Override
+    public Optional<TournamentRecord> loadByCode(String code) throws SQLException {
+        ensureSchema();
+        try (Connection connection = dataSource.getConnection();
+             PreparedStatement select = connection.prepareStatement("SELECT id FROM tournament WHERE code = ?")) {
+            select.setString(1, code);
+            try (ResultSet result = select.executeQuery()) {
+                return result.next() ? load(connection, result.getLong(1)) : Optional.empty();
+            }
+        }
+    }
+
+    @Override
+    public TournamentListPage list(long guildId, LocalDate day, int page) throws SQLException {
+        ensureSchema();
+        String where = " WHERE guild_id = ?" + (day == null ? "" : " AND played_on = ?");
+        try (Connection connection = dataSource.getConnection()) {
+            int total;
+            try (PreparedStatement count = connection.prepareStatement("SELECT COUNT(*) FROM tournament" + where)) {
+                bindFilter(count, guildId, day);
+                try (ResultSet result = count.executeQuery()) {
+                    result.next();
+                    total = result.getInt(1);
+                }
+            }
+            List<TournamentSummary> rows = new ArrayList<>();
+            try (PreparedStatement select = connection.prepareStatement(
+                    "SELECT code, played_on, status, winner_id FROM tournament" + where
+                            + " ORDER BY played_on DESC, id DESC LIMIT ? OFFSET ?")) {
+                int next = bindFilter(select, guildId, day);
+                select.setInt(next, TournamentListPage.PAGE_SIZE);
+                select.setLong(next + 1, (long) (page - 1) * TournamentListPage.PAGE_SIZE);
+                try (ResultSet result = select.executeQuery()) {
+                    while (result.next()) {
+                        rows.add(new TournamentSummary(result.getString(1), result.getObject(2, LocalDate.class),
+                                TournamentStatus.valueOf(result.getString(3)), nullableLong(result, 4)));
+                    }
+                }
+            }
+            return new TournamentListPage(page, TournamentListPage.pageCount(total), total, List.copyOf(rows));
+        }
+    }
+
+    /** Binds guild (and day); returns the next parameter index. */
+    private static int bindFilter(PreparedStatement statement, long guildId, LocalDate day) throws SQLException {
+        statement.setLong(1, guildId);
+        if (day == null) {
+            return 2;
+        }
+        statement.setObject(2, day);
+        return 3;
+    }
+
     private static Optional<TournamentRecord> load(Connection connection, long id) throws SQLException {
         Header header;
         try (PreparedStatement select = connection.prepareStatement("""
-                SELECT guild_id, channel_id, created_by, status, winner_id, started_at, finished_at, current_round
+                SELECT guild_id, channel_id, created_by, status, winner_id, started_at, finished_at, current_round,
+                       code, played_on
                 FROM tournament WHERE id = ?
                 """)) {
             select.setLong(1, id);
@@ -273,7 +401,8 @@ public class TournamentRepository implements TournamentStore {
                     return Optional.empty();
                 }
                 Long finishedAt = nullableLong(result, 7);
-                header = new Header(result.getLong(1), result.getLong(2), result.getLong(3),
+                header = new Header(result.getString(9), result.getObject(10, LocalDate.class),
+                        result.getLong(1), result.getLong(2), result.getLong(3),
                         TournamentStatus.valueOf(result.getString(4)), nullableLong(result, 5),
                         Instant.ofEpochMilli(result.getLong(6)),
                         finishedAt == null ? null : Instant.ofEpochMilli(finishedAt), result.getInt(8));
@@ -308,7 +437,7 @@ public class TournamentRepository implements TournamentStore {
                 }
             }
         }
-        return Optional.of(new TournamentRecord(id, header.guildId(), header.channelId(), header.createdBy(),
+        return Optional.of(new TournamentRecord(id, header.code(), header.playedOn(), header.guildId(), header.channelId(), header.createdBy(),
                 header.status(), header.winner(), header.startedAt(), header.finishedAt(), header.currentRound(),
                 List.copyOf(players), Map.copyOf(dropped), List.copyOf(matches)));
     }

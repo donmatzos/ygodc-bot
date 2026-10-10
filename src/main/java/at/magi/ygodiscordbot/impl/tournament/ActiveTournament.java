@@ -6,6 +6,7 @@ import at.magi.ygodiscordbot.entity.tournament.Standings;
 import at.magi.ygodiscordbot.entity.tournament.TournamentRecord;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -15,6 +16,8 @@ import java.util.Map;
 final class ActiveTournament {
 
     final long id;
+    final String code;
+    final LocalDate playedOn;
     final long guildId;
     final long channelId;
     final Instant startedAt;
@@ -25,6 +28,8 @@ final class ActiveTournament {
 
     ActiveTournament(TournamentRecord record) {
         id = record.id();
+        code = record.code();
+        playedOn = record.playedOn();
         guildId = record.guildId();
         channelId = record.channelId();
         startedAt = record.startedAt();

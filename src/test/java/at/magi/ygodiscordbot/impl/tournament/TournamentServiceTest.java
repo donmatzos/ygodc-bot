@@ -7,6 +7,8 @@ import at.magi.ygodiscordbot.entity.tournament.TournamentStatus;
 import org.testng.annotations.Test;
 
 import java.sql.SQLException;
+import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
@@ -17,6 +19,25 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.expectThrows;
 
 public class TournamentServiceTest extends TournamentServiceTestBase {
+
+    @Test
+    public void startStoresCodeAndViennaDay() throws SQLException {
+        clock.set(Instant.parse("2026-10-09T23:30:00Z")); // already the 10th in Vienna
+        long id = start(FOUR);
+        assertEquals(stored(id).playedOn(), LocalDate.of(2026, 10, 10));
+        assertTrue(code(id).matches("[a-z2-9]{9}-26-10-10"), code(id));
+    }
+
+    @Test
+    public void startRetriesWhenTheCodeExists() throws SQLException {
+        long first = start(FOUR);
+        // same seed again generates the same first code; the retry must pick another
+        service = newService(42);
+        store.failWrites = false;
+        long second = start(List.of(201L, 202L, 203L, 204L));
+        assertTrue(second != first);
+        assertTrue(!code(first).equals(code(second)));
+    }
 
     @Test
     public void startPostsRoundOneWithMatchIdsAndPings() throws SQLException {

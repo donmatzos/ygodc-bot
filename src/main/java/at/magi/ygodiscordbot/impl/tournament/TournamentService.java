@@ -5,6 +5,7 @@ import at.magi.ygodiscordbot.entity.tournament.NewTournament;
 import at.magi.ygodiscordbot.entity.tournament.Pairing;
 import at.magi.ygodiscordbot.entity.tournament.Standings;
 import at.magi.ygodiscordbot.entity.tournament.SwissPairer;
+import at.magi.ygodiscordbot.entity.tournament.TournamentCode;
 import at.magi.ygodiscordbot.entity.tournament.TournamentPoints;
 import at.magi.ygodiscordbot.entity.tournament.TournamentRecord;
 import at.magi.ygodiscordbot.entity.tournament.TournamentStatus;
@@ -13,9 +14,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.sql.SQLException;
+import java.sql.SQLIntegrityConstraintViolationException;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -35,6 +38,7 @@ public final class TournamentService {
 
     private static final Logger log = LoggerFactory.getLogger(TournamentService.class);
 
+    static final int CODE_ATTEMPTS = 3;
     static final int MIN_PLAYERS = 2;
     static final int MAX_PLAYERS = 32;
     static final Duration TIMEOUT = Duration.ofHours(48);
@@ -112,8 +116,22 @@ public final class TournamentService {
         }
         Instant now = clock.instant();
         List<Pairing> round1 = SwissPairer.pair(Standings.of(players, Set.of(), List.of()), 1, random);
-        long id = store.create(new NewTournament(guildId, channelId, admin, now, players), round1);
-        ActiveTournament tournament = new ActiveTournament(new TournamentRecord(id, guildId, channelId, admin,
+        LocalDate day = LocalDate.ofInstant(now, TournamentCode.ZONE);
+        String code = null;
+        long id = 0;
+        for (int attempt = 1; code == null; attempt++) {
+            String candidate = TournamentCode.generate(random, day);
+            try {
+                id = store.create(new NewTournament(candidate, day, guildId, channelId, admin, now, players), round1);
+                code = candidate;
+            } catch (SQLIntegrityConstraintViolationException e) {
+                if (attempt == CODE_ATTEMPTS) {
+                    throw e;
+                }
+                log.warn("Tournament code {} already exists, trying another", candidate);
+            }
+        }
+        ActiveTournament tournament = new ActiveTournament(new TournamentRecord(id, code, day, guildId, channelId, admin,
                 TournamentStatus.RUNNING, null, now, null, 1, players, Map.of(),
                 round1.stream().map(pairing -> MatchRecord.of(1, pairing)).toList()));
         tournaments.put(id, tournament);

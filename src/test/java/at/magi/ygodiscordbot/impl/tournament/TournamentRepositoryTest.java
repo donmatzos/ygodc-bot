@@ -3,8 +3,11 @@ package at.magi.ygodiscordbot.impl.tournament;
 import at.magi.ygodiscordbot.entity.tournament.MatchRecord;
 import at.magi.ygodiscordbot.entity.tournament.NewTournament;
 import at.magi.ygodiscordbot.entity.tournament.Pairing;
+import at.magi.ygodiscordbot.entity.tournament.TournamentCode;
+import at.magi.ygodiscordbot.entity.tournament.TournamentListPage;
 import at.magi.ygodiscordbot.entity.tournament.TournamentRecord;
 import at.magi.ygodiscordbot.entity.tournament.TournamentStatus;
+import at.magi.ygodiscordbot.entity.tournament.TournamentSummary;
 import at.magi.ygodiscordbot.impl.config.DatabaseConfig;
 import at.magi.ygodiscordbot.impl.database.DatabasePool;
 import com.zaxxer.hikari.HikariDataSource;
@@ -16,8 +19,10 @@ import org.testng.annotations.Test;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.sql.SQLIntegrityConstraintViolationException;
 import java.sql.Statement;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -36,6 +41,23 @@ public class TournamentRepositoryTest {
     private static final Instant STARTED = Instant.parse("2026-10-10T12:00:00.123Z");
     private static final List<Long> PLAYERS = List.of(40L, 10L, 30L);
 
+    /** The CREATE TABLE of the tournament table before codes existed, verbatim. */
+    private static final String OLD_TOURNAMENT_TABLE = """
+            CREATE TABLE IF NOT EXISTS tournament (
+                id            BIGINT      NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                guild_id      BIGINT      NOT NULL,
+                channel_id    BIGINT      NOT NULL,
+                created_by    BIGINT      NOT NULL,
+                status        VARCHAR(10) NOT NULL,
+                winner_id     BIGINT      NULL,
+                started_at    BIGINT      NOT NULL,
+                finished_at   BIGINT      NULL,
+                current_round INT         NOT NULL DEFAULT 0,
+                INDEX idx_tournament_status (status)
+            ) ENGINE = InnoDB
+            """;
+
+    private int created;
     private HikariDataSource dataSource;
     private TournamentRepository repository;
 
@@ -64,11 +86,21 @@ public class TournamentRepositoryTest {
             statement.execute("DROP TABLE IF EXISTS tournament");
         }
         repository = new TournamentRepository(dataSource);
+        created = 0;
     }
 
+    private static NewTournament tournament(String code, LocalDate day, long guild) {
+        return new NewTournament(code, day, guild, 2, 3, STARTED, PLAYERS);
+    }
+
+    private static List<Pairing> round1() {
+        return List.of(new Pairing(40, 10L), Pairing.bye(30));
+    }
+
+    /** Each call gets its own code, as codes are unique. */
     private long create() throws SQLException {
-        return repository.create(new NewTournament(1, 2, 3, STARTED, PLAYERS),
-                List.of(new Pairing(40, 10L), Pairing.bye(30)));
+        String code = "abcdefgh%c-26-10-10".formatted((char) ('a' + created++));
+        return repository.create(tournament(code, LocalDate.of(2026, 10, 10), 1), round1());
     }
 
     @Test
@@ -165,5 +197,60 @@ public class TournamentRepositoryTest {
         assertEquals(repository.load(abandoned).orElseThrow().status(), TournamentStatus.ABANDONED);
         // A tournament ends only once
         expectThrows(SQLException.class, () -> repository.abandon(finished, end));
+    }
+
+    @Test
+    public void storesAndLoadsCodeAndDay() throws SQLException {
+        long id = repository.create(tournament("abcdefghj-26-10-10", LocalDate.of(2026, 10, 10), 1), round1());
+        TournamentRecord record = repository.loadByCode("abcdefghj-26-10-10").orElseThrow();
+        assertEquals(record.id(), id);
+        assertEquals(record.playedOn(), LocalDate.of(2026, 10, 10));
+        assertEquals(repository.loadByCode("zzzzzzzzz-26-10-10"), Optional.empty());
+    }
+
+    @Test
+    public void duplicateCodeIsRefused() throws SQLException {
+        repository.create(tournament("abcdefghj-26-10-10", LocalDate.of(2026, 10, 10), 1), round1());
+        expectThrows(SQLIntegrityConstraintViolationException.class, () -> repository.create(
+                tournament("abcdefghj-26-10-10", LocalDate.of(2026, 10, 10), 1), round1()));
+    }
+
+    @Test
+    public void listsMostRecentFirstPerServerAndDay() throws SQLException {
+        repository.create(tournament("aaaaaaaaa-26-10-08", LocalDate.of(2026, 10, 8), 1), round1());
+        long finished = repository.create(tournament("bbbbbbbbb-26-10-10", LocalDate.of(2026, 10, 10), 1), round1());
+        repository.create(tournament("ccccccccc-26-10-10", LocalDate.of(2026, 10, 10), 1), round1());
+        repository.create(tournament("ddddddddd-26-10-10", LocalDate.of(2026, 10, 10), 2), round1()); // other server
+        repository.finish(finished, 40L, STARTED);
+
+        TournamentListPage all = repository.list(1, null, 1);
+        assertEquals(all.total(), 3);
+        assertEquals(all.rows().stream().map(TournamentSummary::code).toList(),
+                List.of("ccccccccc-26-10-10", "bbbbbbbbb-26-10-10", "aaaaaaaaa-26-10-08"));
+        assertEquals(all.rows().get(1), new TournamentSummary("bbbbbbbbb-26-10-10", LocalDate.of(2026, 10, 10),
+                TournamentStatus.FINISHED, 40L));
+
+        TournamentListPage day = repository.list(1, LocalDate.of(2026, 10, 8), 1);
+        assertEquals(day.rows().stream().map(TournamentSummary::code).toList(), List.of("aaaaaaaaa-26-10-08"));
+        assertEquals(repository.list(1, null, 2).rows(), List.of());
+    }
+
+    @Test
+    public void migratesTableWithoutCode() throws SQLException {
+        try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement()) {
+            statement.execute("DROP TABLE IF EXISTS tournament_match, tournament_player, tournament");
+            statement.execute(OLD_TOURNAMENT_TABLE);
+            // 2026-10-09T23:30Z is already the 10th in Vienna
+            statement.execute("INSERT INTO tournament (guild_id, channel_id, created_by, status, started_at, current_round)"
+                    + " VALUES (1, 2, 3, 'RUNNING', " + Instant.parse("2026-10-09T23:30:00Z").toEpochMilli() + ", 1)");
+        }
+        TournamentRepository fresh = new TournamentRepository(dataSource);
+        fresh.ensureSchema();
+        TournamentRecord record = fresh.loadRunning().get(0);
+        assertEquals(record.playedOn(), LocalDate.of(2026, 10, 10));
+        assertEquals(TournamentCode.parse(record.code()), Optional.of(record.code()));
+        assertTrue(record.code().endsWith("-26-10-10"), record.code());
+        new TournamentRepository(dataSource).ensureSchema(); // a second start changes nothing
+        assertEquals(fresh.loadByCode(record.code()).orElseThrow().id(), record.id());
     }
 }
