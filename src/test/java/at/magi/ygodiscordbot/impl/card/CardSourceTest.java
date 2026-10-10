@@ -58,6 +58,17 @@ public class CardSourceTest {
     }
 
     @Test
+    public void rejectsMoreNamesThanTheCap() {
+        // 4 names: 3 cards' passcodes plus one alternate artwork
+        assertThrows(IOException.class, () -> CardSource.parseCards(json(CARDS), 1, 10, 3));
+    }
+
+    @Test
+    public void acceptsNamesUpToTheCap() throws IOException {
+        assertEquals(CardSource.parseCards(json(CARDS), 1, 10, 4).size(), 4);
+    }
+
+    @Test
     public void acceptsCardsUpToTheCap() throws IOException {
         assertEquals(CardSource.parseCards(json(CARDS), 1, 3).size(), 4);
     }

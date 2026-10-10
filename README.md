@@ -79,7 +79,9 @@ Manage Server itself, so those settings work. `share` only posts if both you and
 in the target channel. Needs `DB_URL`, like `/deck`.
 
 **Tournaments** (tables `tournament`, `tournament_player`, `tournament_match`): Swiss system. Players are entered
-as @-mentions in one text option, since a command can have at most 25 options, and every player must be a member of the server. A player can be in only one running tournament per server (not across servers). A server can have at most 10 running tournaments, and a match ID is never reused until the bot restarts. Round 1 is random, later rounds pair
+as @-mentions in one text option, since a command can have at most 25 options, and every player must be a member of
+the server. A player can be in only one running tournament per server (not across servers). A server can have at most
+10 running tournaments, and a match ID is never reused until the bot restarts. Round 1 is random, later rounds pair
 players with the same win-loss record who haven't met yet (backtracking; a rematch only if no other pairing exists).
 With an odd number of players one gets a free win: random in round 1, then the player with the most losses. If time
 runs out without a winner, `/match doubleloss` scores a loss for both players. When the last match of a round is
@@ -300,7 +302,8 @@ with follow-ups, or DMs).
 
 ### 4. YDKE, the deck format
 
-A YDKE URI has the form `ydke://<main>!<extra>!<side>!` (the last `!` may be left out; anything after it is rejected, and the bot stores and shows the re-encoded canonical form). Each section is Base64; decoded, it is a sequence of
+A YDKE URI has the form `ydke://<main>!<extra>!<side>!` (the last `!` may be left out; anything after it is rejected,
+and the bot stores and shows the re-encoded canonical form). Each section is Base64; decoded, it is a sequence of
 **4-byte little-endian unsigned integers**, one per card copy:
 
 ```
@@ -365,7 +368,8 @@ YDKE only contains artwork passcodes, so `impl/card/CardRefresher` keeps a passc
    looked up by binary search.
 4. The list is saved to `data/cards.json` (~0.5 MB), so restarts don't download again.
 
-A failed check keeps the current names and is retried hourly, up to 3 times.
+A failed check keeps the current names and is retried hourly, up to 3 times. While no card list has ever been
+loaded, it keeps retrying hourly until one succeeds.
 
 ### 7. Files, shutdown and memory
 

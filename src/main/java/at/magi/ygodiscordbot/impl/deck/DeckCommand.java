@@ -168,8 +168,10 @@ public final class DeckCommand implements SlashCommand {
             cards = Ydke.parse(deck.ydke());
         } catch (IllegalArgumentException e) {
             // Row saved before the stricter parser: still gettable, deletable and replaceable
+            // A deleted deck no longer exists, so only /deck save can recreate it
+            String again = action.contains("deleted") ? "`/deck save`" : "`/deck update`";
             return List.of(action + " " + DcMessageUtils.bold(deck.name()) + ":\n"
-                    + "This deck's stored YDKE is invalid; save it again with /deck update.");
+                    + "This deck's stored YDKE is invalid; save it again with " + again + ".");
         }
         return DeckMessages.deck(action + " " + DcMessageUtils.bold(deck.name()) + ":", deck.updatedAt(), Ydke.encode(cards),
                 cards, names);

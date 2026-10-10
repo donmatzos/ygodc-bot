@@ -33,6 +33,8 @@ public final class CardSource {
 
     /** More cards than this means the response is not the card list (a runaway or hostile response). */
     static final int MAX_CARDS = 100_000;
+    /** Cards plus alternate artworks; every artwork passcode is a map entry, so this bounds the memory. */
+    static final int MAX_NAMES = 200_000;
 
     /** Decompressed cardinfo.php is about 21 MB. */
     private static final long MAX_BYTES = 150L * 1024 * 1024;
@@ -66,10 +68,14 @@ public final class CardSource {
      * Alternate artworks have their own passcode in {@code card_images} and map to the card's name.
      */
     static CardNames parseCards(InputStream body, int minCards) throws IOException {
-        return parseCards(body, minCards, MAX_CARDS);
+        return parseCards(body, minCards, MAX_CARDS, MAX_NAMES);
     }
 
     static CardNames parseCards(InputStream body, int minCards, int maxCards) throws IOException {
+        return parseCards(body, minCards, maxCards, MAX_NAMES);
+    }
+
+    static CardNames parseCards(InputStream body, int minCards, int maxCards, int maxNames) throws IOException {
         Map<Integer, String> names = new HashMap<>(20_000);
         int cards = 0;
         try (JsonParser parser = JsonUtils.MAPPER.getFactory().createParser(body)) {
@@ -86,6 +92,9 @@ public final class CardSource {
                         } else if (readCard(parser, names)) {
                             if (++cards > maxCards) {
                                 throw new IOException("YGOProDeck returned more than " + maxCards + " cards");
+                            }
+                            if (names.size() > maxNames) {
+                                throw new IOException("YGOProDeck returned more than " + maxNames + " card names");
                             }
                         }
                     }

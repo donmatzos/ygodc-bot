@@ -10,6 +10,7 @@ import org.testng.annotations.Test;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.IntStream;
 
 import static org.testng.Assert.assertEquals;
@@ -73,11 +74,13 @@ public class DeckCommandTest {
     @Test
     public void deckReplyForAnUnparsableStoredRowOnlyNamesTheDeck() {
         Decklist deck = new Decklist(1, 2, "Dragons", "ydke://o6lXBQ==!!!junk", 0, 1_760_000_000_000L);
-        for (String action : List.of("Showing deck", "You deleted the following deck")) {
+        // After a delete the deck is gone, so /deck update would answer "no deck named"
+        Map<String, String> hints = Map.of("Showing deck", "`/deck update`", "You deleted the following deck", "`/deck save`");
+        hints.forEach((action, command) -> {
             List<String> reply = DeckCommand.deckReply(action, deck, TestCards.names());
             assertEquals(reply, List.of(action + " **Dragons**:\n"
-                    + "This deck's stored YDKE is invalid; save it again with /deck update."));
-        }
+                    + "This deck's stored YDKE is invalid; save it again with " + command + "."));
+        });
     }
 
     @Test

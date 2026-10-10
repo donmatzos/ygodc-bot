@@ -47,6 +47,7 @@ import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryType;
 import java.sql.SQLException;
 import java.time.Clock;
+import java.time.Duration;
 import java.util.Deque;
 import java.util.EnumSet;
 import java.util.Random;
@@ -164,8 +165,8 @@ public final class YgoDiscordBot {
             exitWithConfigError("Discord rejected the token: " + e.getMessage());
             return;
         }
-        ON_SHUTDOWN.push(jda::shutdown);
-        // Pushed after jda::shutdown, so it runs before it: running requests can still send their reply
+        ON_SHUTDOWN.push(() -> shutdownJda(jda));
+        // Pushed after the JDA step, so it runs before it: running requests can still send their reply
         if (databaseExecutor != null) {
             ExecutorService executor = databaseExecutor;
             ON_SHUTDOWN.push(() -> drainDatabase(executor));
@@ -210,14 +211,24 @@ public final class YgoDiscordBot {
     }
 
     /**
-     * Stops accepting database requests and lets the running ones finish (up to 5 s). The shutdown steps are
-     * budgeted at 5 s here + 5 s per refresher (their CLOSE_TIMEOUT) = about 15 s, below the supervisor's 20 s
-     * grace period before it kills the bot.
+     * Stops accepting database requests and lets the running ones finish (up to 4 s). The shutdown steps are
+     * budgeted at 4 s here + 3 s for JDA to send its queued replies ({@link #shutdownJda}) + 5 s per refresher
+     * (their CLOSE_TIMEOUT) = about 17 s, below the supervisor's 20 s grace period before it kills the bot.
      */
     private static void drainDatabase(ExecutorService executor) {
         executor.shutdown();
         try {
-            executor.awaitTermination(5, TimeUnit.SECONDS);
+            executor.awaitTermination(4, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    /** {@code shutdown()} does not block: waits so the already queued replies (e.g. the drained DB work's) go out. */
+    private static void shutdownJda(JDA jda) {
+        jda.shutdown();
+        try {
+            jda.awaitShutdown(Duration.ofSeconds(3));
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
