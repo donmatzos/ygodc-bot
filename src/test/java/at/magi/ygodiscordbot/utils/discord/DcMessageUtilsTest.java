@@ -61,4 +61,16 @@ public class DcMessageUtilsTest {
         assertTrue(all.contains("x".repeat(100) + "…\n```"), "row not truncated with an ellipsis");
         assertTrue(all.lines().anyMatch(line -> line.equals("a")) && all.lines().anyMatch(line -> line.equals("b")));
     }
+
+    @Test
+    public void boldEscapesMarkdownInsideTheName() {
+        assertEquals(DcMessageUtils.bold("Dragons"), "**Dragons**");
+        assertEquals(DcMessageUtils.bold("**x||y||"), "****x\\||y\\||**");
+    }
+
+    @Test
+    public void escapeNeutralisesMarkdown() {
+        assertEquals(DcMessageUtils.escape("Dragons"), "Dragons");
+        assertEquals(DcMessageUtils.escape("**x||y||"), "**x\\||y\\||");
+    }
 }

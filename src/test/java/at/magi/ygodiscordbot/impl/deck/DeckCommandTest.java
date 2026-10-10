@@ -123,4 +123,18 @@ public class DeckCommandTest {
         }
         assertEquals(String.join("\n", messages).lines().filter(line -> line.startsWith("• ")).count(), 50L);
     }
+
+    @Test
+    public void deckNamesAreMarkdownEscapedInReplies() {
+        String name = "**x||y||";
+        String escaped = "**x\\||y\\||";
+        Decklist deck = new Decklist(1, 2, name, "ydke://o6lXBQ==!!", 0, 1_760_000_000_000L);
+        assertTrue(DeckCommand.deckReply("Showing deck", deck, TestCards.names()).get(0)
+                .contains("Showing deck **" + escaped + "**:"));
+        Decklist broken = new Decklist(1, 2, name, "junk", 0, 1_760_000_000_000L);
+        assertTrue(DeckCommand.deckReply("Showing deck", broken, TestCards.names()).get(0)
+                .contains("Showing deck **" + escaped + "**:"));
+        assertTrue(DeckCommand.saveError(SaveResult.NAME_TAKEN, name).contains("named **" + escaped + "**"));
+        assertEquals(DeckCommand.listReply(List.of(name)), List.of("Your decks (1):\n• " + escaped));
+    }
 }

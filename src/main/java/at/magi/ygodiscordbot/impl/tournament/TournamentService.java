@@ -291,11 +291,6 @@ public final class TournamentService {
         return TournamentMessages.cancelled(code);
     }
 
-    /**
-     * Removes a player from the remaining rounds. Their open match is won by the opponent; prepared next pairings are
-     * made again without them (which may also decide the winner). The players are told by DM; the channel only gets a
-     * post when the drop ends the round or the tournament.
-     */
     /** A failing DM (closed DMs, Discord error) must never abort the operation that triggered it. */
     private void dm(long user, List<String> messages) {
         try {
@@ -305,6 +300,11 @@ public final class TournamentService {
         }
     }
 
+    /**
+     * Removes a player from the remaining rounds. Their open match is won by the opponent; prepared next pairings are
+     * made again without them (which may also decide the winner). The players are told by DM; the channel only gets a
+     * post when the drop ends the round or the tournament.
+     */
     public String drop(String code, long guildId, long player) throws SQLException {
         recover();
         ActiveTournament tournament = running(code, guildId);

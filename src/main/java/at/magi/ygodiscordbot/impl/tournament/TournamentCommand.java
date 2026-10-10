@@ -95,7 +95,7 @@ public final class TournamentCommand implements SlashCommand {
                                 .addOptions(idOption(), new OptionData(OptionType.USER, PLAYER, "Player", true)),
                         new SubcommandData("list", "List this server's tournaments, most recent first")
                                 .addOptions(new OptionData(OptionType.INTEGER, PAGE, "Page (20 per page)", false)
-                                                .setMinValue(1),
+                                                .setRequiredRange(1, 10_000),
                                         new OptionData(OptionType.STRING, DATE, "Only this day, as YY-MM-dd or YYYY-MM-dd", false)
                                                 .setRequiredLength(8, 10)))
                 .setContexts(InteractionContextType.GUILD);

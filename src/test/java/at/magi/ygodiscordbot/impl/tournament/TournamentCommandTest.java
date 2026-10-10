@@ -30,6 +30,13 @@ public class TournamentCommandTest {
     }
 
     @Test
+    public void listPageOptionIsBounded() {
+        var page = new TournamentCommand(null, null, Runnable::run).data().getSubcommands().get(5).getOptions().get(0);
+        assertEquals(page.getMinValue().longValue(), 1L);
+        assertEquals(page.getMaxValue().longValue(), 10_000L);
+    }
+
+    @Test
     public void openToEveryoneInServersWithList() {
         var data = new TournamentCommand(null, null, Runnable::run).data();
         assertEquals(data.getName(), "tournament");

@@ -1,6 +1,7 @@
 package at.magi.ygodiscordbot.utils.discord;
 
 import at.magi.ygodiscordbot.utils.text.Truncation;
+import net.dv8tion.jda.api.utils.MarkdownSanitizer;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -18,6 +19,16 @@ public final class DcMessageUtils {
     private static final String FENCE = "```";
 
     private DcMessageUtils() {
+    }
+
+    /** User-chosen text (deck or player names) with its Markdown escaped, so it shows literally. */
+    public static String escape(String text) {
+        return MarkdownSanitizer.escape(text);
+    }
+
+    /** {@code text} escaped and wrapped in bold. */
+    public static String bold(String text) {
+        return "**" + escape(text) + "**";
     }
 
     /**

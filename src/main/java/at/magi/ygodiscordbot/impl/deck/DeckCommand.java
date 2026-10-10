@@ -154,7 +154,7 @@ public final class DeckCommand implements SlashCommand {
     static String saveError(DecklistRepository.SaveResult result, String name) {
         return switch (result) {
             case SAVED -> throw new IllegalArgumentException("not an error");
-            case NAME_TAKEN -> "❌ You already have a deck named **" + name + "**. Use `/deck update` to replace it.";
+            case NAME_TAKEN -> "❌ You already have a deck named " + DcMessageUtils.bold(name) + ". Use `/deck update` to replace it.";
             case LIMIT_REACHED -> "❌ You can save up to " + DecklistRepository.MAX_DECKS_PER_USER
                     + " decks. Delete one with `/deck delete` first.";
         };
@@ -168,10 +168,10 @@ public final class DeckCommand implements SlashCommand {
             cards = Ydke.parse(deck.ydke());
         } catch (IllegalArgumentException e) {
             // Row saved before the stricter parser: still gettable, deletable and replaceable
-            return List.of(action + " **" + deck.name() + "**:\n"
+            return List.of(action + " " + DcMessageUtils.bold(deck.name()) + ":\n"
                     + "This deck's stored YDKE is invalid; save it again with /deck update.");
         }
-        return DeckMessages.deck(action + " **" + deck.name() + "**:", deck.updatedAt(), Ydke.encode(cards),
+        return DeckMessages.deck(action + " " + DcMessageUtils.bold(deck.name()) + ":", deck.updatedAt(), Ydke.encode(cards),
                 cards, names);
     }
 
@@ -181,7 +181,7 @@ public final class DeckCommand implements SlashCommand {
             return List.of("You have no saved decks. Save one with `/deck save`.");
         }
         return DcMessageUtils.packLines("Your decks (" + names.size() + "):",
-                names.stream().map(name -> "• " + name).toList());
+                names.stream().map(name -> "• " + DcMessageUtils.escape(name)).toList());
     }
 
     private static String counts(YdkeDeck deck) {
@@ -189,7 +189,7 @@ public final class DeckCommand implements SlashCommand {
     }
 
     private static String notFound(String name) {
-        return "❌ You have no deck named **" + name + "**. See `/deck list`.";
+        return "❌ You have no deck named " + DcMessageUtils.bold(name) + ". See `/deck list`.";
     }
 
     private static void replyError(SlashCommandInteractionEvent event, String message) {
