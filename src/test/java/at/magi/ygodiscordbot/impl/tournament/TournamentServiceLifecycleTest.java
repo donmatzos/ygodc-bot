@@ -6,7 +6,10 @@ import org.testng.annotations.Test;
 
 import java.sql.SQLException;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
@@ -70,6 +73,47 @@ public class TournamentServiceLifecycleTest extends TournamentServiceTestBase {
         service.drop(code(id), GUILD, round1.get(0).player1());
         assertEquals(stored(id).status(), TournamentStatus.RUNNING);
         assertTrue(service.continueRound(code(id), GUILD).contains("Round 2 of"));
+    }
+
+    @Test
+    public void tiedLeadersAfterFourRoundsPlayOff() throws SQLException {
+        // 10 players need 4 rounds; every match of those ends as a double loss, so all are tied on 4 losses
+        List<Long> ten = new ArrayList<>();
+        for (long player = 101; player <= 110; player++) {
+            ten.add(player);
+        }
+        long id = start(ten);
+        for (int round = 1; round <= 4; round++) {
+            if (round > 1) {
+                service.continueRound(code(id), GUILD);
+            }
+            for (ActiveMatch match : service.openMatches(id)) {
+                service.doubleLoss(match.id(), GUILD, match.player1(), false);
+            }
+        }
+        assertEquals(stored(id).status(), TournamentStatus.RUNNING);
+        assertTrue(announcer.last().contains("Play-off:"), announcer.last());
+
+        // Round 5: everyone is a leader, so everyone plays; the five winners stay tied on 4 losses
+        service.continueRound(code(id), GUILD);
+        assertTrue(announcer.last().contains("are still tied after 4 rounds"), announcer.last());
+        assertEquals(service.openMatches(id).size(), 5);
+        Set<Long> winners = new HashSet<>();
+        service.openMatches(id).forEach(match -> winners.add(match.player1()));
+        playRound(id);
+
+        // From round 6 on only the leaders play, until one is left
+        while (stored(id).status() == TournamentStatus.RUNNING) {
+            service.continueRound(code(id), GUILD);
+            Set<Long> leaders = new HashSet<>(winners);
+            for (ActiveMatch match : service.openMatches(id)) {
+                assertTrue(leaders.contains(match.player1()) && leaders.contains(match.player2()), match.toString());
+                winners.remove(match.player2());
+            }
+            playRound(id);
+        }
+        assertEquals(stored(id).status(), TournamentStatus.FINISHED);
+        assertEquals(winners, Set.of(stored(id).winner()));
     }
 
     @Test
