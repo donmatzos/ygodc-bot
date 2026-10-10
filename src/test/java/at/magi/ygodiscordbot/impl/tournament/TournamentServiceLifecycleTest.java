@@ -174,6 +174,20 @@ public class TournamentServiceLifecycleTest extends TournamentServiceTestBase {
     }
 
     @Test
+    public void dropsBetweenRoundsEndTheTournamentWithTheLastPlayer() throws SQLException {
+        long id = start(List.of(101L, 102L, 103L));
+        playRound(id); // one match plus a bye
+        service.drop(code(id), GUILD, 101L);
+        int posts = announcer.posts.size();
+        String reply = service.drop(code(id), GUILD, 102L);
+        assertTrue(reply.contains("dropped out"), reply);
+        assertEquals(announcer.posts.size(), posts + 1);
+        assertTrue(announcer.last().contains("wins after"), announcer.last());
+        assertTrue(announcer.last().contains("P103"), announcer.last());
+        assertEquals(stored(id).status(), TournamentStatus.FINISHED);
+    }
+
+    @Test
     public void restartDmsNewMatchIdsInsteadOfPosting() throws SQLException {
         long id = start(FOUR);
         int posts = announcer.posts.size();

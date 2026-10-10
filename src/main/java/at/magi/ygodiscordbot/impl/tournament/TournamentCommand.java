@@ -37,8 +37,8 @@ import java.util.regex.Pattern;
 
 /**
  * {@code /tournament start|continue|standings|cancel|drop|list}. {@code list} is for everyone. The other subcommands
- * check Manage Server in the bot, because Discord can't restrict single subcommands; Integrations overrides don't
- * apply to them, same as {@code /leaderboard add}.
+ * check Manage Server in the bot, because Discord can't restrict single subcommands; Integrations overrides can hide
+ * the whole command but can't grant them, same as {@code /leaderboard add}.
  * Players are entered as @-mentions in one text option: a command can have at most 25 options, a tournament 32 players.
  */
 public final class TournamentCommand implements SlashCommand {
@@ -96,7 +96,7 @@ public final class TournamentCommand implements SlashCommand {
                         new SubcommandData("list", "List this server's tournaments, most recent first")
                                 .addOptions(new OptionData(OptionType.INTEGER, PAGE, "Page (20 per page)", false)
                                                 .setMinValue(1),
-                                        new OptionData(OptionType.STRING, DATE, "Only this day, as YY-MM-dd", false)
+                                        new OptionData(OptionType.STRING, DATE, "Only this day, as YY-MM-dd or YYYY-MM-dd", false)
                                                 .setRequiredLength(8, 10)))
                 .setContexts(InteractionContextType.GUILD);
     }
@@ -157,14 +157,27 @@ public final class TournamentCommand implements SlashCommand {
         }
     }
 
+    /** The list filter takes the code's short form and the ISO form the list table shows; real days only. */
+    static Optional<LocalDate> parseListDay(String raw) {
+        Optional<LocalDate> short_ = TournamentCode.parseDay(raw);
+        if (short_.isPresent()) {
+            return short_;
+        }
+        try {
+            return Optional.of(LocalDate.parse(raw.trim()));
+        } catch (java.time.format.DateTimeParseException e) {
+            return Optional.empty();
+        }
+    }
+
     private void list(SlashCommandInteractionEvent event, long guild) {
         int page = event.getOption(PAGE, 1, OptionMapping::getAsInt);
         String rawDay = event.getOption(DATE, OptionMapping::getAsString);
         LocalDate day = null;
         if (rawDay != null) {
-            Optional<LocalDate> parsed = TournamentCode.parseDay(rawDay);
+            Optional<LocalDate> parsed = parseListDay(rawDay);
             if (parsed.isEmpty()) {
-                event.reply("❌ `" + DcMessageUtils.safe(rawDay) + "` is not a day. Use YY-MM-dd, e.g. `26-10-10`.")
+                event.reply("❌ `" + DcMessageUtils.safe(rawDay) + "` is not a day. Use YY-MM-dd or YYYY-MM-dd, e.g. `26-10-10` or `2026-10-10`.")
                         .setEphemeral(true).queue();
                 return;
             }

@@ -17,7 +17,7 @@ final class RecordingAnnouncer implements TournamentAnnouncer {
 
     final List<Post> posts = new ArrayList<>();
     final List<Dm> dms = new ArrayList<>();
-    /** When true, every DM fails like a user with closed DMs (the real announcer only logs that). */
+    /** When true, every DM throws like a user with closed DMs. */
     boolean dmsClosed;
 
     /** Names as the tables show them: 101 → "P101". */
@@ -34,9 +34,10 @@ final class RecordingAnnouncer implements TournamentAnnouncer {
 
     @Override
     public void dm(long userId, List<String> messages) {
-        if (!dmsClosed) {
-            dms.add(new Dm(userId, String.join("\n", messages)));
+        if (dmsClosed) {
+            throw new IllegalStateException("Cannot send messages to this user");
         }
+        dms.add(new Dm(userId, String.join("\n", messages)));
     }
 
     String last() {

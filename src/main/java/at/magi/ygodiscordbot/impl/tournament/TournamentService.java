@@ -102,8 +102,8 @@ public final class TournamentService {
             createMatches(tournament, round);
             for (ActiveMatch match : openMatches(tournament.id)) {
                 List<String> dm = TournamentMessages.newMatchIdDm(tournament.code, round, match);
-                announcer.dm(match.player1(), dm);
-                announcer.dm(match.player2(), dm);
+                dm(match.player1(), dm);
+                dm(match.player2(), dm);
             }
         } else {
             // The round was complete before the restart, so this is still a round-end post
@@ -197,8 +197,8 @@ public final class TournamentService {
         }
         MatchRecord saved = tournament.record(match.round(), match.player1());
         List<String> dm = TournamentMessages.matchResultDm(tournament.code, match.round(), matchId, saved, corrected);
-        announcer.dm(match.player1(), dm);
-        announcer.dm(match.player2(), dm);
+        dm(match.player1(), dm);
+        dm(match.player2(), dm);
         String roundEnd = closeRoundIfDone(tournament);
         return roundEnd == null ? reply : reply + "\n" + roundEnd;
     }
@@ -267,6 +267,15 @@ public final class TournamentService {
      * made again without them (which may also decide the winner). The players are told by DM; the channel only gets a
      * post when the drop ends the round or the tournament.
      */
+    /** A failing DM (closed DMs, Discord error) must never abort the operation that triggered it. */
+    private void dm(long user, List<String> messages) {
+        try {
+            announcer.dm(user, messages);
+        } catch (RuntimeException e) {
+            log.warn("Could not DM user {}", user, e);
+        }
+    }
+
     public String drop(String code, long guildId, long player) throws SQLException {
         recover();
         ActiveTournament tournament = running(code, guildId);
@@ -296,8 +305,8 @@ public final class TournamentService {
             long opponent = match.opponentOf(player);
             tournament.setWinner(match.round(), match.player1(), opponent);
             reply.append('\n').append(TournamentMessages.matchFinished(code, match.id(), opponent, false));
-            announcer.dm(player, TournamentMessages.droppedDm(code));
-            announcer.dm(opponent, TournamentMessages.forfeitWinDm(code, player, match.id()));
+            dm(player, TournamentMessages.droppedDm(code));
+            dm(opponent, TournamentMessages.forfeitWinDm(code, player, match.id()));
             String roundEnd = closeRoundIfDone(tournament); // posts the round end if this was the last match
             if (roundEnd != null) {
                 reply.append('\n').append(roundEnd);
@@ -305,7 +314,7 @@ public final class TournamentService {
             return reply.toString();
         }
 
-        announcer.dm(player, TournamentMessages.droppedDm(code));
+        dm(player, TournamentMessages.droppedDm(code));
         if (!tournament.pending().isEmpty()) {
             int next = round + 1;
             store.deletePairings(tournament.id, next);

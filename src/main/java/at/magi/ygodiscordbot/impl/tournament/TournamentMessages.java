@@ -261,7 +261,7 @@ final class TournamentMessages {
 
     static String matchNotFound(int matchId) {
         return "❌ There is no open match `" + matchId + "`. Match IDs change when the bot restarts, "
-                + "the bot sends the new ones to both players by DM.";
+                + "the bot sends the new ones to both players by DM, or ask an organizer (`/tournament standings`).";
     }
 
     static String notYourMatch(String code, int matchId) {

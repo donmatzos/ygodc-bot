@@ -45,6 +45,16 @@ public class TournamentCommandTest {
     }
 
     @Test
+    public void listDateAcceptsShortAndIsoForms() {
+        java.time.LocalDate day = java.time.LocalDate.of(2026, 10, 10);
+        assertEquals(TournamentCommand.parseListDay("26-10-10"), java.util.Optional.of(day));
+        assertEquals(TournamentCommand.parseListDay("2026-10-10"), java.util.Optional.of(day));
+        assertEquals(TournamentCommand.parseListDay("2026-02-30"), java.util.Optional.empty());
+        assertEquals(TournamentCommand.parseListDay("10-10-2026"), java.util.Optional.empty());
+        assertEquals(TournamentCommand.parseListDay("x"), java.util.Optional.empty());
+    }
+
+    @Test
     public void organizerSubcommandsNeedManageServer() {
         assertTrue(TournamentCommand.organizerProblem(false).contains("Manage Server"));
         assertNull(TournamentCommand.organizerProblem(true));

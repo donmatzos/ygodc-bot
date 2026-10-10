@@ -94,8 +94,8 @@ as `id:`. The channel only gets the start, one post per completed round, the con
 standings) and the end. Match results (also organizer corrections), drops and the new match IDs after a restart go to
 the players by DM, because a channel message can't be shown to only two people. Standings are code-block tables
 (Rank, Player, W-L). `/tournament list` is for everyone; the other `/tournament` subcommands need **Manage Server**,
-which the bot checks itself (no Discord default permission, so Integrations overrides don't apply, like
-`/leaderboard add`). `/match-admin` is hidden from members without **Manage Server**; `/match` is for everyone, but
+which the bot checks itself. Integrations overrides can still hide or restrict the whole `/tournament` command
+(including `list`), but can't grant the organizer subcommands to members without Manage Server. `/match-admin` is hidden from members without **Manage Server**; `/match` is for everyone, but
 only the two players of a match can report it.
 
 **`/help`** replies where you used it, visible only to you. The list is built from the registered commands, so

@@ -304,6 +304,18 @@ public class TournamentServiceTest extends TournamentServiceTestBase {
         long id = start(FOUR);
         playRound(id);
         assertTrue(announcer.last().contains("Round 2 pairings"), announcer.last());
+        assertTrue(announcer.dms.isEmpty());
+    }
+
+    @Test
+    public void closedDmsDoNotBreakDropOrResume() throws SQLException {
+        long id = start(FOUR);
+        announcer.dmsClosed = true;
+        ActiveMatch match = service.openMatches(id).get(0);
+        assertTrue(service.drop(code(id), GUILD, match.player1()).contains("dropped out"));
+        service = newService(7);
+        service.recover(); // resume DMs the new match IDs
+        assertEquals(service.openMatches(id).size(), 1);
     }
 
     @Test
