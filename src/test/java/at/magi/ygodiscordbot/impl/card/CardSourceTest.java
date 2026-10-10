@@ -53,6 +53,16 @@ public class CardSourceTest {
     }
 
     @Test
+    public void rejectsMoreCardsThanTheCap() {
+        assertThrows(IOException.class, () -> CardSource.parseCards(json(CARDS), 1, 2));
+    }
+
+    @Test
+    public void acceptsCardsUpToTheCap() throws IOException {
+        assertEquals(CardSource.parseCards(json(CARDS), 1, 3).size(), 4);
+    }
+
+    @Test
     public void rejectsTruncatedOrInvalidResponses() {
         assertThrows(IOException.class, () -> CardSource.parseCards(json(CARDS.substring(0, 300)), 1));
         assertThrows(IOException.class, () -> CardSource.parseCards(json("[1,2,3]"), 1));
