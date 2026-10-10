@@ -22,6 +22,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.concurrent.Executor;
 
 /**
@@ -72,6 +73,11 @@ public final class LeaderboardCommand implements SlashCommand {
                                                 String.format(Locale.ROOT, "New total (0–%,d)", Points.MAX), true)
                                                 .setRequiredRange(0, Points.MAX)))
                 .setContexts(InteractionContextType.GUILD, InteractionContextType.BOT_DM);
+    }
+
+    @Override
+    public Set<String> botCheckedManageServer() {
+        return Set.of("add", "update");
     }
 
     @Override

@@ -9,6 +9,8 @@ import net.dv8tion.jda.api.interactions.commands.build.SubcommandGroupData;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 /** Renders the /help text from the command definitions sent to Discord, so it never drifts from them. */
@@ -21,21 +23,40 @@ public final class HelpMessages {
 
     /** One line per invocable form: the command itself, or each of its subcommands (also inside groups). */
     public static List<String> usages(SlashCommandData command) {
+        return usages(command, path -> true, path -> "");
+    }
+
+    /**
+     * Like {@link #usages(SlashCommandData)}, but only lines whose subcommand path (e.g. {@code add} or
+     * {@code role add}; empty for a command without subcommands) passes {@code visible}, each followed by
+     * {@code suffix} applied to that path.
+     */
+    public static List<String> usages(SlashCommandData command, Predicate<String> visible,
+                                      Function<String, String> suffix) {
         String root = "/" + command.getName();
-        if (command.getSubcommands().isEmpty() && command.getSubcommandGroups().isEmpty()) {
-            return List.of(line(root, command.getOptions(), command.getDescription()));
-        }
         List<String> lines = new ArrayList<>();
+        if (command.getSubcommands().isEmpty() && command.getSubcommandGroups().isEmpty()) {
+            if (visible.test("")) {
+                lines.add(line(root, command.getOptions(), command.getDescription()) + suffix.apply(""));
+            }
+            return lines;
+        }
         for (SubcommandData sub : command.getSubcommands()) {
-            lines.add(line(root + " " + sub.getName(), sub.getOptions(), sub.getDescription()));
+            add(lines, root, sub.getName(), sub, visible, suffix);
         }
         for (SubcommandGroupData group : command.getSubcommandGroups()) {
             for (SubcommandData sub : group.getSubcommands()) {
-                lines.add(line(root + " " + group.getName() + " " + sub.getName(), sub.getOptions(),
-                        sub.getDescription()));
+                add(lines, root, group.getName() + " " + sub.getName(), sub, visible, suffix);
             }
         }
         return lines;
+    }
+
+    private static void add(List<String> lines, String root, String path, SubcommandData sub,
+                            Predicate<String> visible, Function<String, String> suffix) {
+        if (visible.test(path)) {
+            lines.add(line(root + " " + path, sub.getOptions(), sub.getDescription()) + suffix.apply(path));
+        }
     }
 
     public static List<String> build(List<String> lines) {

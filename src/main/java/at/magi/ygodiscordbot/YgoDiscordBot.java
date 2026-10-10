@@ -100,7 +100,7 @@ public final class YgoDiscordBot {
         CommandRegistry commands = new CommandRegistry();
         commands.register(new PingCommand());
         // Reads the registry on every call, so it also lists /deck and /leaderboard registered below
-        commands.register(new HelpCommand(commands::commandData));
+        commands.register(new HelpCommand(commands::commandData, commands::botCheckedManageServer));
         commands.register(new BanlistCommand(banlists));
 
         TournamentService tournaments = null;

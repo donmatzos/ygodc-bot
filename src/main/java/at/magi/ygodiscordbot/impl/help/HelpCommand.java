@@ -11,6 +11,8 @@ import net.dv8tion.jda.api.interactions.commands.build.SlashCommandData;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -19,9 +21,15 @@ public final class HelpCommand implements SlashCommand {
 
     private final Supplier<List<SlashCommandData>> commands;
 
-    /** @param commands read on every call, so commands registered after /help (and /help itself) are included */
-    public HelpCommand(Supplier<List<SlashCommandData>> commands) {
+    private final Supplier<Map<String, Set<String>>> botChecked;
+
+    /**
+     * @param commands   read on every call, so commands registered after /help (and /help itself) are included
+     * @param botChecked per command name, the subcommands the bot restricts to Manage Server itself
+     */
+    public HelpCommand(Supplier<List<SlashCommandData>> commands, Supplier<Map<String, Set<String>>> botChecked) {
         this.commands = commands;
+        this.botChecked = botChecked;
     }
 
     @Override
@@ -38,24 +46,32 @@ public final class HelpCommand implements SlashCommand {
     public void execute(SlashCommandInteractionEvent event) {
         Member member = event.getMember();
         long permissions = member == null ? 0 : Permission.getRaw(member.getPermissions(event.getGuildChannel()));
-        List<String> messages = HelpMessages.build(lines(commands(), event.getContext(), permissions));
+        List<String> messages = HelpMessages.build(lines(commands(), event.getContext(), permissions, botChecked.get()));
         MessageSender.followUps(event.reply(messages.get(0)).setEphemeral(true), event.getHook(), messages, true)
                 .queue();
     }
 
     /**
      * In a server: only commands usable here by this member. In the bot DM, server permissions are unknown, so
-     * every command is listed and the ones that only work in servers say so.
+     * every command is listed and the ones that only work in servers say so. Subcommands the bot restricts to
+     * Manage Server itself ({@code botChecked}) are hidden from members without it and marked in the bot DM.
      */
-    static List<String> lines(List<SlashCommandData> commands, InteractionContextType context, long memberPermissions) {
+    static List<String> lines(List<SlashCommandData> commands, InteractionContextType context, long memberPermissions,
+                              Map<String, Set<String>> botChecked) {
+        long manageServer = Permission.MANAGE_SERVER.getRawValue();
+        boolean canManage = (memberPermissions & (manageServer | Permission.ADMINISTRATOR.getRawValue())) != 0;
         boolean inGuild = context == InteractionContextType.GUILD;
         return commands.stream()
                 .sorted(Comparator.comparing(SlashCommandData::getName))
                 .filter(command -> !inGuild
                         || command.getContexts().contains(context) && hasDefaultPermissions(command, memberPermissions))
                 .flatMap(command -> {
+                    Set<String> checked = botChecked.getOrDefault(command.getName(), Set.of());
                     String note = command.getContexts().contains(context) ? "" : serverOnlyNote(command);
-                    return HelpMessages.usages(command).stream().map(line -> line + note);
+                    return HelpMessages.usages(command,
+                            path -> !inGuild || canManage || !checked.contains(path),
+                            path -> !inGuild && checked.contains(path) ? " *(servers only, needs Manage Server)*" : note
+                    ).stream();
                 })
                 .toList();
     }

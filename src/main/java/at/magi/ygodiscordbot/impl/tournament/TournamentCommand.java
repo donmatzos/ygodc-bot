@@ -34,6 +34,7 @@ import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * {@code /tournament start|continue|standings|cancel|drop|list}. {@code list} is for everyone. The other subcommands
@@ -115,6 +116,12 @@ public final class TournamentCommand implements SlashCommand {
             return TournamentMessages.listEmpty(day);
         }
         return page.rows().isEmpty() ? TournamentMessages.listPageOutOfRange(page) : null;
+    }
+
+    @Override
+    public Set<String> botCheckedManageServer() {
+        return data().getSubcommands().stream().map(SubcommandData::getName)
+                .filter(name -> !"list".equals(name)).collect(Collectors.toSet());
     }
 
     @Override

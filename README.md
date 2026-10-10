@@ -106,7 +106,8 @@ only the two players of a match can report it.
 
 **`/help`** replies where you used it, visible only to you. The list is built from the registered commands, so
 it shows exactly what this bot instance offers (no `/deck` or `/leaderboard` without `DB_URL`). In a server it
-only lists commands you can use there, so `/leaderboard-admin` is hidden without **Manage Server**; in the bot's
+only lists commands you can use there, so `/leaderboard-admin` is hidden without **Manage Server** (as are the
+subcommands the bot checks itself: `/leaderboard add|update` and all `/tournament` ones except `list`); in the bot's
 DM it lists everything and marks server-only commands. Overrides under *Integrations* are not read, so a role
 that was granted `/leaderboard-admin` there still won't see it in `/help` (the command itself works).
 

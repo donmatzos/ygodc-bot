@@ -115,4 +115,9 @@ public class TournamentCommandTest {
         assertTrue(TournamentCommand.parsePlayers(mentions(33)).problem().contains("2–32"));
         assertNull(TournamentCommand.parsePlayers(mentions(32)).problem());
     }
+
+    @Test
+    public void botCheckedManageServerSubcommands() {
+        assertEquals(new TournamentCommand(null, null, Runnable::run).botCheckedManageServer(), Set.of("start", "continue", "standings", "cancel", "drop"));
+    }
 }
