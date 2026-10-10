@@ -21,7 +21,8 @@ import java.util.concurrent.TimeUnit;
  * <p>Every {@value #CHECK_INTERVAL_DAYS} days it asks for the database version (a tiny request) and downloads
  * the full list only if the version changed. Runs on one background thread, the only writer. A failed check
  * keeps the current names and is retried hourly, at most {@value #MAX_RETRIES} times before waiting for the
- * next regular check. The last list is stored, so restarts do not download again.
+ * next regular check (unless no list was ever loaded: then it keeps retrying hourly). The last list is
+ * stored, so restarts do not download again.
  */
 public final class CardRefresher implements AutoCloseable {
 
@@ -106,18 +107,25 @@ public final class CardRefresher implements AutoCloseable {
         } catch (RuntimeException e) {
             log.error("Card list check failed", e);
         }
-        Duration delay;
-        if (ok) {
+        failures = ok ? 0 : failures + 1;
+        Duration delay = nextDelay(ok, failures, repository.catalog().isPresent());
+        if (delay.equals(CHECK_INTERVAL)) {
             failures = 0;
-            delay = CHECK_INTERVAL;
-        } else if (++failures <= MAX_RETRIES) {
-            delay = RETRY_DELAY;
-        } else {
-            failures = 0;
-            delay = CHECK_INTERVAL;
         }
         log.info("Next card list check in {}", delay);
         schedule(delay);
+    }
+
+    /**
+     * Delay until the next check; {@code failures} already counts the failed check just made.
+     * Without any catalog the names are missing, so it keeps retrying hourly instead of waiting for the
+     * next regular check.
+     */
+    static Duration nextDelay(boolean ok, int failures, boolean haveCatalog) {
+        if (ok) {
+            return CHECK_INTERVAL;
+        }
+        return failures <= MAX_RETRIES || !haveCatalog ? RETRY_DELAY : CHECK_INTERVAL;
     }
 
     private void schedule(Duration delay) {

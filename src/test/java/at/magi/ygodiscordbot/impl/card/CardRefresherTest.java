@@ -6,6 +6,7 @@ import at.magi.ygodiscordbot.entity.card.TestCards;
 import at.magi.ygodiscordbot.utils.http.ListFetcher;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
@@ -175,5 +176,25 @@ public class CardRefresherTest {
             downloads.incrementAndGet();
             return NEW_NAMES;
         }, CLOCK);
+    }
+
+    @DataProvider
+    public Object[][] nextDelays() {
+        return new Object[][]{
+                {true, 0, true, CardRefresher.CHECK_INTERVAL},
+                {true, 0, false, CardRefresher.CHECK_INTERVAL},
+                {false, 1, true, CardRefresher.RETRY_DELAY},
+                {false, CardRefresher.MAX_RETRIES, true, CardRefresher.RETRY_DELAY},
+                {false, CardRefresher.MAX_RETRIES, false, CardRefresher.RETRY_DELAY},
+                {false, CardRefresher.MAX_RETRIES + 1, true, CardRefresher.CHECK_INTERVAL},
+                // Without any catalog the names stay missing, so keep retrying hourly
+                {false, CardRefresher.MAX_RETRIES + 1, false, CardRefresher.RETRY_DELAY},
+                {false, CardRefresher.MAX_RETRIES + 10, false, CardRefresher.RETRY_DELAY},
+        };
+    }
+
+    @Test(dataProvider = "nextDelays")
+    public void nextDelayDependsOnFailuresAndCatalog(boolean ok, int failures, boolean haveCatalog, Duration expected) {
+        assertEquals(CardRefresher.nextDelay(ok, failures, haveCatalog), expected);
     }
 }
