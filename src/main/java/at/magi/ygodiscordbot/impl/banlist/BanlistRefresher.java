@@ -32,6 +32,8 @@ public final class BanlistRefresher implements AutoCloseable {
 
     public static final LocalTime DAILY_RUN = LocalTime.of(3, 0);
     public static final ZoneId ZONE = ZoneId.of("Europe/Vienna");
+    /** A run firing slightly early (truncated delay, wall clock adjusted) still counts as the 03:00 run. */
+    static final Duration EARLY_TOLERANCE = Duration.ofSeconds(5);
     static final Duration RETRY_DELAY = Duration.ofHours(1);
     /** Kept short so all shutdown steps together stay below the supervisor's 20 s grace period (see YgoDiscordBot). */
     static final Duration CLOSE_TIMEOUT = Duration.ofSeconds(5);
@@ -88,7 +90,7 @@ public final class BanlistRefresher implements AutoCloseable {
      */
     public synchronized boolean refresh() {
         BanlistSnapshot old = repository.snapshot();
-        Instant lastDailyRun = previousDailyRun(ZonedDateTime.now(clock)).toInstant();
+        Instant lastDailyRun = previousDailyRun(ZonedDateTime.now(clock).plus(EARLY_TOLERANCE)).toInstant();
         FetchResult<TcgBanlist> tcg = fetchIfStale("TCG", old.tcg(), TcgBanlist::fetchedAt, lastDailyRun, tcgFetcher);
         FetchResult<OcgBanlist> ocg = fetchIfStale("OCG", old.ocg(), OcgBanlist::fetchedAt, lastDailyRun, ocgFetcher);
         FetchResult<GenesysPointlist> genesys = fetchIfStale("Genesys", old.genesys(),

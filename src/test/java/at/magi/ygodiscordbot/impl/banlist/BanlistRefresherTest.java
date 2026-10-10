@@ -169,6 +169,8 @@ public class BanlistRefresherTest {
     private static final Instant FRESH = Instant.parse("2026-10-05T01:05:00Z"); // 03:05 Vienna, after the daily run
     private static final Instant STALE = Instant.parse("2026-10-04T23:00:00Z"); // 01:00 Vienna, before the daily run
 
+    private static final Instant AT_DAILY_RUN = Instant.parse("2026-10-05T01:00:00Z"); // exactly 03:00 Vienna
+
     @DataProvider
     public Object[][] storedFetchTimes() {
         // tcg, ocg, genesys fetchedAt in the repository (null = missing), then expected fetch calls tcg, ocg, genesys
@@ -180,6 +182,7 @@ public class BanlistRefresherTest {
                 {STALE, FRESH, FRESH, 1, 0, 0},
                 {FRESH, FRESH, null, 0, 0, 1},
                 {FRESH, FRESH, FRESH, 0, 0, 0},
+                {AT_DAILY_RUN, AT_DAILY_RUN, AT_DAILY_RUN, 0, 0, 0},
         };
     }
 
@@ -212,6 +215,29 @@ public class BanlistRefresherTest {
         assertEquals(snapshot.tcg().fetchedAt(), tcgCalls == 1 ? NOW : tcgAt);
         assertEquals(snapshot.ocg().fetchedAt(), ocgCalls == 1 ? NOW : ocgAt);
         assertEquals(snapshot.genesys().fetchedAt(), genesysCalls == 1 ? NOW : genesysAt);
+    }
+
+    /** Regression: a daily run firing a moment before 03:00 judged yesterday's lists as fresh and skipped them. */
+    @Test
+    public void runFiringJustBefore03FetchesListsFromTheDayBefore() {
+        Instant early = Instant.parse("2026-10-05T00:59:59.900Z"); // 02:59:59.9 Vienna
+        repository.replace(TestLists.snapshot(Instant.parse("2026-10-04T01:05:00Z"))); // 03:05 the day before
+        AtomicInteger calls = new AtomicInteger();
+
+        try (BanlistRefresher refresher = new BanlistRefresher(repository, store,
+                () -> {
+                    calls.incrementAndGet();
+                    return TestLists.tcg(early);
+                }, () -> {
+                    calls.incrementAndGet();
+                    return TestLists.ocg(early);
+                }, () -> {
+                    calls.incrementAndGet();
+                    return TestLists.genesys(early);
+                }, Clock.fixed(early, BanlistRefresher.ZONE))) {
+            assertTrue(refresher.refresh());
+        }
+        assertEquals(calls.get(), 3);
     }
 
     @Test
