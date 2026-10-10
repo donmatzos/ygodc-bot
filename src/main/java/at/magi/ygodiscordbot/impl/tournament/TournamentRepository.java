@@ -240,8 +240,10 @@ public class TournamentRepository implements TournamentStore {
 
     @Override
     public void startRound(long tournamentId, int round) throws SQLException {
-        expectOneRow(update("UPDATE tournament SET current_round = ? WHERE id = ? AND status = 'RUNNING'",
-                round, tournamentId), "Tournament " + tournamentId + " is not running");
+        if (update("UPDATE tournament SET current_round = ? WHERE id = ? AND status = 'RUNNING'",
+                round, tournamentId) != 1) {
+            throw new TournamentNotRunningException(tournamentId);
+        }
     }
 
     @Override
@@ -309,11 +311,12 @@ public class TournamentRepository implements TournamentStore {
     }
 
     private void end(long tournamentId, TournamentStatus status, Long winner, Instant at) throws SQLException {
-        expectOneRow(update("""
+        if (update("""
                 UPDATE tournament SET status = ?, winner_id = ?, finished_at = ?
                 WHERE id = ? AND status = 'RUNNING'
-                """, status.name(), winner, at.toEpochMilli(), tournamentId),
-                "Tournament " + tournamentId + " is not running");
+                """, status.name(), winner, at.toEpochMilli(), tournamentId) != 1) {
+            throw new TournamentNotRunningException(tournamentId);
+        }
         log.info("Tournament {} is now {}", tournamentId, status);
     }
 

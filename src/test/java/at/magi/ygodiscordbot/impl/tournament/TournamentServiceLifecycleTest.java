@@ -276,4 +276,44 @@ public class TournamentServiceLifecycleTest extends TournamentServiceTestBase {
             assertTrue(announcer.dmsTo(fresh.player2()).get(0).contains("`" + fresh.id() + "`"));
         }
     }
+
+    @Test
+    public void cancelOfATournamentTheStoreAlreadyEndedForgetsIt() throws SQLException {
+        long id = start(FOUR);
+        store.endBehindTheServicesBack(id, TournamentStatus.FINISHED);
+        assertTrue(service.cancel(code(id), GUILD).contains("already finished"));
+        assertTrue(service.openMatches(id).isEmpty());
+        assertTrue(service.start(GUILD, CHANNEL, ADMIN, FOUR).contains("started")); // players are free again
+    }
+
+    @Test
+    public void continueOfATournamentTheStoreAlreadyEndedForgetsIt() throws SQLException {
+        long id = start(FOUR);
+        playRound(id);
+        store.endBehindTheServicesBack(id, TournamentStatus.ABANDONED);
+        assertTrue(service.continueRound(code(id), GUILD).contains("already abandoned"));
+        assertTrue(service.start(GUILD, CHANNEL, ADMIN, FOUR).contains("started"));
+    }
+
+    @Test
+    public void timerForgetsATournamentTheStoreAlreadyEndedAndDoesNotFailAgain() throws SQLException {
+        long id = start(FOUR);
+        store.endBehindTheServicesBack(id, TournamentStatus.ABANDONED);
+        clock.advance(Duration.ofHours(49));
+        int posts = announcer.posts.size();
+        service.abandonExpired();
+        service.abandonExpired();
+        assertEquals(announcer.posts.size(), posts);
+        assertTrue(service.start(GUILD, CHANNEL, ADMIN, FOUR).contains("started"));
+    }
+
+    @Test
+    public void aWriteFailureOfARunningTournamentKeepsItRunning() throws SQLException {
+        long id = start(FOUR);
+        store.failWrites = true;
+        expectThrows(SQLException.class, () -> service.cancel(code(id), GUILD));
+        store.failWrites = false;
+        assertEquals(stored(id).status(), TournamentStatus.RUNNING);
+        assertTrue(service.cancel(code(id), GUILD).contains("cancelled"));
+    }
 }

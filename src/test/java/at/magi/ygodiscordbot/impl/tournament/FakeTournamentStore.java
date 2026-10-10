@@ -62,6 +62,11 @@ final class FakeTournamentStore implements TournamentStore {
         }
     }
 
+    /** Ends the tournament without the service noticing, like a lost commit acknowledgement or a manual edit. */
+    void endBehindTheServicesBack(long id, TournamentStatus status) throws SQLException {
+        row(id).status = status;
+    }
+
     private Row row(long id) throws SQLException {
         Row row = rows.get(id);
         if (row == null) {
@@ -73,7 +78,7 @@ final class FakeTournamentStore implements TournamentStore {
     private Row running(long id) throws SQLException {
         Row row = row(id);
         if (row.status != TournamentStatus.RUNNING) {
-            throw new SQLException("Tournament " + id + " is not running");
+            throw new TournamentNotRunningException(id);
         }
         return row;
     }

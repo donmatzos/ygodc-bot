@@ -23,7 +23,7 @@ public interface TournamentStore {
 
     void deletePairings(long tournamentId, int round) throws SQLException;
 
-    /** Marks {@code round} as started (its pairings become matches). */
+    /** Marks {@code round} as started (its pairings become matches); throws {@link TournamentNotRunningException} if it is not running. */
     void startRound(long tournamentId, int round) throws SQLException;
 
     /** Sets or overwrites the winner of the pairing whose first player is {@code player1}; fails if there is none. */
@@ -40,10 +40,10 @@ public interface TournamentStore {
     void drop(long tournamentId, long player, int round, MatchRecord forfeit, boolean deletePendingRound)
             throws SQLException;
 
-    /** RUNNING → FINISHED with the winner; fails if the tournament is not running. */
+    /** RUNNING → FINISHED with the winner; throws {@link TournamentNotRunningException} if it is not running. */
     void finish(long tournamentId, long winner, Instant at) throws SQLException;
 
-    /** RUNNING → ABANDONED; fails if the tournament is not running. */
+    /** RUNNING → ABANDONED; throws {@link TournamentNotRunningException} if it is not running. */
     void abandon(long tournamentId, Instant at) throws SQLException;
 
     Optional<TournamentRecord> load(long tournamentId) throws SQLException;

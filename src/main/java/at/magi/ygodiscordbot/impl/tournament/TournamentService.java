@@ -110,7 +110,7 @@ public final class TournamentService {
 
     private void resume(ActiveTournament tournament) throws SQLException {
         if (expired(tournament)) {
-            announcer.post(tournament.channelId, abandon(tournament, TournamentMessages.TIMEOUT_REASON), false);
+            abandonAndPost(tournament, TournamentMessages.TIMEOUT_REASON);
         } else if (!tournament.roundClosed()) {
             int round = tournament.currentRound();
             createMatches(tournament, round);
@@ -233,13 +233,20 @@ public final class TournamentService {
         }
         // Retries a round end that failed before (e.g. the database was down); may finish the tournament. New
         // pairings are not posted on their own: the round start below shows them.
-        Announcement prepared = prepareNextRound(tournament);
-        if (!tournaments.containsKey(tournament.id)) {
-            announcer.post(tournament.channelId, prepared.text(), prepared.ping());
-            return TournamentMessages.endedInsteadOfContinue(code);
-        }
         int next = tournament.currentRound() + 1;
-        store.startRound(tournament.id, next);
+        try {
+            Announcement prepared = prepareNextRound(tournament);
+            if (!tournaments.containsKey(tournament.id)) {
+                announcer.post(tournament.channelId, prepared.text(), prepared.ping());
+                return TournamentMessages.endedInsteadOfContinue(code);
+            }
+            store.startRound(tournament.id, next);
+        } catch (TournamentNotRunningException e) {
+            if (forgetIfEnded(tournament, e)) {
+                return notRunning(code, guildId);
+            }
+            throw e;
+        }
         tournament.startRound(next);
         List<ActiveMatch> created = createMatches(tournament, next);
         log.info("Tournament {}: round {} started", tournament.id, next);
@@ -278,7 +285,9 @@ public final class TournamentService {
         if (tournament == null) {
             return notRunning(code, guildId);
         }
-        announcer.post(tournament.channelId, abandon(tournament, TournamentMessages.CANCELLED_REASON), false);
+        if (!abandonAndPost(tournament, TournamentMessages.CANCELLED_REASON)) {
+            return notRunning(code, guildId);
+        }
         return TournamentMessages.cancelled(code);
     }
 
@@ -364,9 +373,41 @@ public final class TournamentService {
         recover();
         for (ActiveTournament tournament : List.copyOf(tournaments.values())) {
             if (expired(tournament)) {
-                announcer.post(tournament.channelId, abandon(tournament, TournamentMessages.TIMEOUT_REASON), false);
+                abandonAndPost(tournament, TournamentMessages.TIMEOUT_REASON);
             }
         }
+    }
+
+    /**
+     * Abandons the tournament and posts that. False if the store had already ended it (then it is forgotten and
+     * nothing is posted).
+     */
+    private boolean abandonAndPost(ActiveTournament tournament, String reason) throws SQLException {
+        try {
+            announcer.post(tournament.channelId, abandon(tournament, reason), false);
+            return true;
+        } catch (TournamentNotRunningException e) {
+            if (forgetIfEnded(tournament, e)) {
+                return false;
+            }
+            throw e;
+        }
+    }
+
+    /**
+     * After a "not running" failure: if the store really has the tournament ended (lost commit acknowledgement, manual
+     * edit), the memory is brought in line and true is returned. False if the store still has it running.
+     */
+    private boolean forgetIfEnded(ActiveTournament tournament, TournamentNotRunningException cause)
+            throws SQLException {
+        Optional<TournamentRecord> stored = store.load(tournament.id);
+        if (stored.isPresent() && stored.get().status() == TournamentStatus.RUNNING) {
+            return false;
+        }
+        log.info("Tournament {} is already {} in the store, removed from memory ({})", tournament.id,
+                stored.map(TournamentRecord::status).orElse(null), cause.getMessage());
+        forget(tournament);
+        return true;
     }
 
     private boolean expired(ActiveTournament tournament) {
