@@ -264,17 +264,17 @@ final class TournamentMessages {
                 + "the bot sends the new ones to both players by DM.";
     }
 
-    static String notYourMatch(int matchId) {
-        return "❌ You are not playing in match `" + matchId + "`. An organizer can use `/match-admin finish`.";
+    static String notYourMatch(String code, int matchId) {
+        return "❌ " + tournament(code) + " · You are not playing in match `" + matchId + "`. An organizer can use `/match-admin finish`.";
     }
 
-    static String winnerNotInMatch(int matchId, long winner) {
-        return "❌ " + mention(winner) + " is not playing in match `" + matchId + "`.";
+    static String winnerNotInMatch(String code, int matchId, long winner) {
+        return "❌ " + tournament(code) + " · " + mention(winner) + " is not playing in match `" + matchId + "`.";
     }
 
-    static String alreadyFinished(int matchId, MatchRecord result) {
+    static String alreadyFinished(String code, int matchId, MatchRecord result) {
         String outcome = result.doubleLoss() ? "as a double loss" : "and " + mention(result.winner()) + " won";
-        return "Match `" + matchId + "` is already finished " + outcome
+        return tournament(code) + " · Match `" + matchId + "` is already finished " + outcome
                 + ". An organizer can correct it with `/match-admin`.";
     }
 

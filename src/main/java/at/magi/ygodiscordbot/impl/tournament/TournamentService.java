@@ -169,15 +169,15 @@ public final class TournamentService {
             return TournamentMessages.matchNotFound(matchId);
         }
         if (!admin && !match.involves(caller)) {
-            return TournamentMessages.notYourMatch(matchId);
+            return TournamentMessages.notYourMatch(tournament.code, matchId);
         }
         if (winner != null && !match.involves(winner)) {
-            return TournamentMessages.winnerNotInMatch(matchId, winner);
+            return TournamentMessages.winnerNotInMatch(tournament.code, matchId, winner);
         }
         MatchRecord record = tournament.record(match.round(), match.player1());
         boolean sameResult = winner == null ? record.doubleLoss() : winner.equals(record.winner());
         if (record.isPlayed() && (!admin || sameResult)) {
-            return TournamentMessages.alreadyFinished(matchId, record);
+            return TournamentMessages.alreadyFinished(tournament.code, matchId, record);
         }
         boolean corrected = record.isPlayed();
         String reply;

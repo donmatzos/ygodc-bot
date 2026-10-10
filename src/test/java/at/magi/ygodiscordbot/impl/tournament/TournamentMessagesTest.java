@@ -120,6 +120,9 @@ public class TournamentMessagesTest {
         assertTrue(TournamentMessages.doubleLossRecorded(CODE, 48213, 1, 2, false).contains(CODE));
         assertTrue(TournamentMessages.roundComplete(CODE, 1).contains(CODE));
         assertTrue(TournamentMessages.started(CODE, 4).contains(CODE));
+        assertTrue(TournamentMessages.alreadyFinished(CODE, 48213, new MatchRecord(1, 1, 2L, 1L)).contains(CODE));
+        assertTrue(TournamentMessages.notYourMatch(CODE, 48213).contains(CODE));
+        assertTrue(TournamentMessages.winnerNotInMatch(CODE, 48213, 3L).contains(CODE));
     }
 
     @Test
@@ -145,7 +148,7 @@ public class TournamentMessagesTest {
         Standings standings = Standings.of(List.of(1L, 2L), Set.of(), List.of(doubleLoss));
         String post = render(TournamentMessages.roundResults(CODE, 1, List.of(doubleLoss), standings));
         assertTrue(post.contains("<@1> and <@2> both lose (time limit)"), post);
-        assertTrue(TournamentMessages.alreadyFinished(48213, doubleLoss).contains("double loss"));
+        assertTrue(TournamentMessages.alreadyFinished(CODE, 48213, doubleLoss).contains("double loss"));
     }
 
     @Test
