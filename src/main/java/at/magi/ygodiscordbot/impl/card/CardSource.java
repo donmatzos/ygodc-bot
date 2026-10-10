@@ -3,6 +3,7 @@ package at.magi.ygodiscordbot.impl.card;
 import at.magi.ygodiscordbot.entity.card.CardNames;
 import at.magi.ygodiscordbot.utils.http.HttpDownloader;
 import at.magi.ygodiscordbot.utils.json.JsonUtils;
+import at.magi.ygodiscordbot.utils.text.Truncation;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -98,7 +99,7 @@ public final class CardSource {
             if (field.equals("id") && value == JsonToken.VALUE_NUMBER_INT) {
                 passcode = parser.getIntValue();
             } else if (field.equals("name") && value == JsonToken.VALUE_STRING) {
-                name = parser.getText();
+                name = Truncation.capName(parser.getText());
             } else if (field.equals("card_images") && value == JsonToken.START_ARRAY) {
                 readArtworks(parser, artworks);
             } else {

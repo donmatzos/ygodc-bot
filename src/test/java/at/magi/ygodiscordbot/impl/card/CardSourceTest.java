@@ -66,4 +66,11 @@ public class CardSourceTest {
         assertEquals(CardSource.parseVersion(json), "147.22");
         assertThrows(IOException.class, () -> CardSource.parseVersion("[]".getBytes(StandardCharsets.UTF_8)));
     }
+
+    @Test
+    public void capsOverLongNames() throws IOException {
+        String text = "{\"data\":[{\"id\":1,\"name\":\"" + "x".repeat(5000) + "\"}]}";
+        CardNames names = CardSource.parseCards(json(text), 1);
+        assertEquals(names.name(1), Optional.of("x".repeat(199) + "…"));
+    }
 }

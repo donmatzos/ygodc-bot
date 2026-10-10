@@ -1,5 +1,7 @@
 package at.magi.ygodiscordbot.utils.discord;
 
+import at.magi.ygodiscordbot.utils.text.Truncation;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -38,16 +40,27 @@ public final class DcMessageUtils {
             while (next < rows.size()) {
                 String open = "\n" + (first ? section.heading() : section.continuedHeading()) + "\n"
                         + FENCE + "\n" + (section.tableHeader().isEmpty() ? "" : section.tableHeader() + "\n");
-                if (message.length() + open.length() + rows.get(next).length() + 1 + close.length() > MAX_MESSAGE_LENGTH) {
+                // A row that cannot fit even into an empty message is truncated; it would never be added otherwise
+                int maxRow = MAX_MESSAGE_LENGTH - open.length() - close.length() - 1;
+                String row = Truncation.truncate(rows.get(next), maxRow);
+                if (message.length() + open.length() + row.length() + 1 + close.length() > MAX_MESSAGE_LENGTH) {
                     messages.add(message.toString().strip());
                     message = new StringBuilder();
                 }
                 message.append(open);
-                while (next < rows.size()
-                        && message.length() + rows.get(next).length() + 1 + close.length() <= MAX_MESSAGE_LENGTH) {
-                    message.append(rows.get(next++)).append('\n');
+                int start = next;
+                while (next < rows.size()) {
+                    row = Truncation.truncate(rows.get(next), maxRow);
+                    if (message.length() + row.length() + 1 + close.length() > MAX_MESSAGE_LENGTH) {
+                        break;
+                    }
+                    message.append(row).append('\n');
+                    next++;
                 }
                 message.append(close);
+                if (next == start) {
+                    next++; // only possible with an absurdly long heading; skip the row rather than loop forever
+                }
                 first = false;
             }
         }

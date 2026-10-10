@@ -6,6 +6,7 @@ import at.magi.ygodiscordbot.entity.banlist.OcgBanlist;
 import at.magi.ygodiscordbot.entity.banlist.TcgBanlist;
 import at.magi.ygodiscordbot.utils.http.HttpDownloader;
 import at.magi.ygodiscordbot.utils.json.JsonUtils;
+import at.magi.ygodiscordbot.utils.text.Truncation;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.io.IOException;
@@ -58,7 +59,8 @@ public final class YgoProDeckSource {
         for (Card card : response.data()) {
             String status = card.banlistInfo() == null ? null : card.banlistInfo().get(key);
             if (card.name() != null && status != null) {
-                entries.putIfAbsent(card.name(), new BanlistEntry(card.name(), BanStatus.fromLabel(status)));
+                String name = Truncation.capName(card.name());
+                entries.putIfAbsent(name, new BanlistEntry(name, BanStatus.fromLabel(status)));
             }
         }
         if (entries.size() < MIN_ENTRIES) {

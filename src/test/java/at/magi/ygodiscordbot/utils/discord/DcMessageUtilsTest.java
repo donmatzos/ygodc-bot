@@ -48,4 +48,17 @@ public class DcMessageUtilsTest {
     public void safeReplacesBackticks() {
         assertEquals(DcMessageUtils.safe("a`b"), "a'b");
     }
+
+    @Test(timeOut = 5000)
+    public void rowThatNeverFitsIsTruncated() {
+        List<String> messages = DcMessageUtils.packTables("## Intro", List.of(
+                new Section("Heading", "Heading (continued)", "COLS", List.of("a", "x".repeat(1990), "b"))));
+        for (String message : messages) {
+            assertTrue(message.length() <= DcMessageUtils.MAX_MESSAGE_LENGTH, "too long: " + message.length());
+            assertEquals(message.split("```", -1).length - 1, 2, "unbalanced code block");
+        }
+        String all = String.join("\n", messages);
+        assertTrue(all.contains("x".repeat(100) + "…\n```"), "row not truncated with an ellipsis");
+        assertTrue(all.lines().anyMatch(line -> line.equals("a")) && all.lines().anyMatch(line -> line.equals("b")));
+    }
 }
