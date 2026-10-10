@@ -17,14 +17,14 @@ public class TournamentServiceLifecycleTest extends TournamentServiceTestBase {
     public void dropInAnOpenMatchGivesTheOpponentTheWin() throws SQLException {
         long id = start(FOUR);
         ActiveMatch match = service.openMatches(id).get(0);
-        String reply = service.drop(id, GUILD, match.player1());
+        String reply = service.drop(code(id), GUILD, match.player1());
         assertTrue(reply.contains("dropped out"), reply);
         assertTrue(reply.contains("<@" + match.player2() + "> wins"), reply);
         assertTrue(stored(id).matches().contains(
                 new MatchRecord(1, match.player1(), match.player2(), match.player2())));
         assertEquals(stored(id).droppedInRound().get(match.player1()), Integer.valueOf(1));
-        assertTrue(service.drop(id, GUILD, match.player1()).contains("already dropped"));
-        assertTrue(service.drop(id, GUILD, 999).contains("not playing in tournament"));
+        assertTrue(service.drop(code(id), GUILD, match.player1()).contains("already dropped"));
+        assertTrue(service.drop(code(id), GUILD, 999).contains("not playing in tournament"));
     }
 
     @Test
@@ -33,7 +33,7 @@ public class TournamentServiceLifecycleTest extends TournamentServiceTestBase {
         ActiveMatch match = service.openMatches(id).get(0);
         store.writesUntilFailure = 1; // the database goes down after one more write
         try {
-            service.drop(id, GUILD, match.player1());
+            service.drop(code(id), GUILD, match.player1());
         } catch (SQLException e) {
             // The organizer sees "not available" and can retry
         }
@@ -51,12 +51,13 @@ public class TournamentServiceLifecycleTest extends TournamentServiceTestBase {
         List<ActiveMatch> round1 = service.openMatches(id);
         playRound(id); // player1 wins every match
         long loser = round1.get(0).player2();
-        String reply = service.drop(id, GUILD, loser);
+        int posts = announcer.posts.size();
+        String reply = service.drop(code(id), GUILD, loser);
         assertTrue(reply.contains("made again"), reply);
         List<MatchRecord> round2 = stored(id).matches().stream().filter(m -> m.round() == 2).toList();
         assertEquals(round2.size(), 2); // one match + one bye among the 3 remaining players
         assertTrue(round2.stream().noneMatch(m -> m.involves(loser)));
-        assertTrue(announcer.last().contains("Round 2 pairings"), announcer.last());
+        assertEquals(announcer.posts.size(), posts); // the new pairings are shown on continue
     }
 
     @Test
@@ -66,15 +67,15 @@ public class TournamentServiceLifecycleTest extends TournamentServiceTestBase {
         playRound(id);
         // One of the two 1-0 players drops: the other is the only player without a loss, but 4 players play at
         // least 2 rounds, so round 2 is paired again among the 3 remaining players
-        service.drop(id, GUILD, round1.get(0).player1());
+        service.drop(code(id), GUILD, round1.get(0).player1());
         assertEquals(stored(id).status(), TournamentStatus.RUNNING);
-        assertTrue(announcer.last().contains("Round 2 pairings"), announcer.last());
+        assertTrue(service.continueRound(code(id), GUILD).contains("Round 2 of"));
     }
 
     @Test
     public void lastPlayerLeftWins() throws SQLException {
         long id = start(List.of(101L, 102L));
-        service.drop(id, GUILD, 101L);
+        service.drop(code(id), GUILD, 101L);
         assertEquals(stored(id).status(), TournamentStatus.FINISHED);
         assertEquals(stored(id).winner(), Long.valueOf(102));
     }
@@ -82,12 +83,12 @@ public class TournamentServiceLifecycleTest extends TournamentServiceTestBase {
     @Test
     public void cancelAbandonsWithoutPoints() throws SQLException {
         long id = start(FOUR);
-        assertTrue(service.cancel(id, GUILD).contains("cancelled"));
+        assertTrue(service.cancel(code(id), GUILD).contains("cancelled"));
         assertEquals(stored(id).status(), TournamentStatus.ABANDONED);
         assertTrue(service.openMatches(id).isEmpty());
         assertTrue(awarded.isEmpty());
         assertTrue(announcer.last().contains("abandoned"), announcer.last());
-        assertTrue(service.continueRound(id, GUILD).contains("already abandoned"));
+        assertTrue(service.continueRound(code(id), GUILD).contains("already abandoned"));
         // Its players are free again
         assertTrue(service.start(GUILD, CHANNEL, ADMIN, FOUR).contains("started"));
     }
@@ -112,13 +113,13 @@ public class TournamentServiceLifecycleTest extends TournamentServiceTestBase {
 
         service = newService(7); // bot restart
         service.recover();
-        assertTrue(announcer.last().contains("The bot restarted"), announcer.last());
         List<ActiveMatch> open = service.openMatches(id);
         assertEquals(open.size(), 1);
         ActiveMatch fresh = open.get(0);
-        assertTrue(announcer.last().contains("`" + fresh.id() + "`"), announcer.last());
+        assertTrue(announcer.dmsTo(fresh.player1()).get(0).contains("The bot restarted"));
+        assertTrue(announcer.dmsTo(fresh.player1()).get(0).contains("`" + fresh.id() + "`"));
         String reply = service.finishMatch(fresh.id(), GUILD, fresh.player2(), fresh.player2(), false);
-        assertTrue(reply.contains("Round 1 is complete"), reply);
+        assertTrue(reply.contains("Round 1 of Tournament `" + code(id) + "` is complete"), reply);
     }
 
     @Test
@@ -141,5 +142,61 @@ public class TournamentServiceLifecycleTest extends TournamentServiceTestBase {
         service = newService(7);
         service.recover();
         assertEquals(stored(id).status(), TournamentStatus.ABANDONED);
+    }
+
+    @Test
+    public void dropMidRoundDmsInsteadOfPosting() throws SQLException {
+        long id = start(FOUR);
+        int posts = announcer.posts.size();
+        ActiveMatch match = service.openMatches(id).get(0);
+        service.drop(code(id), GUILD, match.player1());
+        assertEquals(announcer.posts.size(), posts);
+        assertTrue(announcer.dmsTo(match.player1()).get(0).contains("You dropped out"));
+        assertTrue(announcer.dmsTo(match.player2()).get(0).contains("you win match `" + match.id() + "`"));
+    }
+
+    @Test
+    public void dropBetweenRoundsRepairsQuietly() throws SQLException {
+        long id = start(FOUR);
+        playRound(id);
+        int posts = announcer.posts.size();
+        service.drop(code(id), GUILD, 101L);
+        assertEquals(announcer.posts.size(), posts);
+        service.continueRound(code(id), GUILD);
+        assertTrue(!announcer.last().contains("<@101> vs") && !announcer.last().contains("vs <@101>"), announcer.last());
+    }
+
+    @Test
+    public void dropThatEndsTheTournamentIsPosted() throws SQLException {
+        long id = start(List.of(101L, 102L));
+        service.drop(code(id), GUILD, 101L);   // forfeit closes round 1 → winner decided
+        assertTrue(announcer.last().contains("wins after 1 round"), announcer.last());
+    }
+
+    @Test
+    public void dropsBetweenRoundsEndTheTournamentWithTheLastPlayer() throws SQLException {
+        long id = start(List.of(101L, 102L, 103L));
+        playRound(id); // one match plus a bye
+        service.drop(code(id), GUILD, 101L);
+        int posts = announcer.posts.size();
+        String reply = service.drop(code(id), GUILD, 102L);
+        assertTrue(reply.contains("dropped out"), reply);
+        assertEquals(announcer.posts.size(), posts + 1);
+        assertTrue(announcer.last().contains("wins after"), announcer.last());
+        assertTrue(announcer.last().contains("P103"), announcer.last());
+        assertEquals(stored(id).status(), TournamentStatus.FINISHED);
+    }
+
+    @Test
+    public void restartDmsNewMatchIdsInsteadOfPosting() throws SQLException {
+        long id = start(FOUR);
+        int posts = announcer.posts.size();
+        service = newService(7);
+        service.recover();
+        assertEquals(announcer.posts.size(), posts);
+        for (ActiveMatch fresh : service.openMatches(id)) {
+            assertTrue(announcer.dmsTo(fresh.player1()).get(0).contains("`" + fresh.id() + "`"));
+            assertTrue(announcer.dmsTo(fresh.player2()).get(0).contains("`" + fresh.id() + "`"));
+        }
     }
 }

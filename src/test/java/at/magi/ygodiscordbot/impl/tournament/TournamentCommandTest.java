@@ -1,10 +1,16 @@
 package at.magi.ygodiscordbot.impl.tournament;
 
-import net.dv8tion.jda.api.Permission;
+import at.magi.ygodiscordbot.entity.tournament.TournamentListPage;
+import at.magi.ygodiscordbot.entity.tournament.TournamentStatus;
+import at.magi.ygodiscordbot.entity.tournament.TournamentSummary;
 import net.dv8tion.jda.api.interactions.InteractionContextType;
+import net.dv8tion.jda.api.interactions.commands.DefaultMemberPermissions;
+import net.dv8tion.jda.api.interactions.commands.OptionType;
+import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
 import org.testng.annotations.Test;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -24,13 +30,44 @@ public class TournamentCommandTest {
     }
 
     @Test
-    public void adminOnlyInServers() {
-        var data = new TournamentCommand(null, Runnable::run).data();
+    public void openToEveryoneInServersWithList() {
+        var data = new TournamentCommand(null, null, Runnable::run).data();
         assertEquals(data.getName(), "tournament");
-        assertEquals(data.getDefaultPermissions().getPermissionsRaw().longValue(), Permission.MANAGE_SERVER.getRawValue());
+        assertEquals(data.getDefaultPermissions(), DefaultMemberPermissions.ENABLED);
         assertEquals(data.getContexts(), Set.of(InteractionContextType.GUILD));
         assertEquals(data.getSubcommands().stream().map(SubcommandData::getName).toList(),
-                List.of("start", "continue", "standings", "cancel", "drop"));
+                List.of("start", "continue", "standings", "cancel", "drop", "list"));
+        SubcommandData list = data.getSubcommands().get(5);
+        assertEquals(list.getOptions().stream().map(OptionData::getName).toList(), List.of("page", "date"));
+        assertTrue(list.getOptions().stream().noneMatch(OptionData::isRequired));
+        OptionData id = data.getSubcommands().get(1).getOptions().get(0);
+        assertEquals(id.getType(), OptionType.STRING);
+    }
+
+    @Test
+    public void listDateAcceptsShortAndIsoForms() {
+        java.time.LocalDate day = java.time.LocalDate.of(2026, 10, 10);
+        assertEquals(TournamentCommand.parseListDay("26-10-10"), java.util.Optional.of(day));
+        assertEquals(TournamentCommand.parseListDay("2026-10-10"), java.util.Optional.of(day));
+        assertEquals(TournamentCommand.parseListDay("2026-02-30"), java.util.Optional.empty());
+        assertEquals(TournamentCommand.parseListDay("10-10-2026"), java.util.Optional.empty());
+        assertEquals(TournamentCommand.parseListDay("x"), java.util.Optional.empty());
+    }
+
+    @Test
+    public void organizerSubcommandsNeedManageServer() {
+        assertTrue(TournamentCommand.organizerProblem(false).contains("Manage Server"));
+        assertNull(TournamentCommand.organizerProblem(true));
+    }
+
+    @Test
+    public void listProblems() {
+        assertEquals(TournamentCommand.listProblem(new TournamentListPage(1, 1, 0, List.of()), null),
+                "No tournaments in this server yet.");
+        assertTrue(TournamentCommand.listProblem(new TournamentListPage(3, 1, 2, List.of()), null)
+                .contains("Page 3 does not exist"));
+        assertNull(TournamentCommand.listProblem(new TournamentListPage(1, 1, 1, List.of(new TournamentSummary(
+                "abcdefghj-26-10-10", LocalDate.of(2026, 10, 10), TournamentStatus.RUNNING, null))), null));
     }
 
     @Test

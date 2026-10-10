@@ -1,16 +1,20 @@
 package at.magi.ygodiscordbot.impl.tournament;
 
+import at.magi.ygodiscordbot.entity.tournament.TournamentCode;
+import at.magi.ygodiscordbot.entity.tournament.TournamentListPage;
 import at.magi.ygodiscordbot.impl.command.DatabaseReplies;
 import at.magi.ygodiscordbot.impl.command.SlashCommand;
 import at.magi.ygodiscordbot.impl.leaderboard.LeaderboardAdminCommand;
+import at.magi.ygodiscordbot.impl.leaderboard.PlayerNames;
 import at.magi.ygodiscordbot.utils.discord.DcMessageUtils;
 import at.magi.ygodiscordbot.utils.discord.MessageSender;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.interactions.InteractionContextType;
-import net.dv8tion.jda.api.interactions.commands.DefaultMemberPermissions;
+import net.dv8tion.jda.api.interactions.InteractionHook;
 import net.dv8tion.jda.api.interactions.commands.OptionMapping;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.Commands;
@@ -20,17 +24,21 @@ import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * {@code /tournament start|continue|standings|cancel|drop}. Who may use it is decided by Discord (default Manage
- * Server, changeable under Integrations); Discord can't restrict single subcommands, so all of them are for organizers.
+ * {@code /tournament start|continue|standings|cancel|drop|list}. {@code list} is for everyone. The other subcommands
+ * check Manage Server in the bot, because Discord can't restrict single subcommands; Integrations overrides can hide
+ * the whole command but can't grant them, same as {@code /leaderboard add}.
  * Players are entered as @-mentions in one text option: a command can have at most 25 options, a tournament 32 players.
  */
 public final class TournamentCommand implements SlashCommand {
@@ -55,55 +63,147 @@ public final class TournamentCommand implements SlashCommand {
         }
     }
 
+    private static final String PAGE = "page";
+    private static final String DATE = "date";
+    static final String ORGANIZERS_ONLY = "❌ Only members with **Manage Server** can run tournaments. "
+            + "Anyone can use `/tournament list`.";
+
     private final TournamentService service;
+    private final PlayerNames names;
     private final Executor dbExecutor;
 
-    public TournamentCommand(TournamentService service, Executor dbExecutor) {
+    public TournamentCommand(TournamentService service, PlayerNames names, Executor dbExecutor) {
         this.service = service;
+        this.names = names;
         this.dbExecutor = dbExecutor;
     }
 
     @Override
     public SlashCommandData data() {
-        return Commands.slash("tournament", "Host Swiss tournaments (organizers)")
+        return Commands.slash("tournament", "Swiss tournaments: list them (everyone) or host them (Manage Server)")
                 .addSubcommands(
-                        new SubcommandData("start", "Start a tournament in this channel")
+                        new SubcommandData("start", "Start a tournament in this channel (Manage Server)")
                                 .addOptions(new OptionData(OptionType.STRING, PLAYERS,
                                         "@mention 2–32 players, separated by spaces", true).setMaxLength(6000)),
-                        new SubcommandData("continue", "Start the next round once all results are in")
+                        new SubcommandData("continue", "Start the next round once all results are in (Manage Server)")
                                 .addOptions(idOption()),
-                        new SubcommandData("standings", "Show the standings and open matches")
+                        new SubcommandData("standings", "Show the standings and open matches (Manage Server)")
                                 .addOptions(idOption()),
-                        new SubcommandData("cancel", "End a tournament without a winner")
+                        new SubcommandData("cancel", "End a tournament without a winner (Manage Server)")
                                 .addOptions(idOption()),
-                        new SubcommandData("drop", "Remove a player from the remaining rounds")
-                                .addOptions(idOption(), new OptionData(OptionType.USER, PLAYER, "Player", true)))
-                .setDefaultPermissions(DefaultMemberPermissions.enabledFor(Permission.MANAGE_SERVER))
+                        new SubcommandData("drop", "Remove a player from the remaining rounds (Manage Server)")
+                                .addOptions(idOption(), new OptionData(OptionType.USER, PLAYER, "Player", true)),
+                        new SubcommandData("list", "List this server's tournaments, most recent first")
+                                .addOptions(new OptionData(OptionType.INTEGER, PAGE, "Page (20 per page)", false)
+                                                .setMinValue(1),
+                                        new OptionData(OptionType.STRING, DATE, "Only this day, as YY-MM-dd or YYYY-MM-dd", false)
+                                                .setRequiredLength(8, 10)))
                 .setContexts(InteractionContextType.GUILD);
     }
 
     private static OptionData idOption() {
-        return new OptionData(OptionType.INTEGER, ID, "Tournament ID", true).setMinValue(1);
+        return new OptionData(OptionType.STRING, ID, "Tournament ID, e.g. " + TournamentCode.EXAMPLE, true)
+                .setRequiredLength(TournamentCode.LENGTH, TournamentCode.LENGTH + 4);   // room for stray spaces
+    }
+
+    static String organizerProblem(boolean hasManageServer) {
+        return hasManageServer ? null : ORGANIZERS_ONLY;
+    }
+
+    static String listProblem(TournamentListPage page, LocalDate day) {
+        if (page.total() == 0) {
+            return TournamentMessages.listEmpty(day);
+        }
+        return page.rows().isEmpty() ? TournamentMessages.listPageOutOfRange(page) : null;
     }
 
     @Override
     public void execute(SlashCommandInteractionEvent event) {
         long guild = event.getGuild().getIdLong();
-        long id = event.getOption(ID, 0L, OptionMapping::getAsLong);
-        switch (String.valueOf(event.getSubcommandName())) {
-            case "start" -> start(event, guild);
+        String subcommand = String.valueOf(event.getSubcommandName());
+        if ("list".equals(subcommand)) {
+            list(event, guild);
+            return;
+        }
+        Member member = event.getMember();
+        String problem = organizerProblem(member != null && member.hasPermission(Permission.MANAGE_SERVER));
+        if (problem != null) {
+            log.info("/tournament {} refused for {}: no Manage Server", subcommand, MessageSender.who(event));
+            event.reply(problem).setEphemeral(true).queue();
+            return;
+        }
+        if ("start".equals(subcommand)) {
+            start(event, guild);
+            return;
+        }
+        String raw = event.getOption(ID, "", OptionMapping::getAsString);
+        Optional<String> parsed = TournamentCode.parse(raw);
+        if (parsed.isEmpty()) {
+            event.reply(TournamentMessages.invalidCode(raw)).setEphemeral(true).queue();
+            return;
+        }
+        String code = parsed.get();
+        switch (subcommand) {
             case "continue" -> DatabaseReplies.replyEphemeral(event, dbExecutor, TEXTS,
-                    () -> service.continueRound(id, guild));
-            case "standings" -> DatabaseReplies.replyAllEphemeral(event, dbExecutor, TEXTS,
-                    () -> service.standings(id, guild));
-            case "cancel" -> DatabaseReplies.replyEphemeral(event, dbExecutor, TEXTS,
-                    () -> service.cancel(id, guild));
+                    () -> service.continueRound(code, guild));
+            case "standings" -> DatabaseReplies.deferEphemeral(event, dbExecutor, TEXTS,
+                    hook -> replyNamed(hook, service.standings(code, guild)));
+            case "cancel" -> DatabaseReplies.replyEphemeral(event, dbExecutor, TEXTS, () -> service.cancel(code, guild));
             case "drop" -> {
                 long player = event.getOption(PLAYER, OptionMapping::getAsUser).getIdLong();
-                DatabaseReplies.replyEphemeral(event, dbExecutor, TEXTS, () -> service.drop(id, guild, player));
+                DatabaseReplies.replyEphemeral(event, dbExecutor, TEXTS, () -> service.drop(code, guild, player));
             }
             default -> event.reply("Unknown subcommand.").setEphemeral(true).queue();
         }
+    }
+
+    /** The list filter takes the code's short form and the ISO form the list table shows; real days only. */
+    static Optional<LocalDate> parseListDay(String raw) {
+        Optional<LocalDate> short_ = TournamentCode.parseDay(raw);
+        if (short_.isPresent()) {
+            return short_;
+        }
+        try {
+            return Optional.of(LocalDate.parse(raw.trim()));
+        } catch (java.time.format.DateTimeParseException e) {
+            return Optional.empty();
+        }
+    }
+
+    private void list(SlashCommandInteractionEvent event, long guild) {
+        int page = event.getOption(PAGE, 1, OptionMapping::getAsInt);
+        String rawDay = event.getOption(DATE, OptionMapping::getAsString);
+        LocalDate day = null;
+        if (rawDay != null) {
+            Optional<LocalDate> parsed = parseListDay(rawDay);
+            if (parsed.isEmpty()) {
+                event.reply("❌ `" + DcMessageUtils.safe(rawDay) + "` is not a day. Use YY-MM-dd or YYYY-MM-dd, e.g. `26-10-10` or `2026-10-10`.")
+                        .setEphemeral(true).queue();
+                return;
+            }
+            day = parsed.get();
+        }
+        LocalDate filter = day;
+        DatabaseReplies.deferEphemeral(event, dbExecutor, TEXTS, hook -> {
+            TournamentListPage found = service.listPage(guild, filter, page);
+            String problem = listProblem(found, filter);
+            replyNamed(hook, problem == null ? TournamentMessages.list(found, filter) : NamedText.plain(problem));
+        });
+    }
+
+    /** Looks up the names the text needs, then replaces the deferred (ephemeral) reply with it. */
+    private void replyNamed(InteractionHook hook, NamedText text) {
+        names.resolveIds(hook.getJDA(), text.users(),
+                found -> send(hook, text.render().apply(found)),
+                failure -> {
+                    log.warn("Could not look up names for a tournament reply", failure);
+                    send(hook, text.render().apply(Map.of()));
+                });
+    }
+
+    private static void send(InteractionHook hook, List<String> messages) {
+        MessageSender.replyAll(hook, messages, true)
+                .queue(null, failure -> log.warn("Could not send a tournament reply", failure));
     }
 
     private void start(SlashCommandInteractionEvent event, long guild) {

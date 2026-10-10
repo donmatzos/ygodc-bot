@@ -3,12 +3,18 @@ package at.magi.ygodiscordbot.impl.tournament;
 import at.magi.ygodiscordbot.entity.tournament.MatchRecord;
 import at.magi.ygodiscordbot.entity.tournament.NewTournament;
 import at.magi.ygodiscordbot.entity.tournament.Pairing;
+import at.magi.ygodiscordbot.entity.tournament.TournamentListPage;
 import at.magi.ygodiscordbot.entity.tournament.TournamentRecord;
 import at.magi.ygodiscordbot.entity.tournament.TournamentStatus;
+import at.magi.ygodiscordbot.entity.tournament.TournamentSummary;
 
 import java.sql.SQLException;
+import java.sql.SQLIntegrityConstraintViolationException;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -38,6 +44,10 @@ final class FakeTournamentStore implements TournamentStore {
     boolean failWrites;
     /** When ≥ 0: that many more writes succeed, then the database is down. */
     int writesUntilFailure = -1;
+
+    /** The next this-many creates are refused as duplicate codes (recorded in {@link #rejectedCodes}). */
+    int collisions;
+    final List<String> rejectedCodes = new ArrayList<>();
 
     long lastId() {
         return nextId - 1;
@@ -71,6 +81,13 @@ final class FakeTournamentStore implements TournamentStore {
     @Override
     public long create(NewTournament tournament, List<Pairing> round1) throws SQLException {
         write();
+        if (collisions > 0 || rows.values().stream().anyMatch(existing -> existing.tournament.code().equals(tournament.code()))) {
+            if (collisions > 0) {
+                collisions--;
+            }
+            rejectedCodes.add(tournament.code());
+            throw new SQLIntegrityConstraintViolationException("Duplicate code");
+        }
         Row row = new Row(tournament);
         round1.forEach(pairing -> row.matches.add(MatchRecord.of(1, pairing)));
         long id = nextId++;
@@ -173,9 +190,35 @@ final class FakeTournamentStore implements TournamentStore {
         return running;
     }
 
+    @Override
+    public Optional<TournamentRecord> loadByCode(String code) {
+        return rows.entrySet().stream()
+                .filter(entry -> entry.getValue().tournament.code().equals(code))
+                .findFirst()
+                .map(entry -> snapshot(entry.getKey(), entry.getValue()));
+    }
+
+    @Override
+    public TournamentListPage list(long guildId, LocalDate day, int page) {
+        List<Long> ids = new ArrayList<>(rows.keySet());
+        Collections.reverse(ids); // newest id first, like ORDER BY id DESC
+        List<TournamentSummary> all = new ArrayList<>();
+        for (long id : ids) {
+            Row row = rows.get(id);
+            if (row.tournament.guildId() == guildId && (day == null || row.tournament.playedOn().equals(day))) {
+                all.add(new TournamentSummary(row.tournament.code(), row.tournament.playedOn(), row.status, row.winner));
+            }
+        }
+        all.sort(Comparator.comparing(TournamentSummary::playedOn).reversed()); // stable: ties keep id order
+        int from = Math.min(all.size(), (page - 1) * TournamentListPage.PAGE_SIZE);
+        int to = Math.min(all.size(), from + TournamentListPage.PAGE_SIZE);
+        return new TournamentListPage(page, TournamentListPage.pageCount(all.size()), all.size(),
+                List.copyOf(all.subList(from, to)));
+    }
+
     private static TournamentRecord snapshot(long id, Row row) {
         NewTournament t = row.tournament;
-        return new TournamentRecord(id, t.guildId(), t.channelId(), t.createdBy(), row.status, row.winner,
+        return new TournamentRecord(id, t.code(), t.playedOn(), t.guildId(), t.channelId(), t.createdBy(), row.status, row.winner,
                 t.startedAt(), row.finishedAt, row.currentRound, List.copyOf(t.players()), Map.copyOf(row.dropped),
                 List.copyOf(row.matches));
     }

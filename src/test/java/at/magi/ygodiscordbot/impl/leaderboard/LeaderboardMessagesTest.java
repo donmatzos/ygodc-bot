@@ -115,11 +115,19 @@ public class LeaderboardMessagesTest {
     }
 
     @Test
-    public void playerPointsWithRank() {
-        assertEquals(LeaderboardMessages.playerPoints("Yugi", new RankedPlayer(2, 1, 120)),
-                "**Yugi** has 120 points (rank 2).");
-        assertEquals(LeaderboardMessages.playerPoints("Yugi", new RankedPlayer(1, 1, 1)),
-                "**Yugi** has 1 point (rank 1).");
+    public void playerPointsIsOneRowTable() {
+        assertEquals(LeaderboardMessages.playerPoints("Yugi", new RankedPlayer(3, 1, 120)), """
+                ```
+                Rank  Player  Points
+                ----  ------  ------
+                   3  Yugi       120
+                ```""");
+    }
+
+    @Test
+    public void playerPointsNameCannotCloseBlock() {
+        String reply = LeaderboardMessages.playerPoints("```x", new RankedPlayer(1, 1, 1));
+        assertEquals(reply.split("```", -1).length - 1, 2, reply);
     }
 
     @Test

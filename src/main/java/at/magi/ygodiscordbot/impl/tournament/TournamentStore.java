@@ -3,10 +3,12 @@ package at.magi.ygodiscordbot.impl.tournament;
 import at.magi.ygodiscordbot.entity.tournament.MatchRecord;
 import at.magi.ygodiscordbot.entity.tournament.NewTournament;
 import at.magi.ygodiscordbot.entity.tournament.Pairing;
+import at.magi.ygodiscordbot.entity.tournament.TournamentListPage;
 import at.magi.ygodiscordbot.entity.tournament.TournamentRecord;
 
 import java.sql.SQLException;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -45,4 +47,13 @@ public interface TournamentStore {
     Optional<TournamentRecord> load(long tournamentId) throws SQLException;
 
     List<TournamentRecord> loadRunning() throws SQLException;
+
+    /** The tournament with that public code, if any. */
+    Optional<TournamentRecord> loadByCode(String code) throws SQLException;
+
+    /**
+     * A server's tournaments, most recent first. {@code day} null = all days; {@code page} is 1-based and may be past
+     * the last page (then the page has no rows).
+     */
+    TournamentListPage list(long guildId, LocalDate day, int page) throws SQLException;
 }

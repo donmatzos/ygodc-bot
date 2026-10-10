@@ -52,6 +52,15 @@ abstract class TournamentServiceTestBase {
         return last;
     }
 
+    /** A post or reply as the recording announcer shows it: names are "P" + user ID. */
+    String rendered(NamedText text) {
+        return String.join("\n", text.render().apply(RecordingAnnouncer.names(text.users())));
+    }
+
+    String code(long id) {
+        return stored(id).code();
+    }
+
     TournamentRecord stored(long id) {
         return store.load(id).orElseThrow();
     }

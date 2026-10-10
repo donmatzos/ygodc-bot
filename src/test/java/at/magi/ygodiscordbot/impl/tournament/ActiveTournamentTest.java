@@ -7,6 +7,7 @@ import at.magi.ygodiscordbot.entity.tournament.TournamentStatus;
 import org.testng.annotations.Test;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
@@ -17,7 +18,7 @@ import static org.testng.Assert.assertTrue;
 public class ActiveTournamentTest {
 
     private static ActiveTournament threePlayers() {
-        return new ActiveTournament(new TournamentRecord(7, 1, 2, 3, TournamentStatus.RUNNING, null,
+        return new ActiveTournament(new TournamentRecord(7, "abcdefghj-26-10-10", LocalDate.of(2026, 10, 10), 1, 2, 3, TournamentStatus.RUNNING, null,
                 Instant.EPOCH, null, 1, List.of(10L, 20L, 30L), Map.of(),
                 List.of(new MatchRecord(1, 10, 20L, null), MatchRecord.of(1, Pairing.bye(30)))));
     }

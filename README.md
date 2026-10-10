@@ -40,16 +40,17 @@ Contents:
 | `/deck list` | Lists your deck names |
 | `/help` | Lists the commands you can use (only visible to you) |
 | `/leaderboard page [page:<n>]` | Sends a leaderboard page (20 players, highest points first) to your DMs |
-| `/leaderboard get [player:<@user>]` | Shows a player's points and rank (default: you) |
+| `/leaderboard get [player:<@user>]` | Shows a player's rank and points as a one-row table (default: you) |
 | `/leaderboard add player:<@user>` | Adds a player with 0 points (Manage Server) |
 | `/leaderboard update player:<@user> points:<n>` | Sets a player's points (Manage Server) |
 | `/points add\|remove player:<@user> amount:<1-99>` | Adds or removes points (Manage Server, hidden from others) |
 | `/leaderboard-admin share [channel:<#channel>]` | Posts the top 20 into a channel (default: this one) |
+| `/tournament list [page:<n>] [date:<YY-MM-dd>]` | Lists this server's tournaments (ID, date, winner; 20 per page, newest first), only visible to you |
 | `/tournament start players:<@mentions>` | Starts a Swiss tournament with 2–32 players in this channel (Manage Server) |
-| `/tournament continue id:<n>` | Starts the next round once all results are in (Manage Server) |
-| `/tournament standings id:<n>` | Shows standings and open matches (Manage Server) |
-| `/tournament cancel id:<n>` | Ends a tournament without a winner (Manage Server) |
-| `/tournament drop id:<n> player:<@user>` | Removes a player from the remaining rounds; their open match is lost (Manage Server) |
+| `/tournament continue id:<tournament ID>` | Starts the next round once all results are in (Manage Server) |
+| `/tournament standings id:<tournament ID>` | Shows standings and open matches (Manage Server) |
+| `/tournament cancel id:<tournament ID>` | Ends a tournament without a winner (Manage Server) |
+| `/tournament drop id:<tournament ID> player:<@user>` | Removes a player from the remaining rounds; their open match is lost (Manage Server) |
 | `/match finish id:<match ID> winner:<@user>` | Reports the winner of your own match |
 | `/match doubleloss id:<match ID>` | Time ran out without a winner in your match: both players get a loss |
 | `/match-admin finish id:<match ID> winner:<@user>`, `/match-admin doubleloss id:<match ID>` | Sets or corrects any result of the open round (Manage Server) |
@@ -82,13 +83,20 @@ as @-mentions in one text option, since a command can have at most 25 options. R
 players with the same win-loss record who haven't met yet (backtracking; a rematch only if no other pairing exists).
 With an odd number of players one gets a free win: random in round 1, then the player with the most losses. If time
 runs out without a winner, `/match doubleloss` scores a loss for both players. When the last match of a round is
-reported, the bot posts the results and either the winner (the only player with the fewest losses; after a double
-loss or a drop only once ⌈log₂ players⌉ rounds are played) or the next pairings, which an organizer starts with
-`/tournament continue`. Points on finish: 1 per match win (free wins excluded) + the number of rounds for the
-winner. Match IDs live in memory; after a restart the bot posts new IDs for the open matches. Tournaments still
-running 48 h after their start are abandoned (no points). `/tournament` and `/match-admin` are hidden from members
-without **Manage Server** like `/leaderboard-admin`; `/match` is for everyone, but only the two players of a match
-can report it.
+reported, the bot posts the results, a standings table and either the winner (the only player with the fewest losses;
+after a double loss or a drop only once ⌈log₂ players⌉ rounds are played) or the next pairings, which an organizer
+starts with `/tournament continue`. Points on finish: 1 per match win (free wins excluded) + the number of rounds for
+the winner. Tournaments still running 48 h after their start are abandoned (no points).
+
+Tournament IDs look like `k7m2x9qp4-26-10-10` (9-character key + start day in Vienna time, stored as `code` and
+`played_on`; old tables are migrated automatically). They are in every post and reply, and every command takes them
+as `id:`. The channel only gets the start, one post per completed round, the continue post (matchups with match IDs +
+standings) and the end. Match results (also organizer corrections), drops and the new match IDs after a restart go to
+the players by DM, because a channel message can't be shown to only two people. Standings are code-block tables
+(Rank, Player, W-L). `/tournament list` is for everyone; the other `/tournament` subcommands need **Manage Server**,
+which the bot checks itself. Integrations overrides can still hide or restrict the whole `/tournament` command
+(including `list`), but can't grant the organizer subcommands to members without Manage Server. `/match-admin` is hidden from members without **Manage Server**; `/match` is for everyone, but
+only the two players of a match can report it.
 
 **`/help`** replies where you used it, visible only to you. The list is built from the registered commands, so
 it shows exactly what this bot instance offers (no `/deck` or `/leaderboard` without `DB_URL`). In a server it
