@@ -6,15 +6,17 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
+import static at.magi.ygodiscordbot.entity.tournament.TournamentFixtures.A;
+import static at.magi.ygodiscordbot.entity.tournament.TournamentFixtures.B;
+import static at.magi.ygodiscordbot.entity.tournament.TournamentFixtures.C;
+import static at.magi.ygodiscordbot.entity.tournament.TournamentFixtures.D;
+import static at.magi.ygodiscordbot.entity.tournament.TournamentFixtures.bye;
+import static at.magi.ygodiscordbot.entity.tournament.TournamentFixtures.doubleLoss;
+import static at.magi.ygodiscordbot.entity.tournament.TournamentFixtures.players;
+import static at.magi.ygodiscordbot.entity.tournament.TournamentFixtures.won;
 import static org.testng.Assert.assertEquals;
 
 public class WinnerRuleTest {
-
-    private static final long A = 1, B = 2, C = 3, D = 4;
-
-    private static MatchRecord won(int round, long winner, long loser) {
-        return new MatchRecord(round, winner, loser, winner);
-    }
 
     @Test
     public void minimumRoundsIsLog2OfThePlayers() {
@@ -45,15 +47,15 @@ public class WinnerRuleTest {
         // Nothing irregular happened, so D has won.
         long e = 5;
         Standings standings = Standings.of(List.of(A, B, C, D, e), Set.of(), List.of(
-                won(1, D, B), won(1, A, e), MatchRecord.of(1, Pairing.bye(C)),
-                won(2, D, C), won(2, B, A), MatchRecord.of(2, Pairing.bye(e))));
+                won(1, D, B), won(1, A, e), bye(1, C),
+                won(2, D, C), won(2, B, A), bye(2, e)));
         assertEquals(WinnerRule.winner(standings, 2), Optional.of(D));
     }
 
     @Test
     public void byeKeepsAPlayerUndefeated() {
         Standings standings = Standings.of(List.of(A, B, C), Set.of(), List.of(
-                won(1, A, B), MatchRecord.of(1, Pairing.bye(C))));
+                won(1, A, B), bye(1, C)));
         assertEquals(WinnerRule.winner(standings, 1), Optional.empty());
     }
 
@@ -99,7 +101,7 @@ public class WinnerRuleTest {
         // Play-off round 5: A beat B, C had the bye, so A and C are still tied; round 6: A beat C
         List<MatchRecord> matches = new java.util.ArrayList<>(List.of(
                 won(1, A, C), won(1, B, D), new MatchRecord(2, A, B, null, true), won(2, C, D),
-                won(5, A, B), MatchRecord.of(5, Pairing.bye(C))));
+                won(5, A, B), bye(5, C)));
         Standings afterFive = Standings.of(List.of(A, B, C, D), Set.of(), matches);
         assertEquals(WinnerRule.winner(afterFive, 5), Optional.empty());
         assertEquals(Set.copyOf(WinnerRule.playOff(afterFive, 5)), Set.of(A, C));
@@ -112,11 +114,7 @@ public class WinnerRuleTest {
     @Test
     public void noPlayOffBeforeTheMinimum() {
         // 16 players need 4 rounds; with two undefeated after 4 rounds they play off, after 3 they play on normally
-        List<Long> players = new java.util.ArrayList<>();
-        for (long player = 1; player <= 16; player++) {
-            players.add(player);
-        }
-        Standings standings = Standings.of(players, Set.of(), List.of(won(1, 1, 2), won(1, 3, 4)));
+        Standings standings = Standings.of(players(1, 16), Set.of(), List.of(won(1, 1, 2), won(1, 3, 4)));
         assertEquals(WinnerRule.playOff(standings, 3), List.of());
         assertEquals(WinnerRule.playOff(standings, 4).size(), 14);   // everyone without a loss
     }
@@ -124,7 +122,7 @@ public class WinnerRuleTest {
     @Test
     public void tiedLeadersBeforeTheMinimumPlayOn() {
         Standings standings = Standings.of(List.of(A, B, C, D), Set.of(), List.of(
-                won(1, A, C), new MatchRecord(1, B, D, null, true)));
+                won(1, A, C), doubleLoss(1, B, D)));
         assertEquals(WinnerRule.winner(standings, 1), Optional.empty());
     }
 

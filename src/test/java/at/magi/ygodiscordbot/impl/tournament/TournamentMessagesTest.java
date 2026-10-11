@@ -13,6 +13,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static at.magi.ygodiscordbot.entity.tournament.TournamentFixtures.A;
+import static at.magi.ygodiscordbot.entity.tournament.TournamentFixtures.B;
+import static at.magi.ygodiscordbot.entity.tournament.TournamentFixtures.doubleLoss;
+import static at.magi.ygodiscordbot.entity.tournament.TournamentFixtures.workedExample;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
@@ -173,7 +177,7 @@ public class TournamentMessagesTest {
 
     @Test
     public void doubleLossesNameBothPlayers() {
-        MatchRecord doubleLoss = new MatchRecord(1, 1, 2L, null, true);
+        MatchRecord doubleLoss = doubleLoss(1, A, B);
         Standings standings = Standings.of(List.of(1L, 2L), Set.of(), List.of(doubleLoss));
         String post = render(TournamentMessages.roundResults(CODE, 1, List.of(doubleLoss), standings));
         assertTrue(post.contains("<@1> and <@2> both lose (time limit)"), post);
@@ -190,12 +194,6 @@ public class TournamentMessagesTest {
         assertTrue(post.contains("**Standings**"), post);
     }
 
-    private static Standings workedExample() {
-        return Standings.of(List.of(1L, 2L, 3L, 4L), Set.of(), List.of(
-                new MatchRecord(1, 1, 3L, 1L), new MatchRecord(1, 2, 4L, 2L),
-                new MatchRecord(2, 1, 2L, null, true), new MatchRecord(2, 3, 4L, 3L)));
-    }
-
     @Test
     public void winnerPostNamesTheDecidingTieBreaker() {
         Standings standings = workedExample();
@@ -208,7 +206,7 @@ public class TournamentMessagesTest {
     @Test
     public void winnerPostNamesTheLot() {
         Standings standings = Standings.of(List.of(1L, 2L), Set.of(), List.of(
-                new MatchRecord(1, 1, 2L, null, true)));
+                doubleLoss(1, A, B)));
         long winner = standings.ranked().get(0).player();
         long runnerUp = standings.ranked().get(1).player();
         String post = render(TournamentMessages.winner(CODE, winner, 1, standings, Map.of(), List.of()));

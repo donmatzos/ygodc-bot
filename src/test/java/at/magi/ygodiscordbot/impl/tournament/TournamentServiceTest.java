@@ -13,8 +13,8 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
-import java.util.stream.LongStream;
 
+import static at.magi.ygodiscordbot.entity.tournament.TournamentFixtures.players;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.expectThrows;
@@ -82,7 +82,7 @@ public class TournamentServiceTest extends TournamentServiceTestBase {
     @Test
     public void startRefusesTooFewOrTooManyPlayers() throws SQLException {
         assertTrue(service.start(GUILD, CHANNEL, ADMIN, List.of(101L)).contains("2–32"));
-        List<Long> many = LongStream.rangeClosed(1, 33).boxed().toList();
+        List<Long> many = players(1, 33);
         assertTrue(service.start(GUILD, CHANNEL, ADMIN, many).contains("2–32"));
         assertEquals(store.lastId(), 0);
     }

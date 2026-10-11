@@ -6,11 +6,11 @@ import org.testng.annotations.Test;
 
 import java.sql.SQLException;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import static at.magi.ygodiscordbot.entity.tournament.TournamentFixtures.players;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.expectThrows;
@@ -79,11 +79,7 @@ public class TournamentServiceLifecycleTest extends TournamentServiceTestBase {
     @Test
     public void tiedLeadersAfterFourRoundsPlayOff() throws SQLException {
         // 10 players need 4 rounds; every match of those ends as a double loss, so all are tied on 4 losses
-        List<Long> ten = new ArrayList<>();
-        for (long player = 101; player <= 110; player++) {
-            ten.add(player);
-        }
-        long id = start(ten);
+        long id = start(players(101, 10));
         for (int round = 1; round <= 4; round++) {
             if (round > 1) {
                 service.continueRound(code(id), GUILD);
