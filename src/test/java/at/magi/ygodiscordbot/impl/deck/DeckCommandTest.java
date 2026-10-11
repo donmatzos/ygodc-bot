@@ -67,7 +67,7 @@ public class DeckCommandTest {
     public void deckReplyShowsTheCanonicalYdkeForOldRows() {
         // a row saved before junk after the third "!" was rejected, but which still parses
         Decklist deck = new Decklist(1, 2, "Dragons", "ydke://o6lXBQ==!!", 0, 1_760_000_000_000L);
-        String reply = String.join("\n", DeckCommand.deckReply("Showing deck", deck, TestCards.names()));
+        String reply = String.join("\n", DeckCommand.deckReply("Showing deck", DeckCommand.Again.UPDATE, deck, TestCards.names()));
         assertTrue(reply.contains("```\nydke://o6lXBQ==!!!\n```"), reply);
     }
 
@@ -75,11 +75,14 @@ public class DeckCommandTest {
     public void deckReplyForAnUnparsableStoredRowOnlyNamesTheDeck() {
         Decklist deck = new Decklist(1, 2, "Dragons", "ydke://o6lXBQ==!!!junk", 0, 1_760_000_000_000L);
         // After a delete the deck is gone, so /deck update would answer "no deck named"
-        Map<String, String> hints = Map.of("Showing deck", "`/deck update`", "You deleted the following deck", "`/deck save`");
-        hints.forEach((action, command) -> {
-            List<String> reply = DeckCommand.deckReply(action, deck, TestCards.names());
+        Map<String, DeckCommand.Again> hints = Map.of("Showing deck", DeckCommand.Again.UPDATE,
+                "You deleted the following deck", DeckCommand.Again.SAVE);
+        Map<DeckCommand.Again, String> commands = Map.of(DeckCommand.Again.UPDATE, "`/deck update`",
+                DeckCommand.Again.SAVE, "`/deck save`");
+        hints.forEach((action, again) -> {
+            List<String> reply = DeckCommand.deckReply(action, again, deck, TestCards.names());
             assertEquals(reply, List.of(action + " **Dragons**:\n"
-                    + "This deck's stored YDKE is invalid; save it again with " + command + "."));
+                    + "This deck's stored YDKE is invalid; save it again with " + commands.get(again) + "."));
         });
     }
 
@@ -96,7 +99,7 @@ public class DeckCommandTest {
 
         for (String action : List.of("You saved the following deck", "You updated the following deck",
                 "You deleted the following deck", "Showing deck")) {
-            String reply = String.join("\n", DeckCommand.deckReply(action, deck, TestCards.names()));
+            String reply = String.join("\n", DeckCommand.deckReply(action, DeckCommand.Again.UPDATE, deck, TestCards.names()));
             assertTrue(reply.startsWith(action + " **Dragons**:\nMain 2 · Extra 0 · Side 0"), reply);
             assertTrue(reply.contains("2x Blue-Eyes White Dragon"), reply);
             assertTrue(reply.contains(ydke), reply);
@@ -132,10 +135,10 @@ public class DeckCommandTest {
         String name = "**x||y||";
         String escaped = "**x\\||y\\||";
         Decklist deck = new Decklist(1, 2, name, "ydke://o6lXBQ==!!", 0, 1_760_000_000_000L);
-        assertTrue(DeckCommand.deckReply("Showing deck", deck, TestCards.names()).get(0)
+        assertTrue(DeckCommand.deckReply("Showing deck", DeckCommand.Again.UPDATE, deck, TestCards.names()).get(0)
                 .contains("Showing deck **" + escaped + "**:"));
         Decklist broken = new Decklist(1, 2, name, "junk", 0, 1_760_000_000_000L);
-        assertTrue(DeckCommand.deckReply("Showing deck", broken, TestCards.names()).get(0)
+        assertTrue(DeckCommand.deckReply("Showing deck", DeckCommand.Again.UPDATE, broken, TestCards.names()).get(0)
                 .contains("Showing deck **" + escaped + "**:"));
         assertTrue(DeckCommand.saveError(SaveResult.NAME_TAKEN, name).contains("named **" + escaped + "**"));
         assertEquals(DeckCommand.listReply(List.of(name)), List.of("Your decks (1):\n• " + escaped));

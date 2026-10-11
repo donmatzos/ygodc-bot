@@ -201,13 +201,26 @@ public final class YgoDiscordBot {
     }
 
     private static void shutdown() {
+        runSteps(ON_SHUTDOWN);
+    }
+
+    /**
+     * Runs the steps in queue order. A step that was interrupted leaves the flag set; it is cleared before the
+     * next step so that one's bounded wait is not cut short, and restored once all steps ran.
+     */
+    static void runSteps(Deque<Runnable> steps) {
+        boolean interrupted = false;
         Runnable step;
-        while ((step = ON_SHUTDOWN.poll()) != null) {
+        while ((step = steps.poll()) != null) {
             try {
                 step.run();
             } catch (RuntimeException e) {
                 log.warn("Shutdown step failed", e);
             }
+            interrupted |= Thread.interrupted();
+        }
+        if (interrupted) {
+            Thread.currentThread().interrupt();
         }
     }
 

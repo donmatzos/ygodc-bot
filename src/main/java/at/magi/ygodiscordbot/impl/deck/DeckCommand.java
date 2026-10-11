@@ -100,15 +100,15 @@ public final class DeckCommand implements SlashCommand {
                     runInDatabase(event, () -> save(userId, name, stored));
                 } else {
                     runInDatabase(event, () -> decks.update(userId, name, stored)
-                            .map(deck -> deckReply("You updated the following deck", deck, cards.names()))
+                            .map(deck -> deckReply("You updated the following deck", Again.UPDATE, deck, cards.names()))
                             .orElseGet(() -> List.of(notFound(name))));
                 }
             }
             case "get" -> runInDatabase(event, () -> decks.find(userId, name)
-                    .map(deck -> deckReply("Showing deck", deck, cards.names()))
+                    .map(deck -> deckReply("Showing deck", Again.UPDATE, deck, cards.names()))
                     .orElseGet(() -> List.of(notFound(name))));
             case "delete" -> runInDatabase(event, () -> decks.delete(userId, name)
-                    .map(deck -> deckReply("You deleted the following deck", deck, cards.names()))
+                    .map(deck -> deckReply("You deleted the following deck", Again.SAVE, deck, cards.names()))
                     .orElseGet(() -> List.of(notFound(name))));
             default -> CommandChecks.unknownSubcommand(event);
         }
@@ -121,7 +121,7 @@ public final class DeckCommand implements SlashCommand {
         }
         // Show the deck as stored
         return decks.find(userId, name)
-                .map(deck -> deckReply("You saved the following deck", deck, cards.names()))
+                .map(deck -> deckReply("You saved the following deck", Again.UPDATE, deck, cards.names()))
                 .orElseGet(() -> List.of(notFound(name)));
     }
 
@@ -161,18 +161,28 @@ public final class DeckCommand implements SlashCommand {
         };
     }
 
+    /** Which command recreates a deck whose stored YDKE is unreadable: a deleted deck no longer exists. */
+    enum Again {
+        UPDATE("`/deck update`"),
+        SAVE("`/deck save`");
+
+        private final String command;
+
+        Again(String command) {
+            this.command = command;
+        }
+    }
+
     /** E.g. "You saved the following deck **Dragons**:" followed by the card list and the YDKE URI. */
-    static List<String> deckReply(String action, Decklist deck, CardNames names) {
+    static List<String> deckReply(String action, Again again, Decklist deck, CardNames names) {
         // Stored URIs were validated on save; shown canonical so rows saved with junk still render safely
         YdkeDeck cards;
         try {
             cards = Ydke.parse(deck.ydke());
         } catch (IllegalArgumentException e) {
             // Row saved before the stricter parser: still gettable, deletable and replaceable
-            // A deleted deck no longer exists, so only /deck save can recreate it
-            String again = action.contains("deleted") ? "`/deck save`" : "`/deck update`";
             return List.of(action + " " + DcMessageUtils.bold(deck.name()) + ":\n"
-                    + "This deck's stored YDKE is invalid; save it again with " + again + ".");
+                    + "This deck's stored YDKE is invalid; save it again with " + again.command + ".");
         }
         return DeckMessages.deck(action + " " + DcMessageUtils.bold(deck.name()) + ":", deck.updatedAt(), Ydke.encode(cards),
                 cards, names);

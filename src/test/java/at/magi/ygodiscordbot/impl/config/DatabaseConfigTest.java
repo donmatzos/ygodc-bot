@@ -36,4 +36,23 @@ public class DatabaseConfigTest {
         assertTrue(text.contains("IllegalStateException"), text);
         assertTrue(text.contains("password=***"), text);
     }
+
+    @Test
+    public void describeMasksPasswordsInTheCauseChain() {
+        DatabaseConfig config = new DatabaseConfig("jdbc:mysql://host/db", "x", "secret");
+        Exception nested = new IllegalStateException("pool failed",
+                new RuntimeException("connect", new java.sql.SQLException("bad jdbc:mysql://h/db?password=hunter2&a=b")));
+        String text = config.describe(nested);
+        assertFalse(text.contains("hunter2"), text);
+        assertEquals(text, "IllegalStateException: pool failed ← RuntimeException: connect"
+                + " ← SQLException: bad jdbc:mysql://h/db?password=***&a=b");
+    }
+
+    @Test
+    public void describeHandlesNullMessages() {
+        DatabaseConfig config = new DatabaseConfig("jdbc:mysql://host/db", null, null);
+        assertEquals(config.describe(new RuntimeException(new IllegalStateException())),
+                "RuntimeException: java.lang.IllegalStateException ← IllegalStateException");
+        assertEquals(config.describe(new IllegalStateException()), "IllegalStateException");
+    }
 }
