@@ -1,6 +1,7 @@
 package at.magi.ygodiscordbot.impl.deck;
 
 import at.magi.ygodiscordbot.entity.deck.Decklist;
+import at.magi.ygodiscordbot.impl.database.Jdbc;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -128,8 +129,9 @@ public class DecklistRepository {
     public Optional<Decklist> update(long userId, String name, String ydke) throws SQLException {
         ensureSchema();
         // Connector/J reports matched rows by default, so an unchanged deck still counts as found
-        int updated = execute("UPDATE decklist SET ydke = ?, updated_at = ? WHERE user_id = ? AND name = ?",
-                ydke, clock.millis(), userId, name);
+        int updated = Jdbc.update(dataSource,
+                "UPDATE decklist SET ydke = ?, updated_at = ? WHERE user_id = ? AND name = ?", ydke, clock.millis(),
+                userId, name);
         return updated > 0 ? find(userId, name) : Optional.empty();
     }
 
@@ -137,7 +139,7 @@ public class DecklistRepository {
     public Optional<Decklist> delete(long userId, String name) throws SQLException {
         Optional<Decklist> deck = find(userId, name);
         if (deck.isPresent()) {
-            execute("DELETE FROM decklist WHERE id = ?", deck.get().id());
+            Jdbc.update(dataSource, "DELETE FROM decklist WHERE id = ?", deck.get().id());
         }
         return deck;
     }
@@ -156,16 +158,6 @@ public class DecklistRepository {
                 }
                 return names;
             }
-        }
-    }
-
-    private int execute(String sql, Object... parameters) throws SQLException {
-        try (Connection connection = dataSource.getConnection();
-             PreparedStatement statement = connection.prepareStatement(sql)) {
-            for (int i = 0; i < parameters.length; i++) {
-                statement.setObject(i + 1, parameters[i]);
-            }
-            return statement.executeUpdate();
         }
     }
 }

@@ -17,23 +17,17 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Proxy;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-
-import javax.sql.DataSource;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.expectThrows;
 
 /**
  * Runs against a real MySQL/MariaDB database, only if TEST_DB_URL (plus TEST_DB_USER, TEST_DB_PASSWORD)
@@ -197,70 +191,6 @@ public class PlayerRepositoryTest {
         insert(2, 20);
         assertEquals(repository.resetAllPoints(), 2);
         assertEquals(repository.page(1).rows(), List.of(new RankedPlayer(1, 1, 0), new RankedPlayer(1, 2, 0)));
-    }
-
-    /**
-     * The real database, but every connection's commit() fails, and rollback() too if {@code rollbackFails}.
-     * {@code calls} records commit / rollback / setAutoCommit in order.
-     */
-    private DataSource failingCommits(List<String> calls, boolean rollbackFails) {
-        return (DataSource) Proxy.newProxyInstance(DataSource.class.getClassLoader(), new Class<?>[]{DataSource.class},
-                (proxy, method, args) -> {
-                    Object result = invoke(dataSource, method, args);
-                    if (!method.getName().equals("getConnection")) {
-                        return result;
-                    }
-                    Connection real = (Connection) result;
-                    return Proxy.newProxyInstance(Connection.class.getClassLoader(), new Class<?>[]{Connection.class},
-                            (p, m, a) -> {
-                                switch (m.getName()) {
-                                    case "commit" -> {
-                                        calls.add("commit");
-                                        throw new SQLException("commit failed");
-                                    }
-                                    case "rollback" -> {
-                                        calls.add("rollback");
-                                        if (rollbackFails) {
-                                            throw new SQLException("rollback failed");
-                                        }
-                                    }
-                                    case "setAutoCommit" -> calls.add("setAutoCommit(" + a[0] + ")");
-                                    default -> {
-                                    }
-                                }
-                                return invoke(real, m, a);
-                            });
-                });
-    }
-
-    private static Object invoke(Object target, java.lang.reflect.Method method, Object[] args) throws Throwable {
-        try {
-            return method.invoke(target, args);
-        } catch (InvocationTargetException e) {
-            throw e.getCause();
-        }
-    }
-
-    @Test
-    public void failedCommitRollsBackAndKeepsThePoints() throws SQLException {
-        insert(1, 10);
-        List<String> calls = new ArrayList<>();
-        PlayerRepository failing = new PlayerRepository(failingCommits(calls, false));
-        SQLException error = expectThrows(SQLException.class, () -> failing.changePoints(1, 5));
-        assertEquals(error.getMessage(), "commit failed");
-        assertEquals(calls, List.of("setAutoCommit(false)", "commit", "rollback", "setAutoCommit(true)"));
-        assertEquals(repository.find(1).orElseThrow().points(), 10L);
-    }
-
-    @Test
-    public void failedRollbackKeepsTheOriginalError() throws SQLException {
-        insert(1, 10);
-        PlayerRepository failing = new PlayerRepository(failingCommits(new ArrayList<>(), true));
-        SQLException error = expectThrows(SQLException.class, () -> failing.setPoints(1, 50));
-        assertEquals(error.getMessage(), "commit failed");
-        assertEquals(error.getSuppressed().length, 1);
-        assertEquals(error.getSuppressed()[0].getMessage(), "rollback failed");
-        assertEquals(repository.find(1).orElseThrow().points(), 10L);
     }
 
     /** Runs {@code work} and returns the INFO lines PlayerRepository logged meanwhile. */

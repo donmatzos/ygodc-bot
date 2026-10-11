@@ -8,6 +8,9 @@ import at.magi.ygodiscordbot.entity.tournament.TournamentListPage;
 import at.magi.ygodiscordbot.entity.tournament.TournamentRecord;
 import at.magi.ygodiscordbot.entity.tournament.TournamentStatus;
 import at.magi.ygodiscordbot.entity.tournament.TournamentSummary;
+import at.magi.ygodiscordbot.impl.database.Jdbc;
+import at.magi.ygodiscordbot.impl.database.Transactions;
+import at.magi.ygodiscordbot.impl.database.Transactions.TransactionWork;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -78,11 +81,6 @@ public class TournamentRepository implements TournamentStore {
 
     private static final String INSERT_MATCH =
             "INSERT INTO tournament_match (tournament_id, round, player1_id, player2_id, winner_id) VALUES (?, ?, ?, ?, ?)";
-
-    @FunctionalInterface
-    private interface TransactionWork<T> {
-        T run(Connection connection) throws SQLException;
-    }
 
     private record Header(String code, LocalDate playedOn, long guildId, long channelId, long createdBy, TournamentStatus status, Long winner,
                           Instant startedAt, Instant finishedAt, int currentRound) {
@@ -155,15 +153,10 @@ public class TournamentRepository implements TournamentStore {
             }
         }
         Random random = new SecureRandom();
-        try (PreparedStatement update = connection.prepareStatement(
-                "UPDATE tournament SET code = ?, played_on = ? WHERE id = ?")) {
-            for (Map.Entry<Long, Long> row : startedAt.entrySet()) {
-                LocalDate day = LocalDate.ofInstant(Instant.ofEpochMilli(row.getValue()), TournamentCode.ZONE);
-                update.setString(1, TournamentCode.generate(random, day));
-                update.setObject(2, day);
-                update.setLong(3, row.getKey());
-                update.executeUpdate();
-            }
+        for (Map.Entry<Long, Long> row : startedAt.entrySet()) {
+            LocalDate day = LocalDate.ofInstant(Instant.ofEpochMilli(row.getValue()), TournamentCode.ZONE);
+            Jdbc.update(connection, "UPDATE tournament SET code = ?, played_on = ? WHERE id = ?",
+                    TournamentCode.generate(random, day), day, row.getKey());
         }
         if (!startedAt.isEmpty()) {
             log.info("Gave {} existing tournament(s) a code", startedAt.size());
@@ -269,32 +262,20 @@ public class TournamentRepository implements TournamentStore {
     public void drop(long tournamentId, long player, int round, MatchRecord forfeit, boolean deletePendingRound)
             throws SQLException {
         inTransaction(connection -> {
-            try (PreparedStatement drop = connection.prepareStatement(
-                    "UPDATE tournament_player SET dropped_in_round = ? WHERE tournament_id = ? AND player_id = ?")) {
-                drop.setInt(1, round);
-                drop.setLong(2, tournamentId);
-                drop.setLong(3, player);
-                expectOneRow(drop.executeUpdate(), "Player " + player + " is not in tournament " + tournamentId);
-            }
+            expectOneRow(Jdbc.update(connection,
+                    "UPDATE tournament_player SET dropped_in_round = ? WHERE tournament_id = ? AND player_id = ?",
+                    round, tournamentId, player), "Player " + player + " is not in tournament " + tournamentId);
             if (forfeit != null) {
-                try (PreparedStatement win = connection.prepareStatement(
+                expectOneRow(Jdbc.update(connection,
                         "UPDATE tournament_match SET winner_id = ?, double_loss = FALSE"
-                                + " WHERE tournament_id = ? AND round = ? AND player1_id = ?")) {
-                    win.setLong(1, forfeit.winner());
-                    win.setLong(2, tournamentId);
-                    win.setInt(3, forfeit.round());
-                    win.setLong(4, forfeit.player1());
-                    expectOneRow(win.executeUpdate(), "No match of player " + forfeit.player1() + " in round "
-                            + forfeit.round() + " of tournament " + tournamentId);
-                }
+                                + " WHERE tournament_id = ? AND round = ? AND player1_id = ?",
+                        forfeit.winner(), tournamentId, forfeit.round(), forfeit.player1()),
+                        "No match of player " + forfeit.player1() + " in round " + forfeit.round()
+                                + " of tournament " + tournamentId);
             }
             if (deletePendingRound) {
-                try (PreparedStatement delete = connection.prepareStatement(
-                        "DELETE FROM tournament_match WHERE tournament_id = ? AND round = ?")) {
-                    delete.setLong(1, tournamentId);
-                    delete.setInt(2, round + 1);
-                    delete.executeUpdate();
-                }
+                Jdbc.update(connection, "DELETE FROM tournament_match WHERE tournament_id = ? AND round = ?",
+                        tournamentId, round + 1);
             }
             return null;
         });
@@ -382,7 +363,7 @@ public class TournamentRepository implements TournamentStore {
                 try (ResultSet result = select.executeQuery()) {
                     while (result.next()) {
                         rows.add(new TournamentSummary(result.getString(1), result.getObject(2, LocalDate.class),
-                                TournamentStatus.valueOf(result.getString(3)), nullableLong(result, 4)));
+                                TournamentStatus.valueOf(result.getString(3)), Jdbc.nullableLong(result, 4)));
                     }
                 }
             }
@@ -412,10 +393,10 @@ public class TournamentRepository implements TournamentStore {
                 if (!result.next()) {
                     return Optional.empty();
                 }
-                Long finishedAt = nullableLong(result, 7);
+                Long finishedAt = Jdbc.nullableLong(result, 7);
                 header = new Header(result.getString(9), result.getObject(10, LocalDate.class),
                         result.getLong(1), result.getLong(2), result.getLong(3),
-                        TournamentStatus.valueOf(result.getString(4)), nullableLong(result, 5),
+                        TournamentStatus.valueOf(result.getString(4)), Jdbc.nullableLong(result, 5),
                         Instant.ofEpochMilli(result.getLong(6)),
                         finishedAt == null ? null : Instant.ofEpochMilli(finishedAt), result.getInt(8));
             }
@@ -444,8 +425,8 @@ public class TournamentRepository implements TournamentStore {
             select.setLong(1, id);
             try (ResultSet result = select.executeQuery()) {
                 while (result.next()) {
-                    matches.add(new MatchRecord(result.getInt(1), result.getLong(2), nullableLong(result, 3),
-                            nullableLong(result, 4), result.getBoolean(5)));
+                    matches.add(new MatchRecord(result.getInt(1), result.getLong(2), Jdbc.nullableLong(result, 3),
+                            Jdbc.nullableLong(result, 4), result.getBoolean(5)));
                 }
             }
         }
@@ -456,17 +437,7 @@ public class TournamentRepository implements TournamentStore {
 
     private int update(String sql, Object... parameters) throws SQLException {
         ensureSchema();
-        try (Connection connection = dataSource.getConnection();
-             PreparedStatement statement = connection.prepareStatement(sql)) {
-            for (int i = 0; i < parameters.length; i++) {
-                if (parameters[i] == null) {
-                    statement.setNull(i + 1, Types.BIGINT);
-                } else {
-                    statement.setObject(i + 1, parameters[i]);
-                }
-            }
-            return statement.executeUpdate();
-        }
+        return Jdbc.update(dataSource, sql, parameters);
     }
 
     private static void expectOneRow(int rows, String problem) throws SQLException {
@@ -483,44 +454,8 @@ public class TournamentRepository implements TournamentStore {
         }
     }
 
-    private static Long nullableLong(ResultSet result, int column) throws SQLException {
-        long value = result.getLong(column);
-        return result.wasNull() ? null : value;
-    }
-
-    /** Same commit/rollback handling as {@code PlayerRepository.write}. */
     private <T> T inTransaction(TransactionWork<T> work) throws SQLException {
         ensureSchema();
-        try (Connection connection = dataSource.getConnection()) {
-            connection.setAutoCommit(false);
-            boolean ended = false;
-            try {
-                T result = work.run(connection);
-                connection.commit();
-                ended = true;
-                return result;
-            } catch (SQLException | RuntimeException e) {
-                try {
-                    connection.rollback();
-                    ended = true;
-                } catch (SQLException rollbackError) {
-                    e.addSuppressed(rollbackError);
-                }
-                throw e;
-            } finally {
-                // setAutoCommit(true) would COMMIT a transaction that failed to roll back
-                if (ended) {
-                    restoreAutoCommit(connection);
-                }
-            }
-        }
-    }
-
-    private static void restoreAutoCommit(Connection connection) {
-        try {
-            connection.setAutoCommit(true);
-        } catch (SQLException e) {
-            log.warn("Could not restore auto-commit, the connection pool resets it", e);
-        }
+        return Transactions.inTransaction(dataSource, work);
     }
 }

@@ -4,6 +4,8 @@ import at.magi.ygodiscordbot.entity.leaderboard.LeaderboardPage;
 import at.magi.ygodiscordbot.entity.leaderboard.PointChange;
 import at.magi.ygodiscordbot.entity.leaderboard.Points;
 import at.magi.ygodiscordbot.entity.leaderboard.RankedPlayer;
+import at.magi.ygodiscordbot.impl.database.Jdbc;
+import at.magi.ygodiscordbot.impl.database.Transactions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -189,40 +191,7 @@ public class PlayerRepository {
     private PointChange write(long id, LongUnaryOperator change, boolean createIfMissing) throws SQLException {
         ensureSchema();
         boolean created = createIfMissing && insertIfMissing(id);
-        try (Connection connection = dataSource.getConnection()) {
-            connection.setAutoCommit(false);
-            boolean ended = false;
-            try {
-                PointChange result = writeLocked(connection, id, change, created);
-                connection.commit();
-                ended = true;
-                return result;
-            } catch (SQLException | RuntimeException e) {
-                try {
-                    connection.rollback();
-                    ended = true;
-                } catch (SQLException rollbackError) {
-                    // The original error is the one worth reporting
-                    e.addSuppressed(rollbackError);
-                }
-                throw e;
-            } finally {
-                // setAutoCommit(true) would COMMIT a transaction that failed to roll back; the pool rolls it back
-                // (or drops the connection) when it is returned instead
-                if (ended) {
-                    restoreAutoCommit(connection);
-                }
-            }
-        }
-    }
-
-    /** Never throws: after a commit the change is done, and the pool resets auto-commit on return anyway. */
-    private static void restoreAutoCommit(Connection connection) {
-        try {
-            connection.setAutoCommit(true);
-        } catch (SQLException e) {
-            log.warn("Could not restore auto-commit, the connection pool resets it", e);
-        }
+        return Transactions.inTransaction(dataSource, connection -> writeLocked(connection, id, change, created));
     }
 
     private static PointChange writeLocked(Connection connection, long id, LongUnaryOperator change, boolean created)
@@ -238,11 +207,7 @@ public class PlayerRepository {
             }
         }
         long after = change.applyAsLong(before);
-        try (PreparedStatement update = connection.prepareStatement("UPDATE players SET points = ? WHERE id = ?")) {
-            update.setLong(1, after);
-            update.setLong(2, id);
-            update.executeUpdate();
-        }
+        Jdbc.update(connection, "UPDATE players SET points = ? WHERE id = ?", after, id);
         return new PointChange(before, after, created);
     }
 }
