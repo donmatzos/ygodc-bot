@@ -16,6 +16,8 @@ import java.util.Set;
 
 import static at.magi.ygodiscordbot.entity.tournament.TournamentFixtures.players;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.expectThrows;
 
@@ -35,7 +37,7 @@ public class TournamentServiceTest extends TournamentServiceTestBase {
         long id = start(FOUR);
         assertEquals(store.rejectedCodes.size(), 1);
         assertEquals(stored(id).status(), TournamentStatus.RUNNING);
-        assertTrue(!code(id).equals(store.rejectedCodes.get(0)));
+        assertNotEquals(code(id), store.rejectedCodes.get(0));
     }
 
     @Test
@@ -68,7 +70,7 @@ public class TournamentServiceTest extends TournamentServiceTestBase {
     public void startAllowsAPlayerRunningInAnotherServer() throws SQLException {
         start(FOUR);
         String reply = service.start(GUILD + 1, CHANNEL, ADMIN, List.of(101L, 105L));
-        assertTrue(!reply.contains("Already playing"), reply);
+        assertFalse(reply.contains("Already playing"), reply);
         assertEquals(store.lastId(), 2);
     }
 

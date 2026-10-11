@@ -8,6 +8,7 @@ import java.util.Optional;
 import java.util.Random;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 
 public class TournamentCodeTest {
@@ -24,7 +25,7 @@ public class TournamentCodeTest {
     @Test
     public void generatedCodesDiffer() {
         Random random = new Random(1);
-        assertTrue(!TournamentCode.generate(random, DAY).equals(TournamentCode.generate(random, DAY)));
+        assertNotEquals(TournamentCode.generate(random, DAY), TournamentCode.generate(random, DAY));
     }
 
     @Test

@@ -12,6 +12,7 @@ import java.util.Set;
 
 import static at.magi.ygodiscordbot.entity.tournament.TournamentFixtures.players;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.expectThrows;
 
@@ -208,7 +209,7 @@ public class TournamentServiceLifecycleTest extends TournamentServiceTestBase {
         service.drop(code(id), GUILD, 101L);
         assertEquals(announcer.posts.size(), posts);
         service.continueRound(code(id), GUILD);
-        assertTrue(!announcer.last().contains("<@101> vs") && !announcer.last().contains("vs <@101>"), announcer.last());
+        assertFalse(announcer.last().contains("<@101> vs") || announcer.last().contains("vs <@101>"), announcer.last());
     }
 
     @Test
@@ -274,7 +275,7 @@ public class TournamentServiceLifecycleTest extends TournamentServiceTestBase {
         announcer.postsFail = true;
         String reply = service.drop(code(id), GUILD, 102L);
         assertTrue(reply.contains("dropped out"), reply);
-        assertTrue(!reply.contains("could not be prepared"), reply);
+        assertFalse(reply.contains(TournamentMessages.prepareFailed(code(id))), reply);
         assertEquals(stored(id).status(), TournamentStatus.FINISHED);
     }
 
@@ -308,6 +309,26 @@ public class TournamentServiceLifecycleTest extends TournamentServiceTestBase {
         store.endBehindTheServicesBack(id, TournamentStatus.ABANDONED);
         assertTrue(service.continueRound(code(id), GUILD).contains("already abandoned"));
         assertTrue(service.start(GUILD, CHANNEL, ADMIN, FOUR).contains("started"));
+    }
+
+    @Test
+    public void continueResyncsWhenFinishingFindsTheTournamentAlreadyEnded() throws SQLException {
+        long id = start(FOUR);
+        playRound(id);
+        service.continueRound(code(id), GUILD);
+        List<ActiveMatch> round2 = service.openMatches(id);
+        ActiveMatch last = round2.get(round2.size() - 1);
+        for (ActiveMatch match : round2.subList(0, round2.size() - 1)) {
+            service.finishMatch(match.id(), GUILD, match.player1(), match.player1(), false);
+        }
+        store.writesUntilFailure = 1; // the last result is saved, finishing the tournament is not
+        service.finishMatch(last.id(), GUILD, last.player1(), last.player1(), false);
+        store.writesUntilFailure = -1;
+        assertEquals(stored(id).status(), TournamentStatus.RUNNING);
+
+        store.endBehindTheServicesBack(id, TournamentStatus.FINISHED);
+        assertTrue(service.continueRound(code(id), GUILD).contains("already finished"));
+        assertTrue(service.start(GUILD, CHANNEL, ADMIN, FOUR).contains("started"), "players are free again");
     }
 
     @Test

@@ -11,7 +11,14 @@ import java.util.Random;
 import java.util.Set;
 import java.util.stream.IntStream;
 
+import static at.magi.ygodiscordbot.entity.tournament.TournamentFixtures.A;
+import static at.magi.ygodiscordbot.entity.tournament.TournamentFixtures.B;
+import static at.magi.ygodiscordbot.entity.tournament.TournamentFixtures.C;
+import static at.magi.ygodiscordbot.entity.tournament.TournamentFixtures.D;
+import static at.magi.ygodiscordbot.entity.tournament.TournamentFixtures.E;
+import static at.magi.ygodiscordbot.entity.tournament.TournamentFixtures.bye;
 import static at.magi.ygodiscordbot.entity.tournament.TournamentFixtures.players;
+import static at.magi.ygodiscordbot.entity.tournament.TournamentFixtures.won;
 import static at.magi.ygodiscordbot.entity.tournament.TournamentFixtures.workedExample;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -142,7 +149,10 @@ public class SwissPairerTest {
      * With 5 players everyone has met all others after 4 rounds and a bye, and the forced bye can make the
      * rematch-free pairings split the two undefeated players. Then a rematch or a bye to the next player down is
      * allowed, but only when no rematch-free pairing with a most-losses bye exists (checked by brute force). Leaders
-     * still tied after ⌈log₂ 5⌉ rounds are decided by the tie-breakers.
+     * still tied after ⌈log₂ 5⌉ rounds are decided by the tie-breakers. The brute-force branch never fires for these
+     * seeds (random results keep a rematch-free pairing available); the hand-built histories of
+     * {@link #byeGoesToTheNextPlayerDownToAvoidARematch} and {@link #oneRematchWhenNoRematchFreePairingExists} pin
+     * down what the pairer does when it matters.
      */
     @Test(timeOut = 20_000)
     public void fivePlayersRematchOnlyWhenUnavoidable() {
@@ -158,6 +168,48 @@ public class SwissPairerTest {
                             "round " + roundNumber + " had a better pairing than " + pairings);
                 }
             });
+        }
+    }
+
+    /**
+     * After three rounds D has beaten E every time. Giving the bye to E (3 losses, the most) would leave A, B, C, D
+     * with only rematches; giving it to C (2 losses, the next player down) leaves a rematch-free pairing, which wins.
+     */
+    @Test
+    public void byeGoesToTheNextPlayerDownToAvoidARematch() {
+        Standings standings = Standings.of(List.of(A, B, C, D, E), Set.of(), List.of(
+                bye(1, A), won(1, B, C), won(1, D, E),
+                bye(2, B), won(2, A, C), won(2, D, E),
+                bye(3, C), won(3, A, B), won(3, D, E)));
+        assertEquals(standings.entry(E).losses(), 3);
+        assertEquals(standings.entry(C).losses(), 2);
+        for (int seed = 0; seed < 20; seed++) {
+            List<Pairing> pairings = SwissPairer.pair(standings, 4, new Random(seed)).pairings();
+            assertComplete(pairings, standings);
+            assertEquals(pairings.get(2), Pairing.bye(C), "seed " + seed + ": " + pairings);
+            assertTrue(pairings.subList(0, 2).stream().noneMatch(p -> standings.haveMet(p.player1(), p.player2())),
+                    "seed " + seed + ": rematch in " + pairings);
+        }
+    }
+
+    /**
+     * B, C, D and E have met each other, A has met nobody (three byes). Whoever gets the bye, the other four contain
+     * at least one pair that has met: the pairer takes exactly one rematch and gives the bye to E, who has the most
+     * losses.
+     */
+    @Test
+    public void oneRematchWhenNoRematchFreePairingExists() {
+        Standings standings = Standings.of(List.of(A, B, C, D, E), Set.of(), List.of(
+                bye(1, A), won(1, B, C), won(1, D, E),
+                bye(2, A), won(2, B, D), won(2, C, E),
+                bye(3, A), won(3, B, E), won(3, C, D)));
+        assertEquals(standings.entry(E).losses(), 3);
+        for (int seed = 0; seed < 20; seed++) {
+            List<Pairing> pairings = SwissPairer.pair(standings, 4, new Random(seed)).pairings();
+            assertComplete(pairings, standings);
+            assertEquals(pairings.get(2), Pairing.bye(E), "seed " + seed + ": " + pairings);
+            assertEquals(pairings.subList(0, 2).stream()
+                    .filter(p -> standings.haveMet(p.player1(), p.player2())).count(), 1L, "seed " + seed + ": " + pairings);
         }
     }
 

@@ -90,7 +90,7 @@ public class TournamentMessagesTest {
         assertTrue(post.contains("Tournament `" + CODE + "` · Round 2"), post);
         assertTrue(post.contains("`48213` · <@1> vs <@2>"), post);
         assertTrue(post.contains("   1  Yugi    1-0"), post);
-        assertTrue(!post.contains("Play-off"), post);
+        assertFalse(post.contains("Play-off"), post);
     }
 
     @Test
@@ -174,7 +174,7 @@ public class TournamentMessagesTest {
     @Test
     public void resultsWithoutStandingsHaveNoTable() {
         String post = render(TournamentMessages.roundResults(CODE, 1, List.of(new MatchRecord(1, 1, 2L, 2L)), null));
-        assertTrue(!post.contains("**Standings**"), post);
+        assertFalse(post.contains("**Standings**"), post);
     }
 
     @Test

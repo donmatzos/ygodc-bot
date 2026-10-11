@@ -79,7 +79,7 @@ public class TournamentCommandTest {
     }
 
     @Test(dataProvider = "listDays")
-    public void listDateAcceptsShortAndIsoForms(String name, String input, Optional<LocalDate> expected) {
+    public void parsesListDay(String name, String input, Optional<LocalDate> expected) {
         assertEquals(TournamentCommand.parseListDay(input), expected, name);
     }
 
