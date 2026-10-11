@@ -30,7 +30,7 @@ import java.util.function.Function;
 
 /**
  * Fake JDA objects (java.lang.reflect.Proxy) for tests of slash command code. Actions run their callbacks right away,
- * and what is sent is recorded in send order, e.g. "reply (ephemeral)", "dm:first", "edit:done", "post:top 20
+ * and what is sent is recorded in the order the calls are made, e.g. "reply (ephemeral)", "dm:first", "edit:done", "post:top 20
  * mentions=[]". A fake answers the methods named in its answers; any other method returns the fake itself if that
  * fits the return type (builder methods), else null, false or 0.
  */
@@ -159,7 +159,7 @@ public final class FakeInteractions {
     @SuppressWarnings({"unchecked", "rawtypes"})
     private static <T> T action(Class<T> type, Object value, Throwable error, Consumer<String> note) {
         Map<String, Answer> answers = new HashMap<>();
-        Object[] self = new Object[1];
+        Object[] self = new Object[1]; // the action itself, filled in below: builder-style calls return it
         answers.put("queue", (m, a) -> {
             if (error == null && a.length > 0 && a[0] != null) {
                 ((Consumer) a[0]).accept(value);
@@ -168,6 +168,7 @@ public final class FakeInteractions {
             }
             return null;
         });
+        // flatMap(condition, fn) has the function last; the condition is ignored
         answers.put("flatMap", (m, a) -> error == null ? ((Function) a[a.length - 1]).apply(value) : self[0]);
         answers.put("map", (m, a) -> error == null ? succeeding(RestAction.class, ((Function) a[0]).apply(value))
                 : self[0]);
@@ -175,6 +176,7 @@ public final class FakeInteractions {
                 error == null ? Result.success(value) : Result.failure(error)));
         answers.put("onErrorMap", (m, a) -> error == null ? self[0]
                 : succeeding(RestAction.class, ((Function) a[a.length - 1]).apply(error)));
+        // and(other, accumulator): other is queued for its value; a failing other is not modelled
         answers.put("and", (m, a) -> error == null
                 ? succeeding(RestAction.class, ((BiFunction) a[1]).apply(value, resultOf((RestAction<?>) a[0])))
                 : self[0]);
@@ -204,6 +206,7 @@ public final class FakeInteractions {
             case "toString" -> "fake " + proxy.getClass().getInterfaces()[0].getSimpleName();
             default -> returns.isInstance(proxy) ? proxy
                     : returns == void.class || !returns.isPrimitive() ? null
+                    // the default of a primitive type (false, 0): a one-element array holds it
                     : Array.get(Array.newInstance(returns, 1), 0);
         };
     }

@@ -2,8 +2,7 @@ package at.magi.ygodiscordbot.impl.leaderboard;
 
 import at.magi.ygodiscordbot.entity.leaderboard.LeaderboardPage;
 import at.magi.ygodiscordbot.entity.leaderboard.RankedPlayer;
-import at.magi.ygodiscordbot.testutil.CommandAssert;
-import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
+import net.dv8tion.jda.api.interactions.commands.build.SlashCommandData;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -13,12 +12,15 @@ import static at.magi.ygodiscordbot.testutil.CommandAssert.assertBotCheckedManag
 import static at.magi.ygodiscordbot.testutil.CommandAssert.assertOpenToEveryone;
 import static at.magi.ygodiscordbot.testutil.CommandAssert.assertSubcommands;
 import static at.magi.ygodiscordbot.testutil.CommandAssert.option;
+import static at.magi.ygodiscordbot.testutil.CommandAssert.sub;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 
 public class LeaderboardCommandTest {
+
+    private static final SlashCommandData DATA = new LeaderboardCommand(null, null, Runnable::run).data();
 
     @DataProvider
     public Object[][] pages() {
@@ -38,13 +40,9 @@ public class LeaderboardCommandTest {
         assertEquals(LeaderboardCommand.noPageReply(page), expected, name);
     }
 
-    private static SubcommandData sub(String name) {
-        return CommandAssert.sub(new LeaderboardCommand(null, null, Runnable::run).data(), name);
-    }
-
     @Test
     public void pageSubcommandKeepsBoundedOption() {
-        var page = option(sub("page"), "page");
+        var page = option(sub(DATA, "page"), "page");
         assertEquals(page.getName(), "page");
         assertFalse(page.isRequired());
         assertEquals(page.getMinValue().longValue(), 1L);
@@ -53,18 +51,17 @@ public class LeaderboardCommandTest {
 
     @Test
     public void subcommands() {
-        var data = new LeaderboardCommand(null, null, Runnable::run).data();
-        assertSubcommands(data, "page", "get", "add", "update");
-        assertOpenToEveryone(data);
-        assertFalse(option(sub("get"), "player").isRequired());
-        assertTrue(option(sub("add"), "player").isRequired());
-        assertTrue(sub("add").getDescription().endsWith("(Manage Server)"));
-        assertTrue(sub("update").getDescription().endsWith("(Manage Server)"));
+        assertSubcommands(DATA, "page", "get", "add", "update");
+        assertOpenToEveryone(DATA);
+        assertFalse(option(sub(DATA, "get"), "player").isRequired());
+        assertTrue(option(sub(DATA, "add"), "player").isRequired());
+        assertTrue(sub(DATA, "add").getDescription().endsWith("(Manage Server)"));
+        assertTrue(sub(DATA, "update").getDescription().endsWith("(Manage Server)"));
     }
 
     @Test
     public void updatePointsRange() {
-        var points = option(sub("update"), "points");
+        var points = option(sub(DATA, "update"), "points");
         assertEquals(points.getName(), "points");
         assertTrue(points.isRequired());
         assertEquals(points.getMinValue().longValue(), 0L);
@@ -92,7 +89,13 @@ public class LeaderboardCommandTest {
     @Test
     public void permissionAndTargetChecksAreSeparate() {
         assertNull(LeaderboardCommand.permissionProblem(true, true));
-        assertEquals(LeaderboardCommand.permissionProblem(true, false), LeaderboardCommand.changeProblem(true, false, true));
+        assertEquals(LeaderboardCommand.permissionProblem(true, false),
+                "❌ You need **Manage Server** to change the leaderboard.");
+        assertEquals(LeaderboardCommand.permissionProblem(false, true),
+                "❌ The leaderboard can only be changed in a server.");
+        // Permission wins over the target when both are wrong
+        assertEquals(LeaderboardCommand.changeProblem(true, false, true),
+                LeaderboardCommand.permissionProblem(true, false));
         assertNull(LeaderboardCommand.targetProblem(false));
         assertEquals(LeaderboardCommand.targetProblem(true), "❌ Bots can't be on the leaderboard.");
     }

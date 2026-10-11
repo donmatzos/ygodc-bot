@@ -4,16 +4,23 @@ import at.magi.ygodiscordbot.entity.card.TestCards;
 import at.magi.ygodiscordbot.entity.deck.Decklist;
 import at.magi.ygodiscordbot.entity.deck.Ydke;
 import at.magi.ygodiscordbot.entity.deck.YdkeDeck;
+import at.magi.ygodiscordbot.impl.card.CardRepository;
 import at.magi.ygodiscordbot.impl.deck.DecklistRepository.SaveResult;
+import at.magi.ygodiscordbot.testutil.FakeInteractions;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+import java.time.Clock;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.IntStream;
 
 import static at.magi.ygodiscordbot.testutil.DiscordAssert.assertSendable;
+import static at.magi.ygodiscordbot.testutil.FakeInteractions.returns;
+import static at.magi.ygodiscordbot.testutil.FakeInteractions.stringOption;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
@@ -52,11 +59,48 @@ public class DeckCommandTest {
         }
     }
 
-    @Test
-    public void canonicalYdkeIsWhatGetsStored() {
-        String canonical = Ydke.encode(Ydke.parse("ydke://o6lXBQ==!!"));
-        assertEquals(DeckCommand.canonicalYdke("ydke://o6lXBQ==!!"), canonical);
-        assertTrue(canonical.endsWith("!"));
+    /** Records what reaches the database; finds nothing, so a successful save or update ends in "no deck named". */
+    private static final class RecordingDecks extends DecklistRepository {
+        final List<String> stored = new ArrayList<>();
+
+        RecordingDecks() {
+            super(null, Clock.systemUTC());
+        }
+
+        @Override
+        public SaveResult create(long userId, String name, String ydke) {
+            stored.add(ydke);
+            return SaveResult.SAVED;
+        }
+
+        @Override
+        public Optional<Decklist> update(long userId, String name, String ydke) {
+            stored.add(ydke);
+            return Optional.empty();
+        }
+
+        @Override
+        public Optional<Decklist> find(long userId, String name) {
+            return Optional.empty();
+        }
+    }
+
+    @DataProvider
+    public Object[][] storingSubcommands() {
+        return new Object[][]{{"save"}, {"update"}};
+    }
+
+    @Test(dataProvider = "storingSubcommands")
+    public void canonicalYdkeIsWhatGetsStored(String subcommand) {
+        RecordingDecks decks = new RecordingDecks();
+        FakeInteractions fakes = new FakeInteractions();
+        new DeckCommand(decks, new CardRepository(), Runnable::run).execute(fakes.event(Map.of(
+                "getName", returns("deck"), "getSubcommandName", returns(subcommand),
+                "getOptions", returns(List.of(stringOption("name", "Dragons", Map.of()),
+                        stringOption("ydke", "ydke://o6lXBQ==!!", Map.of())))))); // one "!" short
+        assertEquals(decks.stored, List.of("ydke://o6lXBQ==!!!"), subcommand);
+        // Nothing was found afterwards: the reply names the deck in bold
+        assertTrue(fakes.sent().toString().contains("You have no deck named **Dragons**."), fakes.sent().toString());
     }
 
     @Test
@@ -73,12 +117,10 @@ public class DeckCommandTest {
         // After a delete the deck is gone, so /deck update would answer "no deck named"
         Map<String, DeckCommand.Again> hints = Map.of("Showing deck", DeckCommand.Again.UPDATE,
                 "You deleted the following deck", DeckCommand.Again.SAVE);
-        Map<DeckCommand.Again, String> commands = Map.of(DeckCommand.Again.UPDATE, "`/deck update`",
-                DeckCommand.Again.SAVE, "`/deck save`");
         hints.forEach((action, again) -> {
-            List<String> reply = DeckCommand.deckReply(action, again, deck, TestCards.names());
-            assertEquals(reply, List.of(action + " **Dragons**:\n"
-                    + "This deck's stored YDKE is invalid; save it again with " + commands.get(again) + "."));
+            String command = again == DeckCommand.Again.UPDATE ? "`/deck update`" : "`/deck save`";
+            assertEquals(DeckCommand.deckReply(action, again, deck, TestCards.names()), List.of(action + " **Dragons**:\n"
+                    + "This deck's stored YDKE is invalid; save it again with " + command + "."));
         });
     }
 

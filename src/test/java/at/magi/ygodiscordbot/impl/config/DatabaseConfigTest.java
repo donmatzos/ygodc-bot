@@ -3,6 +3,8 @@ package at.magi.ygodiscordbot.impl.config;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+import java.sql.SQLException;
+
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
@@ -41,7 +43,7 @@ public class DatabaseConfigTest {
     public void describeMasksPasswordsInTheCauseChain() {
         DatabaseConfig config = new DatabaseConfig("jdbc:mysql://host/db", "x", "secret");
         Exception nested = new IllegalStateException("pool failed",
-                new RuntimeException("connect", new java.sql.SQLException("bad jdbc:mysql://h/db?password=hunter2&a=b")));
+                new RuntimeException("connect", new SQLException("bad jdbc:mysql://h/db?password=hunter2&a=b")));
         String text = config.describe(nested);
         assertFalse(text.contains("hunter2"), text);
         assertEquals(text, "IllegalStateException: pool failed ← RuntimeException: connect"
