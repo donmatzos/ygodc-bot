@@ -7,8 +7,6 @@ import at.magi.ygodiscordbot.utils.json.JsonUtils;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -25,8 +23,6 @@ import java.util.Optional;
  */
 public final class CardFileStore {
 
-    private static final Logger log = LoggerFactory.getLogger(CardFileStore.class);
-
     public static final Path DEFAULT_FILE = Path.of("data", "cards.json");
 
     private static final String TEMP_PREFIX = "cards";
@@ -39,17 +35,12 @@ public final class CardFileStore {
 
     /** Call before the first {@link #save}, i.e. at startup. */
     public Optional<CardCatalog> load() {
-        AtomicFiles.deleteStaleTempFiles(file, TEMP_PREFIX);
-        if (!Files.isRegularFile(file)) {
-            return Optional.empty();
-        }
-        try (InputStream in = Files.newInputStream(file);
-             JsonParser parser = JsonUtils.MAPPER.getFactory().createParser(in)) {
-            return Optional.of(read(parser));
-        } catch (IOException | RuntimeException e) {
-            log.warn("Ignoring unreadable card file {}", file, e);
-            return Optional.empty();
-        }
+        return AtomicFiles.readIfPresent(file, TEMP_PREFIX, path -> {
+            try (InputStream in = Files.newInputStream(path);
+                 JsonParser parser = JsonUtils.MAPPER.getFactory().createParser(in)) {
+                return read(parser);
+            }
+        });
     }
 
     public void save(CardCatalog catalog) throws IOException {

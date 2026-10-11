@@ -10,6 +10,7 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.Optional;
 
 /**
  * Writes files via a temporary file that is then renamed, so a crash mid-write never leaves a broken file.
@@ -24,6 +25,11 @@ public final class AtomicFiles {
     @FunctionalInterface
     public interface Content {
         void writeTo(OutputStream out) throws IOException;
+    }
+
+    @FunctionalInterface
+    public interface Reader<T> {
+        T readFrom(Path file) throws IOException;
     }
 
     private AtomicFiles() {
@@ -57,6 +63,23 @@ public final class AtomicFiles {
             }
         } catch (IOException e) {
             log.warn("Could not delete unfinished files in {}", directory, e);
+        }
+    }
+
+    /**
+     * Startup read of a file written by {@link #write}: deletes stale temporary files first, then reads the file.
+     * Empty if the file is missing, or if {@code reader} fails (logged as a warning).
+     */
+    public static <T> Optional<T> readIfPresent(Path file, String tempPrefix, Reader<T> reader) {
+        deleteStaleTempFiles(file, tempPrefix);
+        if (!Files.isRegularFile(file)) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.of(reader.readFrom(file));
+        } catch (IOException | RuntimeException e) {
+            log.warn("Ignoring unreadable file {}", file, e);
+            return Optional.empty();
         }
     }
 }
