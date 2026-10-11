@@ -2,13 +2,13 @@ package at.magi.ygodiscordbot.impl.tournament;
 
 import at.magi.ygodiscordbot.entity.tournament.TournamentCode;
 import at.magi.ygodiscordbot.entity.tournament.TournamentListPage;
+import at.magi.ygodiscordbot.impl.command.CommandChecks;
 import at.magi.ygodiscordbot.impl.command.DatabaseReplies;
 import at.magi.ygodiscordbot.impl.command.SlashCommand;
 import at.magi.ygodiscordbot.impl.leaderboard.LeaderboardAdminCommand;
 import at.magi.ygodiscordbot.impl.leaderboard.PlayerNames;
 import at.magi.ygodiscordbot.utils.discord.DcMessageUtils;
 import at.magi.ygodiscordbot.utils.discord.MessageSender;
-import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
@@ -46,9 +46,8 @@ public final class TournamentCommand implements SlashCommand {
 
     private static final Logger log = LoggerFactory.getLogger(TournamentCommand.class);
 
-    static final String BUSY = "Too many requests right now. Please try again in a moment.";
     static final String UNAVAILABLE = "Tournaments are not available right now. Please try again later.";
-    static final DatabaseReplies.Texts TEXTS = new DatabaseReplies.Texts(BUSY, UNAVAILABLE);
+    static final DatabaseReplies.Texts TEXTS = new DatabaseReplies.Texts(CommandChecks.BUSY, UNAVAILABLE);
 
     private static final String PLAYERS = "players";
     private static final String ID = "id";
@@ -132,11 +131,9 @@ public final class TournamentCommand implements SlashCommand {
             list(event, guild);
             return;
         }
-        Member member = event.getMember();
-        String problem = organizerProblem(member != null && member.hasPermission(Permission.MANAGE_SERVER));
+        String problem = organizerProblem(CommandChecks.canManageServer(event));
         if (problem != null) {
-            log.info("/tournament {} refused for {}: no Manage Server", subcommand, MessageSender.who(event));
-            event.reply(problem).setEphemeral(true).queue();
+            CommandChecks.refuse(event, problem);
             return;
         }
         if ("start".equals(subcommand)) {
@@ -160,7 +157,7 @@ public final class TournamentCommand implements SlashCommand {
                 long player = event.getOption(PLAYER, OptionMapping::getAsUser).getIdLong();
                 DatabaseReplies.replyEphemeral(event, dbExecutor, TEXTS, () -> service.drop(code, guild, player));
             }
-            default -> event.reply("Unknown subcommand.").setEphemeral(true).queue();
+            default -> CommandChecks.unknownSubcommand(event);
         }
     }
 
@@ -231,8 +228,7 @@ public final class TournamentCommand implements SlashCommand {
                     channel.getAsMention());
         }
         if (problem != null) {
-            log.info("/tournament start refused for {}: {}", MessageSender.who(event), problem);
-            event.reply(problem).setEphemeral(true).queue();
+            CommandChecks.refuse(event, problem);
             return;
         }
         long channel = event.getChannel().getIdLong();

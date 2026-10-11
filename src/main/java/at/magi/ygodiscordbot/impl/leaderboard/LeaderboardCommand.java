@@ -3,11 +3,10 @@ package at.magi.ygodiscordbot.impl.leaderboard;
 import at.magi.ygodiscordbot.entity.leaderboard.LeaderboardPage;
 import at.magi.ygodiscordbot.entity.leaderboard.PointChange;
 import at.magi.ygodiscordbot.entity.leaderboard.Points;
+import at.magi.ygodiscordbot.impl.command.CommandChecks;
 import at.magi.ygodiscordbot.impl.command.DatabaseReplies;
 import at.magi.ygodiscordbot.impl.command.SlashCommand;
 import at.magi.ygodiscordbot.utils.discord.MessageSender;
-import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.interactions.InteractionContextType;
@@ -36,8 +35,7 @@ public final class LeaderboardCommand implements SlashCommand {
 
     static final String TITLE = "🏆 Leaderboard";
     static final String UNAVAILABLE = "The leaderboard is not available right now. Please try again later.";
-    static final String BUSY = "Too many requests right now. Please try again in a moment.";
-    static final DatabaseReplies.Texts TEXTS = new DatabaseReplies.Texts(BUSY, UNAVAILABLE);
+    static final DatabaseReplies.Texts TEXTS = new DatabaseReplies.Texts(CommandChecks.BUSY, UNAVAILABLE);
     static final int MAX_PAGE = 10_000;
 
     static final String PLAYER = "player";
@@ -87,7 +85,7 @@ public final class LeaderboardCommand implements SlashCommand {
             case "get" -> get(event);
             case "add" -> add(event);
             case "update" -> update(event);
-            default -> event.reply("Unknown subcommand.").setEphemeral(true).queue();
+            default -> CommandChecks.unknownSubcommand(event);
         }
     }
 
@@ -154,28 +152,30 @@ public final class LeaderboardCommand implements SlashCommand {
 
     /** Replies with the reason and returns true if the caller may not change this player's entry. */
     private static boolean refused(SlashCommandInteractionEvent event, User player) {
-        Member member = event.getMember();
-        String problem = changeProblem(event.isFromGuild(),
-                member != null && member.hasPermission(Permission.MANAGE_SERVER), player.isBot());
+        String problem = changeProblem(event.isFromGuild(), CommandChecks.canManageServer(event), player.isBot());
         if (problem != null) {
-            log.info("/{} refused for {}: {}", event.getFullCommandName(), MessageSender.who(event), problem);
-            event.reply(problem).setEphemeral(true).queue();
+            CommandChecks.refuse(event, problem);
         }
         return problem != null;
     }
 
     /** Why the caller may not add or update this player, or null if they may. */
     static String changeProblem(boolean inGuild, boolean canManageServer, boolean targetIsBot) {
+        String problem = permissionProblem(inGuild, canManageServer);
+        return problem != null ? problem : targetProblem(targetIsBot);
+    }
+
+    /** Why the caller may not change the leaderboard at all, or null. */
+    static String permissionProblem(boolean inGuild, boolean canManageServer) {
         if (!inGuild) {
             return "❌ The leaderboard can only be changed in a server.";
         }
-        if (!canManageServer) {
-            return "❌ You need **Manage Server** to change the leaderboard.";
-        }
-        if (targetIsBot) {
-            return "❌ Bots can't be on the leaderboard.";
-        }
-        return null;
+        return canManageServer ? null : "❌ You need **Manage Server** to change the leaderboard.";
+    }
+
+    /** Why this player can't be on the leaderboard, or null. */
+    static String targetProblem(boolean targetIsBot) {
+        return targetIsBot ? "❌ Bots can't be on the leaderboard." : null;
     }
 
     /** The reply when there is no page to show, or null if the page exists. */

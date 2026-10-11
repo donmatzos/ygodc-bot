@@ -38,8 +38,9 @@ public final class CommandRegistry extends ListenerAdapter {
     public Map<String, Set<String>> botCheckedManageServer() {
         Map<String, Set<String>> checked = new LinkedHashMap<>();
         commands.forEach((name, command) -> {
-            if (!command.botCheckedManageServer().isEmpty()) {
-                checked.put(name, command.botCheckedManageServer());
+            Set<String> subcommands = command.botCheckedManageServer();
+            if (!subcommands.isEmpty()) {
+                checked.put(name, subcommands);
             }
         });
         return checked;

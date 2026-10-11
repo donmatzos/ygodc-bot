@@ -1,6 +1,7 @@
 package at.magi.ygodiscordbot.impl.leaderboard;
 
 import at.magi.ygodiscordbot.entity.leaderboard.LeaderboardPage;
+import at.magi.ygodiscordbot.impl.command.CommandChecks;
 import at.magi.ygodiscordbot.impl.command.DatabaseReplies;
 import at.magi.ygodiscordbot.impl.command.SlashCommand;
 import at.magi.ygodiscordbot.utils.discord.MessageSender;
@@ -64,7 +65,7 @@ public final class LeaderboardAdminCommand implements SlashCommand {
     @Override
     public void execute(SlashCommandInteractionEvent event) {
         if (!"share".equals(event.getSubcommandName())) {
-            event.reply("Unknown subcommand.").setEphemeral(true).queue();
+            CommandChecks.unknownSubcommand(event);
             return;
         }
         GuildChannel chosen = event.getOption(CHANNEL, event.getGuildChannel(), OptionMapping::getAsChannel);
@@ -72,8 +73,7 @@ public final class LeaderboardAdminCommand implements SlashCommand {
                 ? channelProblem(target.canTalk(event.getMember()), target.canTalk(), target.getAsMention())
                 : "I can only post the leaderboard into text channels.";
         if (problem != null) {
-            log.info("/leaderboard-admin share refused for {}: {}", MessageSender.who(event), problem);
-            event.reply(problem).setEphemeral(true).queue();
+            CommandChecks.refuse(event, problem);
             return;
         }
         GuildMessageChannel target = (GuildMessageChannel) chosen;

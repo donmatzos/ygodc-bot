@@ -5,6 +5,7 @@ import at.magi.ygodiscordbot.entity.deck.Decklist;
 import at.magi.ygodiscordbot.entity.deck.Ydke;
 import at.magi.ygodiscordbot.entity.deck.YdkeDeck;
 import at.magi.ygodiscordbot.impl.card.CardRepository;
+import at.magi.ygodiscordbot.impl.command.CommandChecks;
 import at.magi.ygodiscordbot.impl.command.DatabaseReplies;
 import at.magi.ygodiscordbot.impl.command.SlashCommand;
 import at.magi.ygodiscordbot.utils.discord.DcMessageUtils;
@@ -109,7 +110,7 @@ public final class DeckCommand implements SlashCommand {
             case "delete" -> runInDatabase(event, () -> decks.delete(userId, name)
                     .map(deck -> deckReply("You deleted the following deck", deck, cards.names()))
                     .orElseGet(() -> List.of(notFound(name))));
-            default -> replyError(event, "Unknown subcommand.");
+            default -> CommandChecks.unknownSubcommand(event);
         }
     }
 

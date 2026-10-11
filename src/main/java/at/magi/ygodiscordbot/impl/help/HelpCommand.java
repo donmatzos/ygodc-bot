@@ -1,5 +1,6 @@
 package at.magi.ygodiscordbot.impl.help;
 
+import at.magi.ygodiscordbot.impl.command.CommandChecks;
 import at.magi.ygodiscordbot.impl.command.SlashCommand;
 import at.magi.ygodiscordbot.utils.discord.MessageSender;
 import net.dv8tion.jda.api.Permission;
@@ -58,8 +59,7 @@ public final class HelpCommand implements SlashCommand {
      */
     static List<String> lines(List<SlashCommandData> commands, InteractionContextType context, long memberPermissions,
                               Map<String, Set<String>> botChecked) {
-        long manageServer = Permission.MANAGE_SERVER.getRawValue();
-        boolean canManage = (memberPermissions & (manageServer | Permission.ADMINISTRATOR.getRawValue())) != 0;
+        boolean canManage = CommandChecks.canManageServer(memberPermissions);
         boolean inGuild = context == InteractionContextType.GUILD;
         return commands.stream()
                 .sorted(Comparator.comparing(SlashCommandData::getName))
@@ -70,7 +70,7 @@ public final class HelpCommand implements SlashCommand {
                     String note = command.getContexts().contains(context) ? "" : serverOnlyNote(command);
                     return HelpMessages.usages(command,
                             path -> !inGuild || canManage || !checked.contains(path),
-                            path -> !inGuild && checked.contains(path) ? " *(servers only, needs Manage Server)*" : note
+                            path -> !inGuild && checked.contains(path) ? serverOnlyNote(Permission.MANAGE_SERVER.getName()) : note
                     ).stream();
                 })
                 .toList();
@@ -93,6 +93,10 @@ public final class HelpCommand implements SlashCommand {
         }
         String names = required == 0 ? Permission.ADMINISTRATOR.getName()
                 : Permission.getPermissions(required).stream().map(Permission::getName).collect(Collectors.joining(", "));
-        return " *(servers only, needs " + names + ")*";
+        return serverOnlyNote(names);
+    }
+
+    private static String serverOnlyNote(String needs) {
+        return " *(servers only, needs " + needs + ")*";
     }
 }

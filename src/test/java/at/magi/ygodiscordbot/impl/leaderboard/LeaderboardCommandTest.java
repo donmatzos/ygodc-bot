@@ -84,6 +84,14 @@ public class LeaderboardCommandTest {
     }
 
     @Test
+    public void permissionAndTargetChecksAreSeparate() {
+        assertNull(LeaderboardCommand.permissionProblem(true, true));
+        assertEquals(LeaderboardCommand.permissionProblem(true, false), LeaderboardCommand.changeProblem(true, false, true));
+        assertNull(LeaderboardCommand.targetProblem(false));
+        assertEquals(LeaderboardCommand.targetProblem(true), "❌ Bots can't be on the leaderboard.");
+    }
+
+    @Test
     public void changeProblemForBots() {
         assertEquals(LeaderboardCommand.changeProblem(true, true, true), "❌ Bots can't be on the leaderboard.");
         assertNull(LeaderboardCommand.changeProblem(true, true, false));
