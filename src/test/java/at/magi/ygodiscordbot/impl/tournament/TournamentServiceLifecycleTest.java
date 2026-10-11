@@ -114,11 +114,12 @@ public class TournamentServiceLifecycleTest extends TournamentServiceTestBase {
     }
 
     @Test
-    public void lastPlayerLeftWins() throws SQLException {
+    public void lastPlayerLeftWinsAndTheEndIsPosted() throws SQLException {
         long id = start(List.of(101L, 102L));
-        service.drop(code(id), GUILD, 101L);
+        service.drop(code(id), GUILD, 101L); // forfeit closes round 1 -> winner decided
         assertEquals(stored(id).status(), TournamentStatus.FINISHED);
         assertEquals(stored(id).winner(), Long.valueOf(102));
+        assertTrue(announcer.last().contains("wins after 1 round"), announcer.last());
     }
 
     @Test
@@ -152,13 +153,16 @@ public class TournamentServiceLifecycleTest extends TournamentServiceTestBase {
         ActiveMatch played = service.openMatches(id).get(0);
         service.finishMatch(played.id(), GUILD, played.player1(), played.player1(), false);
 
+        int posts = announcer.posts.size();
         service = newService(7); // bot restart
         service.recover();
+        assertEquals(announcer.posts.size(), posts); // new match IDs go by DM, not into the channel
         List<ActiveMatch> open = service.openMatches(id);
         assertEquals(open.size(), 1);
         ActiveMatch fresh = open.get(0);
         assertTrue(announcer.dmsTo(fresh.player1()).get(0).contains("The bot restarted"));
         assertTrue(announcer.dmsTo(fresh.player1()).get(0).contains("`" + fresh.id() + "`"));
+        assertTrue(announcer.dmsTo(fresh.player2()).get(0).contains("`" + fresh.id() + "`"));
         String reply = service.finishMatch(fresh.id(), GUILD, fresh.player2(), fresh.player2(), false);
         assertTrue(reply.contains("Round 1 of Tournament `" + code(id) + "` is complete"), reply);
     }
@@ -240,10 +244,26 @@ public class TournamentServiceLifecycleTest extends TournamentServiceTestBase {
     }
 
     @Test
-    public void dropThatEndsTheTournamentIsPosted() throws SQLException {
-        long id = start(List.of(101L, 102L));
-        service.drop(code(id), GUILD, 101L);   // forfeit closes round 1 → winner decided
-        assertTrue(announcer.last().contains("wins after 1 round"), announcer.last());
+    public void failedPairingAfterTheLastResultIsPairedByContinue() throws SQLException {
+        long id = start(FOUR);
+        List<ActiveMatch> round1 = service.openMatches(id);
+        service.finishMatch(round1.get(0).id(), GUILD, round1.get(0).player1(), round1.get(0).player1(), false);
+        store.writesUntilFailure = 1; // the last result is saved, the round 2 pairings are not
+        ActiveMatch last = round1.get(1);
+        String reply = service.finishMatch(last.id(), GUILD, last.player1(), last.player1(), false);
+        assertTrue(reply.contains("could not be prepared"), reply);
+        assertTrue(stored(id).matches().stream().noneMatch(m -> m.round() == 2));
+        assertTrue(service.openMatches(id).isEmpty());
+        assertTrue(announcer.last().contains("Round 1"), announcer.last()); // results only, no pairings
+
+        store.writesUntilFailure = -1;
+        int posts = announcer.posts.size();
+        String continued = service.continueRound(code(id), GUILD);
+        assertTrue(continued.contains("Round 2"), continued);
+        assertEquals(stored(id).matches().stream().filter(m -> m.round() == 2).count(), 2);
+        assertEquals(service.openMatches(id).size(), 2);
+        assertEquals(announcer.posts.size(), posts + 1);
+        assertTrue(announcer.last().contains("Round 2"), announcer.last());
     }
 
     @Test
@@ -270,19 +290,6 @@ public class TournamentServiceLifecycleTest extends TournamentServiceTestBase {
         assertTrue(announcer.last().contains("wins after"), announcer.last());
         assertTrue(announcer.last().contains("P103"), announcer.last());
         assertEquals(stored(id).status(), TournamentStatus.FINISHED);
-    }
-
-    @Test
-    public void restartDmsNewMatchIdsInsteadOfPosting() throws SQLException {
-        long id = start(FOUR);
-        int posts = announcer.posts.size();
-        service = newService(7);
-        service.recover();
-        assertEquals(announcer.posts.size(), posts);
-        for (ActiveMatch fresh : service.openMatches(id)) {
-            assertTrue(announcer.dmsTo(fresh.player1()).get(0).contains("`" + fresh.id() + "`"));
-            assertTrue(announcer.dmsTo(fresh.player2()).get(0).contains("`" + fresh.id() + "`"));
-        }
     }
 
     @Test

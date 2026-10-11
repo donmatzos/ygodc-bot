@@ -5,6 +5,7 @@ import net.dv8tion.jda.api.interactions.InteractionHook;
 import net.dv8tion.jda.api.requests.RestAction;
 import org.slf4j.MDC;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.util.ArrayList;
@@ -18,6 +19,8 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.LockSupport;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
@@ -40,14 +43,37 @@ public class DatabaseRepliesTest {
                 : FakeInteractions.failing(RestAction.class, new IllegalStateException("Unknown interaction"));
     }
 
-    @Test
-    public void failedDeferNeverRunsTheCall() {
-        List<String> calls = new ArrayList<>();
-        DatabaseReplies.afterDefer(defer(false, null), Runnable::run, TEXTS, "/points add", () -> {
-            calls.add("ran");
-            return "done";
-        });
-        assertTrue(calls.isEmpty(), "a write must not happen when the user was told the command failed");
+    @DataProvider
+    public Object[][] entryPoints() {
+        Function<Runnable, DatabaseReplies.SqlWork> hookWork = ran -> hook -> ran.run();
+        return new Object[][]{
+                {"afterDefer with a result", (Consumer<Runnable>) ran -> DatabaseReplies.afterDefer(
+                        defer(false, null), Runnable::run, TEXTS, "/points add", () -> {
+                            ran.run();
+                            return "done";
+                        })},
+                {"afterDeferAll with several messages", (Consumer<Runnable>) ran -> DatabaseReplies.afterDeferAll(
+                        defer(false, null), Runnable::run, TEXTS, "/deck save", () -> {
+                            ran.run();
+                            return List.of("saved");
+                        })},
+                {"afterDefer with hook work", (Consumer<Runnable>) ran -> DatabaseReplies.afterDefer(
+                        defer(false, null), Runnable::run, TEXTS, "/leaderboard-admin share", hookWork.apply(ran))},
+                {"ephemeral deferVia", (Consumer<Runnable>) ran -> DatabaseReplies.deferVia(
+                        flag -> defer(false, null), true, Runnable::run, TEXTS, "/leaderboard page",
+                        hookWork.apply(ran))},
+                {"public deferVia", (Consumer<Runnable>) ran -> DatabaseReplies.deferVia(
+                        flag -> defer(false, null), false, Runnable::run, TEXTS, "/leaderboard page",
+                        hookWork.apply(ran))},
+        };
+    }
+
+    @Test(dataProvider = "entryPoints")
+    public void failedDeferNeverRunsTheWork(String entryPoint, Consumer<Runnable> start) {
+        List<String> runs = new ArrayList<>();
+        start.accept(() -> runs.add("ran"));
+        assertTrue(runs.isEmpty(), entryPoint + ": nothing may run when the user was told the command failed");
+        assertTrue(fakes.sent().isEmpty(), entryPoint);
     }
 
     @Test
@@ -88,17 +114,11 @@ public class DatabaseRepliesTest {
     }
 
     @Test
-    public void listCallErrorShowsUnavailableAndFailedDeferRunsNothing() {
+    public void listCallErrorShowsUnavailable() {
         DatabaseReplies.afterDeferAll(defer(true, fakes.hook()), Runnable::run, TEXTS, "/deck get", () -> {
             throw new java.sql.SQLException("down");
         });
-        List<String> runs = new ArrayList<>();
-        DatabaseReplies.afterDeferAll(defer(false, null), Runnable::run, TEXTS, "/deck save", () -> {
-            runs.add("ran");
-            return List.of("saved");
-        });
         assertEquals(fakes.sent(), List.of("edit:" + TEXTS.unavailable()));
-        assertTrue(runs.isEmpty());
     }
 
     @Test
@@ -112,24 +132,6 @@ public class DatabaseRepliesTest {
         }
         assertEquals(flags, List.of(true, false));
         assertEquals(fakes.sent(), List.of("edit:page", "edit:page"));
-    }
-
-    @Test
-    public void deferWithFailedDeferRunsNothingInEitherMode() {
-        List<String> runs = new ArrayList<>();
-        for (boolean ephemeral : new boolean[]{true, false}) {
-            DatabaseReplies.deferVia(flag -> defer(false, null), ephemeral, Runnable::run, TEXTS,
-                    "/leaderboard page", hook -> runs.add("queried"));
-        }
-        assertTrue(runs.isEmpty(), "no query when the user was told the command failed");
-    }
-
-    @Test
-    public void failedDeferNeverRunsHookWork() {
-        List<String> runs = new ArrayList<>();
-        DatabaseReplies.afterDefer(defer(false, null), Runnable::run, TEXTS, "/leaderboard-admin share",
-                hook -> runs.add("posted"));
-        assertTrue(runs.isEmpty(), "nothing may be posted when the user was told the command failed");
     }
 
     @Test

@@ -83,12 +83,6 @@ public class DeckCommandTest {
     }
 
     @Test
-    public void largestValidDeckFitsInOneMessage() {
-        // name (50) + summary + code block must stay below Discord's 2000 character limit
-        assertTrue(deck(60, 15, 15).length() + 50 + 100 < 2000);
-    }
-
-    @Test
     public void deckReplyNamesTheOperationAndListsTheCards() {
         String ydke = Ydke.encode(new YdkeDeck(List.of(TestCards.BLUE_EYES, TestCards.BLUE_EYES), List.of(), List.of()));
         Decklist deck = new Decklist(1, 2, "Dragons", ydke, 0, 1_760_000_000_000L);

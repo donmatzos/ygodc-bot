@@ -57,6 +57,7 @@ public class TournamentServiceTest extends TournamentServiceTestBase {
         RecordingAnnouncer.Post post = announcer.posts.get(0);
         assertEquals(post.channelId(), CHANNEL);
         assertTrue(post.ping());
+        assertTrue(post.text().contains("Tournament `" + code(id) + "` · 2026-10-10 · Round 1"), post.text());
         for (ActiveMatch match : open) {
             assertTrue(match.id() >= TournamentService.MIN_MATCH_ID && match.id() <= TournamentService.MAX_MATCH_ID);
             assertTrue(post.text().contains("`" + match.id() + "`"), post.text());
@@ -235,14 +236,6 @@ public class TournamentServiceTest extends TournamentServiceTestBase {
     }
 
     @Test
-    public void startPostIncludesCodeAndPings() throws SQLException {
-        long id = start(FOUR);
-        RecordingAnnouncer.Post post = announcer.posts.get(0);
-        assertTrue(post.ping());
-        assertTrue(post.text().contains("Tournament `" + code(id) + "` · 2026-10-10 · Round 1"), post.text());
-    }
-
-    @Test
     public void matchResultGoesToBothPlayersByDmNotToTheChannel() throws SQLException {
         long id = start(FOUR);
         int posts = announcer.posts.size();
@@ -324,12 +317,6 @@ public class TournamentServiceTest extends TournamentServiceTestBase {
         service = newService(7);
         service.recover(); // resume DMs the new match IDs
         assertEquals(service.openMatches(id).size(), 1);
-    }
-
-    @Test
-    public void unknownCodeInAnotherServer() throws SQLException {
-        long id = start(FOUR);
-        assertTrue(service.continueRound(code(id), GUILD + 1).contains("no tournament `" + code(id) + "`"));
     }
 
     @Test

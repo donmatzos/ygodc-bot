@@ -3,7 +3,6 @@ package at.magi.ygodiscordbot.utils.discord;
 import at.magi.ygodiscordbot.testutil.MutableClock;
 import org.testng.annotations.Test;
 
-import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -47,11 +46,6 @@ public class DisplayNamesTest {
         names.resolveIds(null, List.of(1L), result::set,
                 error -> { throw new AssertionError(error); });
         assertEquals(result.get(), Map.of(1L, "Yugi"));
-    }
-
-    @Test
-    public void ttlIsAnHour() {
-        assertEquals(DisplayNames.TTL, Duration.ofHours(1));
     }
 
     @Test

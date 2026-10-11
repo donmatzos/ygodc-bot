@@ -15,6 +15,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -126,15 +127,22 @@ public class CardRefresherTest extends TempDirTest {
     @Test
     public void startUsesStoredListWithoutCallingTheApiWhenNotDue() throws Exception {
         store.save(TestCards.catalog("147.22", NOW.minus(Duration.ofDays(2))));
-        CountDownLatch checked = new CountDownLatch(1);
+        AtomicInteger checks = new AtomicInteger();
         try (CardRefresher refresher = refresher(() -> {
-            checked.countDown();
+            checks.incrementAndGet();
             return "147.22";
         })) {
             refresher.start();
             assertEquals(repository.names().name(TestCards.BLUE_EYES).orElseThrow(), "Blue-Eyes White Dragon");
-            assertFalse(checked.await(500, TimeUnit.MILLISECONDS));
+            // start() schedules the first check at this delay: a check before it would be a bug
+            assertEquals(CardRefresher.firstDelay(repository.catalog(), NOW), CardRefresher.CHECK_INTERVAL.minusDays(2));
         }
+        assertEquals(checks.get(), 0);
+    }
+
+    @Test
+    public void firstCheckIsImmediateWithoutAStoredList() {
+        assertEquals(CardRefresher.firstDelay(Optional.empty(), NOW), Duration.ZERO);
     }
 
     @Test

@@ -17,6 +17,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -92,17 +93,27 @@ public class BanlistRefresherTest extends TempDirTest {
     public void startUsesStoredSnapshotWhenUpToDate() throws Exception {
         BanlistSnapshot stored = TestLists.snapshot(Instant.parse("2026-10-05T01:05:00Z")); // 03:05 Vienna
         store.save(stored);
-        CountDownLatch fetched = new CountDownLatch(1);
+        AtomicInteger fetches = new AtomicInteger();
 
         try (BanlistRefresher refresher = refresher(() -> {
-            fetched.countDown();
+            fetches.incrementAndGet();
             return TestLists.tcg(NOW);
         }, () -> TestLists.ocg(NOW), () -> TestLists.genesys(NOW))) {
             refresher.start();
 
             assertEquals(repository.snapshot(), stored);
-            assertFalse(fetched.await(500, TimeUnit.MILLISECONDS));
         }
+        // start() schedules the first run at this delay: a fetch before it would be a bug
+        ZonedDateTime now = ZonedDateTime.ofInstant(NOW, BanlistRefresher.ZONE);
+        assertEquals(BanlistRefresher.firstDelay(stored.oldestFetch(), now), Duration.ofHours(17)); // 10:00 -> 03:00
+        assertEquals(fetches.get(), 0);
+    }
+
+    @Test
+    public void firstRunIsImmediateWhenAListIsMissingOrADailyRunWasMissed() {
+        ZonedDateTime now = ZonedDateTime.ofInstant(NOW, BanlistRefresher.ZONE);
+        assertEquals(BanlistRefresher.firstDelay(Optional.empty(), now), Duration.ZERO);
+        assertEquals(BanlistRefresher.firstDelay(Optional.of(STALE), now), Duration.ZERO);
     }
 
     /** Regression: close() returned while the refresh thread was still writing the snapshot file. */

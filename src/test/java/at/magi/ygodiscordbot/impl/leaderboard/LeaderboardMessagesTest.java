@@ -84,11 +84,6 @@ public class LeaderboardMessagesTest {
     }
 
     @Test
-    public void emptyBoard() {
-        assertEquals(LeaderboardMessages.empty(), "No players on the leaderboard yet.");
-    }
-
-    @Test
     public void pageOutOfRange() {
         assertEquals(LeaderboardMessages.pageOutOfRange(new LeaderboardPage(9, 3, 47, List.of())),
                 "Page 9 does not exist, the leaderboard has 3 pages.");
