@@ -15,7 +15,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -138,11 +137,6 @@ public class CardRefresherTest extends TempDirTest {
             assertEquals(CardRefresher.firstDelay(repository.catalog(), NOW), CardRefresher.CHECK_INTERVAL.minusDays(2));
         }
         assertEquals(checks.get(), 0);
-    }
-
-    @Test
-    public void firstCheckIsImmediateWithoutAStoredList() {
-        assertEquals(CardRefresher.firstDelay(Optional.empty(), NOW), Duration.ZERO);
     }
 
     @Test

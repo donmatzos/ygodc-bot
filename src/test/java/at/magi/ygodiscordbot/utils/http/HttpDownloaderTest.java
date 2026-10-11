@@ -134,7 +134,8 @@ public class HttpDownloaderTest {
     public void stalledBodyFailsAtDeadline() {
         HttpDownloader http = new HttpDownloader(Duration.ofMillis(500), 1000);
         long start = System.nanoTime();
-        assertThrows(IOException.class, () -> http.get(URI.create(base + "/stall")));
+        IOException e = expectThrows(IOException.class, () -> http.get(URI.create(base + "/stall")));
+        assertTrue(e.getMessage().contains("did not finish within 500 ms"), e.getMessage());
         assertTrue(Duration.ofNanos(System.nanoTime() - start).toMillis() < 3000);
     }
 

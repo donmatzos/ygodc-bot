@@ -110,10 +110,10 @@ public class BanlistRefresherTest extends TempDirTest {
     }
 
     @Test
-    public void firstRunIsImmediateWhenAListIsMissingOrADailyRunWasMissed() {
-        ZonedDateTime now = ZonedDateTime.ofInstant(NOW, BanlistRefresher.ZONE);
-        assertEquals(BanlistRefresher.firstDelay(Optional.empty(), now), Duration.ZERO);
-        assertEquals(BanlistRefresher.firstDelay(Optional.of(STALE), now), Duration.ZERO);
+    public void firstRunIsImmediateWhenAListIsMissing() {
+        // A missed daily run is covered by startRefreshesWhenStoredSnapshotMissedADailyRun
+        assertEquals(BanlistRefresher.firstDelay(Optional.empty(), ZonedDateTime.ofInstant(NOW, BanlistRefresher.ZONE)),
+                Duration.ZERO);
     }
 
     /** Regression: close() returned while the refresh thread was still writing the snapshot file. */
@@ -325,6 +325,9 @@ public class BanlistRefresherTest extends TempDirTest {
                 // fall back 2026-10-25 (03:00 CEST -> 02:00 CET at 01:00Z): that day's 03:00 CET is 02:00Z
                 {"DST end: complete the day before", true, "2026-10-24T08:00:00Z", Duration.ofHours(18)},
                 {"DST end: retry shortened, 02:30 CET", false, "2026-10-25T01:30:00Z", Duration.ofMinutes(30)},
+                // 02:30 CEST is the first pass of the doubled hour: 03:00 CET is 90 real minutes away, so the hourly
+                // retry is not shortened
+                {"DST end: first pass of 02:30, hourly retry", false, "2026-10-25T00:30:00Z", Duration.ofHours(1)},
                 {"DST end: complete at 03:00 CET", true, "2026-10-25T02:00:00Z", Duration.ofHours(24)},
         };
     }

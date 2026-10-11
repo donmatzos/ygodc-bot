@@ -63,6 +63,18 @@ public class DcMessageUtilsTest {
         assertTrue(all.lines().anyMatch(line -> line.equals("a")) && all.lines().anyMatch(line -> line.equals("b")));
     }
 
+    @Test(timeOut = 5000)
+    public void rowUnderAnAbsurdHeadingIsSkippedInsteadOfLooping() {
+        // The first heading alone exceeds a message, so "a" can never be added; it is skipped and "b" goes under the
+        // short continued heading
+        List<String> messages = DcMessageUtils.packTables("## Intro", List.of(
+                new Section("H".repeat(2100), "continued", "COLS", List.of("a", "b"))));
+        String all = String.join("\n", messages);
+        assertTrue(messages.get(0).startsWith("## Intro"), messages.get(0));
+        assertFalse(all.lines().anyMatch(line -> line.equals("a")), "row under the absurd heading was kept");
+        assertTrue(messages.get(messages.size() - 1).equals("continued\n```\nCOLS\nb\n```"), all);
+    }
+
     @Test
     public void boldEscapesMarkdownInsideTheName() {
         assertEquals(DcMessageUtils.bold("Dragons"), "**Dragons**");
