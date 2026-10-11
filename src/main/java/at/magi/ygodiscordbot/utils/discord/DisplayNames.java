@@ -17,9 +17,9 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 /**
- * Display names for leaderboard rows. The bot caches no users (light JDA), so names are fetched from Discord;
- * a small LRU cache keeps repeated requests for the same pages from costing up to 20 lookups each. A deleted or
- * unknown user is left out instead of failing the whole page.
+ * Display names for leaderboard rows and tournament posts. The bot caches no users (light JDA), so names are
+ * fetched from Discord; a small LRU cache keeps repeated requests for the same pages from costing up to 20 lookups
+ * each. A deleted or unknown user is left out instead of failing the whole page.
  */
 public final class DisplayNames {
 
@@ -44,7 +44,8 @@ public final class DisplayNames {
     }
 
     /** Looks up the names of all rows, from the cache where possible, and passes them to {@code onDone}. */
-    public void resolve(JDA jda, List<RankedPlayer> rows, Consumer<Map<Long, String>> onDone, Consumer<Throwable> onError) {
+    public void resolve(JDA jda, List<RankedPlayer> rows, Consumer<Map<Long, String>> onDone,
+                        Consumer<Throwable> onError) {
         resolveIds(jda, rows.stream().map(RankedPlayer::userId).toList(), onDone, onError);
     }
 
