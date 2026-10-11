@@ -27,7 +27,7 @@ public final class LazySchema {
     private final SchemaSetup setup;
     private volatile boolean ready;
 
-    /** @param what what the schema is, for the log: "{what} is ready" */
+    /** @param what what the schema is, for the log: "{what} ready" */
     public LazySchema(DataSource dataSource, String what, SchemaSetup setup) {
         this.dataSource = dataSource;
         this.what = what;
@@ -54,6 +54,6 @@ public final class LazySchema {
             setup.create(connection);
         }
         ready = true;
-        log.info("{} is ready", what);
+        log.info("{} ready", what);
     }
 }

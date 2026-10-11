@@ -1,6 +1,5 @@
 package at.magi.ygodiscordbot;
 
-import at.magi.ygodiscordbot.utils.concurrent.DaemonThreads;
 import at.magi.ygodiscordbot.impl.banlist.BanlistCommand;
 import at.magi.ygodiscordbot.impl.banlist.BanlistRefresher;
 import at.magi.ygodiscordbot.impl.banlist.BanlistRepository;
@@ -31,6 +30,7 @@ import at.magi.ygodiscordbot.impl.tournament.TournamentCommand;
 import at.magi.ygodiscordbot.impl.tournament.TournamentRepository;
 import at.magi.ygodiscordbot.impl.tournament.TournamentService;
 import at.magi.ygodiscordbot.impl.tournament.TournamentTimer;
+import at.magi.ygodiscordbot.utils.concurrent.DaemonThreads;
 import at.magi.ygodiscordbot.utils.discord.DisplayNames;
 import at.magi.ygodiscordbot.utils.http.HttpDownloader;
 import com.zaxxer.hikari.HikariDataSource;
@@ -227,7 +227,7 @@ public final class YgoDiscordBot {
     /**
      * Stops accepting database requests and lets the running ones finish (up to 4 s). The shutdown steps are
      * budgeted at 4 s here + 3 s for JDA to send its queued replies ({@link #shutdownJda}) + 5 s per refresher
-     * (their CLOSE_TIMEOUT) = about 17 s, below the supervisor's 20 s grace period before it kills the bot.
+     * ({@code RefreshLoop.CLOSE_TIMEOUT}) = about 17 s, below the supervisor's 20 s grace period before it kills the bot.
      */
     private static void drainDatabase(ExecutorService executor) {
         executor.shutdown();

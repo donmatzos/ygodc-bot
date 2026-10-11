@@ -1,6 +1,5 @@
 package at.magi.ygodiscordbot.utils.discord;
 
-import at.magi.ygodiscordbot.entity.leaderboard.RankedPlayer;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.requests.RestAction;
@@ -41,12 +40,6 @@ public final class DisplayNames {
 
     public DisplayNames(Clock clock) {
         this.clock = clock;
-    }
-
-    /** Looks up the names of all rows, from the cache where possible, and passes them to {@code onDone}. */
-    public void resolve(JDA jda, List<RankedPlayer> rows, Consumer<Map<Long, String>> onDone,
-                        Consumer<Throwable> onError) {
-        resolveIds(jda, rows.stream().map(RankedPlayer::userId).toList(), onDone, onError);
     }
 
     /** The name of {@code id} in {@code names}, or a placeholder naming the ID when it is missing. */

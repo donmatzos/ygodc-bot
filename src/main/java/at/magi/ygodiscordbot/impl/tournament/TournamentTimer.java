@@ -29,7 +29,8 @@ public final class TournamentTimer implements AutoCloseable {
 
     private final Check check;
     private final Executor dbExecutor;
-    private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(DaemonThreads.named("tournament-timer"));
+    private final ScheduledExecutorService scheduler =
+            Executors.newSingleThreadScheduledExecutor(DaemonThreads.named("tournament-timer"));
 
     public TournamentTimer(Check check, Executor dbExecutor) {
         this.check = check;

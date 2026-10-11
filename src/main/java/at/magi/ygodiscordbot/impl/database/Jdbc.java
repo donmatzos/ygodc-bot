@@ -14,7 +14,7 @@ public final class Jdbc {
     }
 
     /**
-     * Runs an INSERT/UPDATE/DELETE with the parameters bound in order; a {@code null} is bound as a SQL NULL.
+     * Runs an INSERT/UPDATE/DELETE with the parameters bound in order; a {@code null} is bound as a SQL NULL typed BIGINT.
      * Returns the row count the driver reports.
      */
     public static int update(Connection connection, String sql, Object... parameters) throws SQLException {

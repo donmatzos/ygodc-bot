@@ -393,7 +393,8 @@ src/main/java/at/magi/ygodiscordbot/
     leaderboard/            RankedPlayer, LeaderboardPage, Points (0 … 999,999), PointChange
     tournament/             MatchRecord, Standings (incl. tie-breakers), SwissPairer (backtracking), WinnerRule, TournamentPoints
   impl/                     the bot, one package per feature
-    command/                SlashCommand, CommandRegistry, PingCommand, DatabaseReplies (DB work after the defer)
+    command/                SlashCommand, CommandRegistry, PingCommand, DatabaseReplies (DB work after the defer),
+                            CommandChecks (Manage Server, refusals, busy check)
     banlist/                BanlistCommand, ListMessages, BanlistRepository, BanlistRefresher, SnapshotFileStore,
                             StaticBanlists, YgoProDeckSource, GenesysSource
     card/                   CardRepository, CardRefresher, CardFileStore, CardSource
@@ -401,15 +402,18 @@ src/main/java/at/magi/ygodiscordbot/
     leaderboard/            LeaderboardCommand, LeaderboardAdminCommand, PointsCommand, LeaderboardMessages,
                             PlayerRepository (JDBC, RANK() per query)
     tournament/             TournamentCommand, MatchCommand, TournamentService (all state, db thread only),
-                            TournamentRepository (JDBC), TournamentMessages, JdaTournamentAnnouncer, TournamentTimer
+                            TournamentRepository (JDBC), TournamentSchema, MatchRegistry, TournamentMessages,
+                            JdaTournamentAnnouncer, TournamentTimer
     help/                   HelpCommand, HelpMessages
-    database/               DatabasePool (HikariCP, shared by deck and leaderboard)
+    database/               DatabasePool (HikariCP, shared by deck, leaderboard and tournament), Transactions, Jdbc,
+                            LazySchema (create tables on first use)
     config/                 BotConfig, DatabaseConfig (bot.properties / environment variables)
     runtime/                Supervisor (child JVM, memory flags, restarts), RestartPolicy
   utils/                    feature-agnostic helpers; never depend on entity or impl
     discord/                DcMessageUtils (2000-character split), MessageSender (ordered sends, DMs),
                             DisplayNames (cached user names), ChannelChecks (can-post check)
-    http/                   HttpDownloader, ListFetcher
+    concurrent/             RefreshLoop (single-thread refresh scheduler), DaemonThreads
+    http/                   HttpDownloader, ListFetcher, Fetching
     io/                     AtomicFiles
     json/                   JsonUtils (shared Jackson mapper)
     text/                   LenientDecoder

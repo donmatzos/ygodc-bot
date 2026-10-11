@@ -235,6 +235,8 @@ public final class TournamentService {
         List<ActiveMatch> created = createMatches(tournament, next);
         log.info("Tournament {}: round {} started", tournament.id, next);
         Standings standings = tournament.standings();
+        // Equals the play-off decided when this round was paired: the Round is not kept across a restart or a
+        // pending round, and standings do not change between pairing and continue.
         announcer.post(tournament.channelId, TournamentMessages.roundStart(code, next, created,
                 tournament.byes(next), standings, WinnerRule.playOff(standings, next - 1)), true);
         return TournamentMessages.roundStarted(code, next);

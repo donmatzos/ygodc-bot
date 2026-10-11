@@ -19,7 +19,7 @@ public final class RefreshLoop implements AutoCloseable {
     private static final Logger log = LoggerFactory.getLogger(RefreshLoop.class);
 
     /** Kept short so all shutdown steps together stay below the supervisor's 20 s grace period (see YgoDiscordBot). */
-    public static final Duration CLOSE_TIMEOUT = Duration.ofSeconds(5);
+    static final Duration CLOSE_TIMEOUT = Duration.ofSeconds(5);
 
     private final String stopWarning;
     private final Duration closeTimeout;
@@ -30,7 +30,7 @@ public final class RefreshLoop implements AutoCloseable {
         this(threadName, stopWarning, CLOSE_TIMEOUT);
     }
 
-    public RefreshLoop(String threadName, String stopWarning, Duration closeTimeout) {
+    RefreshLoop(String threadName, String stopWarning, Duration closeTimeout) {
         this.stopWarning = stopWarning;
         this.closeTimeout = closeTimeout;
         this.scheduler = Executors.newSingleThreadScheduledExecutor(DaemonThreads.named(threadName));

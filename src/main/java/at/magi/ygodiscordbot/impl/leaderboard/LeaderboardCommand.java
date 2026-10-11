@@ -3,6 +3,7 @@ package at.magi.ygodiscordbot.impl.leaderboard;
 import at.magi.ygodiscordbot.entity.leaderboard.LeaderboardPage;
 import at.magi.ygodiscordbot.entity.leaderboard.PointChange;
 import at.magi.ygodiscordbot.entity.leaderboard.Points;
+import at.magi.ygodiscordbot.entity.leaderboard.RankedPlayer;
 import at.magi.ygodiscordbot.impl.command.CommandChecks;
 import at.magi.ygodiscordbot.impl.command.DatabaseReplies;
 import at.magi.ygodiscordbot.impl.command.SlashCommand;
@@ -115,7 +116,8 @@ public final class LeaderboardCommand implements SlashCommand {
             event.getHook().editOriginal(noPage).queue();
             return;
         }
-        names.resolve(event.getJDA(), page.rows(), found -> send.accept(LeaderboardMessages.page(TITLE, page, found)),
+        List<Long> ids = page.rows().stream().map(RankedPlayer::userId).toList();
+        names.resolveIds(event.getJDA(), ids, found -> send.accept(LeaderboardMessages.page(TITLE, page, found)),
                 failure -> {
                     log.warn("Could not look up leaderboard names", failure);
                     event.getHook().editOriginal(UNAVAILABLE).queue();

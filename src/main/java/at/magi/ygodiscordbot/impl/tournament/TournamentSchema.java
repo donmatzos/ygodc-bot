@@ -81,7 +81,7 @@ final class TournamentSchema {
     }
 
     /** Tables created before tournament codes existed: adds code + played_on and fills them for existing rows. */
-    static void migrate(Connection connection) throws SQLException {
+    private static void migrate(Connection connection) throws SQLException {
         try (Statement statement = connection.createStatement()) {
             if (!hasColumn(connection, "code")) {
                 statement.execute("ALTER TABLE tournament ADD COLUMN code VARCHAR(18) NULL, ADD COLUMN played_on DATE NULL");

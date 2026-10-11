@@ -1,6 +1,5 @@
 package at.magi.ygodiscordbot.utils.discord;
 
-import at.magi.ygodiscordbot.entity.leaderboard.RankedPlayer;
 import org.testng.annotations.Test;
 
 import java.time.Clock;
@@ -64,7 +63,7 @@ public class DisplayNamesTest {
         names.remember(1, "Yugi");
         AtomicReference<Map<Long, String>> result = new AtomicReference<>();
         // A null JDA would throw if a lookup were attempted
-        names.resolve(null, List.of(new RankedPlayer(1, 1, 5)), result::set,
+        names.resolveIds(null, List.of(1L), result::set,
                 error -> { throw new AssertionError(error); });
         assertEquals(result.get(), Map.of(1L, "Yugi"));
     }

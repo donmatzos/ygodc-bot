@@ -14,7 +14,7 @@ import java.util.Optional;
 
 /**
  * Writes files via a temporary file that is then renamed, so a crash mid-write never leaves a broken file.
- * A process killed mid-write can leave the temporary file behind; {@link #deleteStaleTempFiles} removes those.
+ * A process killed mid-write can leave the temporary file behind; {@link #readIfPresent} removes those.
  */
 public final class AtomicFiles {
 
@@ -50,8 +50,8 @@ public final class AtomicFiles {
         }
     }
 
-    /** Call before the first {@link #write} for that prefix, i.e. at startup. */
-    public static void deleteStaleTempFiles(Path file, String tempPrefix) {
+    /** Removes temp files a killed process left behind; done by {@link #readIfPresent} at startup. */
+    private static void deleteStaleTempFiles(Path file, String tempPrefix) {
         Path directory = file.toAbsolutePath().getParent();
         if (!Files.isDirectory(directory)) {
             return;
