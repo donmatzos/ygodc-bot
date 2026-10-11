@@ -3,6 +3,7 @@ package at.magi.ygodiscordbot.impl.tournament;
 import at.magi.ygodiscordbot.entity.tournament.MatchRecord;
 import at.magi.ygodiscordbot.entity.tournament.NewTournament;
 import at.magi.ygodiscordbot.entity.tournament.Pairing;
+import at.magi.ygodiscordbot.entity.tournament.Round;
 import at.magi.ygodiscordbot.entity.tournament.Standings;
 import at.magi.ygodiscordbot.entity.tournament.SwissPairer;
 import at.magi.ygodiscordbot.entity.tournament.TournamentCode;
@@ -127,7 +128,7 @@ public final class TournamentService {
             return TournamentMessages.alreadyPlaying(busy);
         }
         Instant now = clock.instant();
-        List<Pairing> round1 = SwissPairer.pair(Standings.of(players, Set.of(), List.of()), 1, random);
+        List<Pairing> round1 = SwissPairer.pair(Standings.of(players, Set.of(), List.of()), 1, random).pairings();
         LocalDate day = LocalDate.ofInstant(now, TournamentCode.ZONE);
         String code = null;
         long id = 0;
@@ -479,12 +480,12 @@ public final class TournamentService {
             return new Announcement(finish(tournament, winner.get(), standings), true);
         }
         int next = tournament.currentRound() + 1;
-        List<Pairing> pairings = SwissPairer.pair(standings, next, random);
-        store.savePairings(tournament.id, next, pairings);
-        tournament.addPairings(next, pairings);
+        Round round = SwissPairer.pair(standings, next, random);
+        store.savePairings(tournament.id, next, round.pairings());
+        tournament.addPairings(next, round.pairings());
         log.info("Tournament {}: round {} paired", tournament.id, next);
         return new Announcement(TournamentMessages.nextPairings(tournament.code, next, tournament.pending(),
-                WinnerRule.playOff(standings, tournament.currentRound())), false);
+                round.playOff()), false);
     }
 
     /** Saves the winner and awards the points; returns the winner post (not posted yet). */
