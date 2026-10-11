@@ -120,7 +120,7 @@ public final class YgoDiscordBot {
             // own shutdown can still run after the drain; the pool has to outlive both
             ON_SHUTDOWN.push(database::close);
             DecklistRepository decks = new DecklistRepository(database, clock);
-            databaseExecutor.execute(() -> createSchema(decks, config.database()));
+            databaseExecutor.execute(() -> prepareSchema("decklist table", decks::ensureSchema, config.database()));
 
             // Card names are only needed for /deck, so they are only downloaded when it is enabled
             CardRepository cards = new CardRepository();
@@ -133,14 +133,14 @@ public final class YgoDiscordBot {
             commands.register(new DeckCommand(decks, cards, databaseExecutor));
 
             PlayerRepository players = new PlayerRepository(database);
-            databaseExecutor.execute(() -> createPlayersSchema(players, config.database()));
+            databaseExecutor.execute(() -> prepareSchema("players table", players::ensureSchema, config.database()));
             PlayerNames playerNames = new PlayerNames(clock);
             commands.register(new LeaderboardCommand(players, playerNames, databaseExecutor));
             commands.register(new LeaderboardAdminCommand(players, playerNames, databaseExecutor));
             commands.register(new PointsCommand(players, databaseExecutor));
 
             TournamentRepository tournamentStore = new TournamentRepository(database);
-            databaseExecutor.execute(() -> createTournamentSchema(tournamentStore, config.database()));
+            databaseExecutor.execute(() -> prepareSchema("tournament tables", tournamentStore::ensureSchema, config.database()));
             tournamentAnnouncer = new JdaTournamentAnnouncer(playerNames);
             tournaments = new TournamentService(tournamentStore,
                     (player, points) -> players.changePoints(player, points), tournamentAnnouncer, clock, new Random());
@@ -252,31 +252,18 @@ public final class YgoDiscordBot {
                 DaemonThreads.named("db"));
     }
 
-    private static void createSchema(DecklistRepository decks, DatabaseConfig database) {
+    /** Creates the tables at start. A down database is not fatal: each repository retries on first use. */
+    private static void prepareSchema(String what, LazySchemaCall schema, DatabaseConfig database) {
         try {
-            decks.ensureSchema();
+            schema.ensure();
         } catch (SQLException | RuntimeException e) {
-            // Retried on the first /deck call
-            log.error("Could not reach the decklist database {}: {}", database.safeUrl(), database.describe(e));
+            log.error("Could not create the {} in {}: {}", what, database.safeUrl(), database.describe(e));
         }
     }
 
-    private static void createPlayersSchema(PlayerRepository players, DatabaseConfig database) {
-        try {
-            players.ensureSchema();
-        } catch (SQLException | RuntimeException e) {
-            // Retried on the first /leaderboard call
-            log.error("Could not create the players table in {}: {}", database.safeUrl(), database.describe(e));
-        }
-    }
-
-    private static void createTournamentSchema(TournamentRepository tournaments, DatabaseConfig database) {
-        try {
-            tournaments.ensureSchema();
-        } catch (SQLException | RuntimeException e) {
-            // Retried on the first /tournament or /match call
-            log.error("Could not create the tournament tables in {}: {}", database.safeUrl(), database.describe(e));
-        }
+    @FunctionalInterface
+    private interface LazySchemaCall {
+        void ensure() throws SQLException;
     }
 
     private static void recoverTournaments(TournamentService tournaments) {

@@ -5,6 +5,7 @@ import at.magi.ygodiscordbot.entity.leaderboard.PointChange;
 import at.magi.ygodiscordbot.entity.leaderboard.Points;
 import at.magi.ygodiscordbot.entity.leaderboard.RankedPlayer;
 import at.magi.ygodiscordbot.impl.database.Jdbc;
+import at.magi.ygodiscordbot.impl.database.LazySchema;
 import at.magi.ygodiscordbot.impl.database.Transactions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,23 +55,16 @@ public class PlayerRepository {
             """;
 
     private final DataSource dataSource;
-    private volatile boolean schemaReady;
+    private final LazySchema schema;
 
     public PlayerRepository(DataSource dataSource) {
         this.dataSource = dataSource;
+        this.schema = new LazySchema(dataSource, "Players table", LazySchema.statements(SCHEMA));
     }
 
     /** Creates the table if it does not exist yet. Retried on the next call if the database is down. */
-    public synchronized void ensureSchema() throws SQLException {
-        if (schemaReady) {
-            return;
-        }
-        try (Connection connection = dataSource.getConnection();
-             Statement statement = connection.createStatement()) {
-            statement.execute(SCHEMA);
-        }
-        schemaReady = true;
-        log.info("Players table is ready");
+    public void ensureSchema() throws SQLException {
+        schema.ensure();
     }
 
     /** One 1-based page, highest points first. A page past the end has no rows. */

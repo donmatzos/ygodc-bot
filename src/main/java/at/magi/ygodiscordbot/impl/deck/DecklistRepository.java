@@ -2,15 +2,13 @@ package at.magi.ygodiscordbot.impl.deck;
 
 import at.magi.ygodiscordbot.entity.deck.Decklist;
 import at.magi.ygodiscordbot.impl.database.Jdbc;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import at.magi.ygodiscordbot.impl.database.LazySchema;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
@@ -22,8 +20,6 @@ import java.util.Optional;
  * Name lookups ignore case (database collation).
  */
 public class DecklistRepository {
-
-    private static final Logger log = LoggerFactory.getLogger(DecklistRepository.class);
 
     /** Keeps the free database small and stops a single user from filling it. */
     public static final int MAX_DECKS_PER_USER = 50;
@@ -53,24 +49,17 @@ public class DecklistRepository {
 
     private final DataSource dataSource;
     private final Clock clock;
-    private volatile boolean schemaReady;
+    private final LazySchema schema;
 
     public DecklistRepository(DataSource dataSource, Clock clock) {
         this.dataSource = dataSource;
+        this.schema = new LazySchema(dataSource, "Decklist table", LazySchema.statements(SCHEMA));
         this.clock = clock;
     }
 
     /** Creates the table if it does not exist yet. Retried on the next call if the database is down. */
-    public synchronized void ensureSchema() throws SQLException {
-        if (schemaReady) {
-            return;
-        }
-        try (Connection connection = dataSource.getConnection();
-             Statement statement = connection.createStatement()) {
-            statement.execute(SCHEMA);
-        }
-        schemaReady = true;
-        log.info("Decklist table is ready");
+    public void ensureSchema() throws SQLException {
+        schema.ensure();
     }
 
     public SaveResult create(long userId, String name, String ydke) throws SQLException {
