@@ -104,13 +104,8 @@ public final class LeaderboardCommand implements SlashCommand {
         }
         names.resolve(event.getJDA(), page.rows(), found -> {
             List<String> messages = LeaderboardMessages.page(TITLE, page, found);
-            if (event.isFromGuild()) {
-                MessageSender.sendToDirectMessages(event, messages, "the leaderboard", "`/leaderboard page`",
-                        () -> log.info("Sent leaderboard page {} to {} via DM", page.page(), MessageSender.who(event)));
-            } else {
-                MessageSender.replyAll(event.getHook(), messages, false).queue(null,
-                        failure -> log.warn("Could not send leaderboard to {}", MessageSender.who(event), failure));
-            }
+            MessageSender.deliver(event, messages, "the leaderboard", "`/leaderboard page`",
+                    () -> log.info("Sent leaderboard page {} to {}", page.page(), MessageSender.who(event)));
         }, failure -> {
             log.warn("Could not look up leaderboard names", failure);
             event.getHook().editOriginal(UNAVAILABLE).queue();

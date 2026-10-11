@@ -60,24 +60,43 @@ public final class MessageSender {
     }
 
     /**
-     * Sends {@code messages} to the user's DMs, so server channels stay clean, and replaces the (already deferred,
-     * ephemeral) reply with a link to the DM, or with the reason it failed.
+     * Delivers {@code messages} to the user. Used in a server, they go to the user's DMs, so server channels stay
+     * clean, and the (already deferred, ephemeral) reply becomes a link to the DM, or the reason it failed. Used in
+     * the bot DM, they are posted right there: as the replacement of the deferred reply, or as the direct reply if
+     * the command was not deferred (saves a request).
      *
      * @param what      e.g. "the TCG list", used in the reply and in logs
      * @param retryHint command to use inside the bot DM instead, e.g. "`/banlist`"
+     * @param onSent    runs once everything was sent
      */
-    public static void sendToDirectMessages(SlashCommandInteractionEvent event, List<String> messages, String what,
-                                            String retryHint, Runnable onSent) {
+    public static void deliver(SlashCommandInteractionEvent event, List<String> messages, String what,
+                               String retryHint, Runnable onSent) {
+        if (event.isFromGuild()) {
+            sendToDirectMessages(event, messages, what, retryHint, onSent);
+            return;
+        }
+        RestAction<?> sending = event.isAcknowledged()
+                ? replyAll(event.getHook(), messages, false)
+                : followUps(event.reply(messages.get(0)), event.getHook(), messages, false);
+        sending.queue(last -> onSent.run(),
+                error -> log.warn("Could not send {} to {} in their DM with the bot", what, who(event), error));
+    }
+
+    private static void sendToDirectMessages(SlashCommandInteractionEvent event, List<String> messages, String what,
+                                             String retryHint, Runnable onSent) {
         event.getUser().openPrivateChannel()
                 .flatMap(channel -> sendAll(channel, messages).map(last -> channel))
                 .queue(channel -> {
                             onSent.run();
                             event.getHook()
-                                    .editOriginal("📬 Sent " + what + " to your DMs: "
-                                            + "https://discord.com/channels/@me/" + channel.getId())
+                                    .editOriginal(sentReply(channel.getId(), what))
                                     .queue();
                         },
                         error -> event.getHook().editOriginal(dmFailure(event, what, error, retryHint)).queue());
+    }
+
+    static String sentReply(String channelId, String what) {
+        return "📬 Sent " + what + " to your DMs: https://discord.com/channels/@me/" + channelId;
     }
 
     private static String dmFailure(SlashCommandInteractionEvent event, String what, Throwable error, String retryHint) {
@@ -97,7 +116,8 @@ public final class MessageSender {
         return "Something went wrong while sending " + what + ". Please try again later.";
     }
 
-    private static boolean isDmClosed(Throwable error) {
+    /** Whether sending failed because the user does not accept DMs from the bot. */
+    public static boolean isDmClosed(Throwable error) {
         return error instanceof ErrorResponseException e && e.getErrorResponse() == ErrorResponse.CANNOT_SEND_TO_USER;
     }
 

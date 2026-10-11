@@ -6,8 +6,6 @@ import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
-import net.dv8tion.jda.api.exceptions.ErrorResponseException;
-import net.dv8tion.jda.api.requests.ErrorResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -80,8 +78,7 @@ public final class JdaTournamentAnnouncer implements TournamentAnnouncer {
                 .flatMap(User::openPrivateChannel)
                 .flatMap(channel -> MessageSender.sendAll(channel, messages, NO_PINGS))
                 .queue(null, failure -> {
-                    if (failure instanceof ErrorResponseException e
-                            && e.getErrorResponse() == ErrorResponse.CANNOT_SEND_TO_USER) {
+                    if (MessageSender.isDmClosed(failure)) {
                         log.info("Could not DM tournament player {}: they do not accept DMs", userId);
                     } else {
                         log.warn("Could not DM tournament player {}", userId, failure);
