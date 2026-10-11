@@ -1,5 +1,6 @@
 package at.magi.ygodiscordbot;
 
+import at.magi.ygodiscordbot.utils.concurrent.DaemonThreads;
 import at.magi.ygodiscordbot.impl.banlist.BanlistCommand;
 import at.magi.ygodiscordbot.impl.banlist.BanlistRefresher;
 import at.magi.ygodiscordbot.impl.banlist.BanlistRepository;
@@ -248,11 +249,7 @@ public final class YgoDiscordBot {
     /** One thread: queries are tiny, and it keeps at most one connection busy. */
     private static ExecutorService databaseExecutor() {
         return new ThreadPoolExecutor(1, 1, 0, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<>(DATABASE_QUEUE_SIZE),
-                runnable -> {
-                    Thread thread = new Thread(runnable, "db");
-                    thread.setDaemon(true);
-                    return thread;
-                });
+                DaemonThreads.named("db"));
     }
 
     private static void createSchema(DecklistRepository decks, DatabaseConfig database) {

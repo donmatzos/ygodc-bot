@@ -1,5 +1,6 @@
 package at.magi.ygodiscordbot.impl.tournament;
 
+import at.magi.ygodiscordbot.utils.concurrent.DaemonThreads;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,11 +29,7 @@ public final class TournamentTimer implements AutoCloseable {
 
     private final Check check;
     private final Executor dbExecutor;
-    private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(runnable -> {
-        Thread thread = new Thread(runnable, "tournament-timer");
-        thread.setDaemon(true);
-        return thread;
-    });
+    private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(DaemonThreads.named("tournament-timer"));
 
     public TournamentTimer(Check check, Executor dbExecutor) {
         this.check = check;

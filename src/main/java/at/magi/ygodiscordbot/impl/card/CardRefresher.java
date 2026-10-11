@@ -2,6 +2,8 @@ package at.magi.ygodiscordbot.impl.card;
 
 import at.magi.ygodiscordbot.entity.card.CardCatalog;
 import at.magi.ygodiscordbot.entity.card.CardNames;
+import at.magi.ygodiscordbot.utils.concurrent.RefreshLoop;
+import at.magi.ygodiscordbot.utils.http.Fetching;
 import at.magi.ygodiscordbot.utils.http.ListFetcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,9 +13,6 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Keeps the card names current while calling YGOProDeck as rarely as possible.
@@ -32,19 +31,13 @@ public final class CardRefresher implements AutoCloseable {
     static final Duration CHECK_INTERVAL = Duration.ofDays(CHECK_INTERVAL_DAYS);
     static final Duration RETRY_DELAY = Duration.ofHours(1);
     static final int MAX_RETRIES = 3;
-    /** Kept short so all shutdown steps together stay below the supervisor's 20 s grace period (see YgoDiscordBot). */
-    static final Duration CLOSE_TIMEOUT = Duration.ofSeconds(5);
 
     private final CardRepository repository;
     private final CardFileStore store;
     private final ListFetcher<String> versionFetcher;
     private final ListFetcher<CardNames> cardsFetcher;
     private final Clock clock;
-    private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(runnable -> {
-        Thread thread = new Thread(runnable, "card-refresh");
-        thread.setDaemon(true);
-        return thread;
-    });
+    private final RefreshLoop loop = new RefreshLoop("card-refresh", "Card list check");
     /** Consecutive failed checks; only used on the scheduler thread. */
     private int failures;
 
@@ -74,7 +67,7 @@ public final class CardRefresher implements AutoCloseable {
     /** Checks the version and downloads the list if it changed. Returns whether the check succeeded. */
     public synchronized boolean refresh() {
         Optional<CardCatalog> current = repository.catalog();
-        String version = fetch("card database version", versionFetcher);
+        String version = Fetching.orNull(log, "card database version", versionFetcher);
         if (version == null) {
             return false;
         }
@@ -84,7 +77,7 @@ public final class CardRefresher implements AutoCloseable {
             updated = current.get().checkedAgain(now);
             log.info("Card list is up to date (version {})", version);
         } else {
-            CardNames names = fetch("card list", cardsFetcher);
+            CardNames names = Fetching.orNull(log, "card list", cardsFetcher);
             if (names == null) {
                 return false;
             }
@@ -129,25 +122,7 @@ public final class CardRefresher implements AutoCloseable {
     }
 
     private void schedule(Duration delay) {
-        if (!scheduler.isShutdown()) {
-            scheduler.schedule(this::runAndReschedule, delay.toMillis(), TimeUnit.MILLISECONDS);
-        }
-    }
-
-    private <T> T fetch(String what, ListFetcher<T> fetcher) {
-        if (Thread.currentThread().isInterrupted()) {
-            // Shutting down: do not start new requests
-            return null;
-        }
-        try {
-            return fetcher.fetch();
-        } catch (IOException | RuntimeException e) {
-            log.warn("Could not fetch {}, keeping the current card names", what, e);
-            return null;
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            return null;
-        }
+        loop.schedule(delay, this::runAndReschedule);
     }
 
     /**
@@ -156,13 +131,6 @@ public final class CardRefresher implements AutoCloseable {
      */
     @Override
     public void close() {
-        scheduler.shutdownNow();
-        try {
-            if (!scheduler.awaitTermination(CLOSE_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS)) {
-                log.warn("Card list check did not stop within {} s", CLOSE_TIMEOUT.toSeconds());
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
+        loop.close();
     }
 }

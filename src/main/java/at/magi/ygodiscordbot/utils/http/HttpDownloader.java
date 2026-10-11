@@ -1,5 +1,7 @@
 package at.magi.ygodiscordbot.utils.http;
 
+import at.magi.ygodiscordbot.utils.concurrent.DaemonThreads;
+
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -30,11 +32,7 @@ public final class HttpDownloader {
     private static final long GET_LIMIT = 10L * 1024 * 1024;
 
     /** Closes response bodies whose deadline passed; daemon so it never keeps the JVM alive. */
-    private static final ScheduledExecutorService WATCHDOG = Executors.newSingleThreadScheduledExecutor(task -> {
-        Thread thread = new Thread(task, "http-body-deadline");
-        thread.setDaemon(true);
-        return thread;
-    });
+    private static final ScheduledExecutorService WATCHDOG = Executors.newSingleThreadScheduledExecutor(DaemonThreads.named("http-body-deadline"));
 
     private final HttpClient client = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(10))
