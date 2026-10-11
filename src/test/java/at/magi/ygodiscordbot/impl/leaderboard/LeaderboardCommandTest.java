@@ -2,12 +2,16 @@ package at.magi.ygodiscordbot.impl.leaderboard;
 
 import at.magi.ygodiscordbot.entity.leaderboard.LeaderboardPage;
 import at.magi.ygodiscordbot.entity.leaderboard.RankedPlayer;
+import at.magi.ygodiscordbot.testutil.CommandAssert;
 import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
 import org.testng.annotations.Test;
 
 import java.util.List;
-import java.util.Set;
 
+import static at.magi.ygodiscordbot.testutil.CommandAssert.assertBotCheckedManageServer;
+import static at.magi.ygodiscordbot.testutil.CommandAssert.assertOpenToEveryone;
+import static at.magi.ygodiscordbot.testutil.CommandAssert.assertSubcommands;
+import static at.magi.ygodiscordbot.testutil.CommandAssert.option;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
@@ -36,13 +40,12 @@ public class LeaderboardCommandTest {
     }
 
     private static SubcommandData sub(String name) {
-        return new LeaderboardCommand(null, null, Runnable::run).data().getSubcommands().stream()
-                .filter(s -> s.getName().equals(name)).findFirst().orElseThrow();
+        return CommandAssert.sub(new LeaderboardCommand(null, null, Runnable::run).data(), name);
     }
 
     @Test
     public void pageSubcommandKeepsBoundedOption() {
-        var page = sub("page").getOptions().get(0);
+        var page = option(sub("page"), "page");
         assertEquals(page.getName(), "page");
         assertFalse(page.isRequired());
         assertEquals(page.getMinValue().longValue(), 1L);
@@ -52,18 +55,17 @@ public class LeaderboardCommandTest {
     @Test
     public void subcommands() {
         var data = new LeaderboardCommand(null, null, Runnable::run).data();
-        assertEquals(data.getSubcommands().stream().map(SubcommandData::getName).toList(),
-                List.of("page", "get", "add", "update"));
-        assertNull(data.getDefaultPermissions().getPermissionsRaw());
-        assertFalse(sub("get").getOptions().get(0).isRequired());
-        assertTrue(sub("add").getOptions().get(0).isRequired());
+        assertSubcommands(data, "page", "get", "add", "update");
+        assertOpenToEveryone(data);
+        assertFalse(option(sub("get"), "player").isRequired());
+        assertTrue(option(sub("add"), "player").isRequired());
         assertTrue(sub("add").getDescription().endsWith("(Manage Server)"));
         assertTrue(sub("update").getDescription().endsWith("(Manage Server)"));
     }
 
     @Test
     public void updatePointsRange() {
-        var points = sub("update").getOptions().get(1);
+        var points = option(sub("update"), "points");
         assertEquals(points.getName(), "points");
         assertTrue(points.isRequired());
         assertEquals(points.getMinValue().longValue(), 0L);
@@ -99,6 +101,6 @@ public class LeaderboardCommandTest {
 
     @Test
     public void botCheckedManageServerSubcommands() {
-        assertEquals(new LeaderboardCommand(null, null, Runnable::run).botCheckedManageServer(), Set.of("add", "update"));
+        assertBotCheckedManageServer(new LeaderboardCommand(null, null, Runnable::run), "add", "update");
     }
 }

@@ -5,7 +5,6 @@ import at.magi.ygodiscordbot.entity.deck.Decklist;
 import at.magi.ygodiscordbot.entity.deck.Ydke;
 import at.magi.ygodiscordbot.entity.deck.YdkeDeck;
 import at.magi.ygodiscordbot.impl.deck.DecklistRepository.SaveResult;
-import at.magi.ygodiscordbot.utils.discord.DcMessageUtils;
 import org.testng.annotations.Test;
 
 import java.util.Collections;
@@ -13,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.IntStream;
 
+import static at.magi.ygodiscordbot.testutil.DiscordAssert.assertSendable;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
@@ -124,9 +124,7 @@ public class DeckCommandTest {
 
         assertTrue(messages.size() > 1);
         assertTrue(messages.get(0).startsWith("Your decks (50):"));
-        for (String message : messages) {
-            assertTrue(message.length() <= DcMessageUtils.MAX_MESSAGE_LENGTH, "too long: " + message.length());
-        }
+        assertSendable(messages);
         assertEquals(String.join("\n", messages).lines().filter(line -> line.startsWith("• ")).count(), 50L);
     }
 

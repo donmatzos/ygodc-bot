@@ -3,8 +3,6 @@ package at.magi.ygodiscordbot.impl.tournament;
 import at.magi.ygodiscordbot.entity.tournament.TournamentListPage;
 import at.magi.ygodiscordbot.entity.tournament.TournamentStatus;
 import at.magi.ygodiscordbot.entity.tournament.TournamentSummary;
-import net.dv8tion.jda.api.interactions.InteractionContextType;
-import net.dv8tion.jda.api.interactions.commands.DefaultMemberPermissions;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
@@ -16,6 +14,12 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 
+import static at.magi.ygodiscordbot.testutil.CommandAssert.assertBotCheckedManageServer;
+import static at.magi.ygodiscordbot.testutil.CommandAssert.assertGuildOnly;
+import static at.magi.ygodiscordbot.testutil.CommandAssert.assertOpenToEveryone;
+import static at.magi.ygodiscordbot.testutil.CommandAssert.assertSubcommands;
+import static at.magi.ygodiscordbot.testutil.CommandAssert.option;
+import static at.magi.ygodiscordbot.testutil.CommandAssert.sub;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
@@ -31,7 +35,7 @@ public class TournamentCommandTest {
 
     @Test
     public void listPageOptionIsBounded() {
-        var page = new TournamentCommand(null, null, Runnable::run).data().getSubcommands().get(5).getOptions().get(0);
+        var page = option(sub(new TournamentCommand(null, null, Runnable::run).data(), "list"), "page");
         assertEquals(page.getMinValue().longValue(), 1L);
         assertEquals(page.getMaxValue().longValue(), 10_000L);
     }
@@ -40,14 +44,13 @@ public class TournamentCommandTest {
     public void openToEveryoneInServersWithList() {
         var data = new TournamentCommand(null, null, Runnable::run).data();
         assertEquals(data.getName(), "tournament");
-        assertEquals(data.getDefaultPermissions(), DefaultMemberPermissions.ENABLED);
-        assertEquals(data.getContexts(), Set.of(InteractionContextType.GUILD));
-        assertEquals(data.getSubcommands().stream().map(SubcommandData::getName).toList(),
-                List.of("start", "continue", "standings", "cancel", "drop", "list"));
-        SubcommandData list = data.getSubcommands().get(5);
+        assertOpenToEveryone(data);
+        assertGuildOnly(data);
+        assertSubcommands(data, "start", "continue", "standings", "cancel", "drop", "list");
+        SubcommandData list = sub(data, "list");
         assertEquals(list.getOptions().stream().map(OptionData::getName).toList(), List.of("page", "date"));
         assertTrue(list.getOptions().stream().noneMatch(OptionData::isRequired));
-        OptionData id = data.getSubcommands().get(1).getOptions().get(0);
+        OptionData id = option(sub(data, "continue"), "id");
         assertEquals(id.getType(), OptionType.STRING);
     }
 
@@ -129,6 +132,7 @@ public class TournamentCommandTest {
 
     @Test
     public void botCheckedManageServerSubcommands() {
-        assertEquals(new TournamentCommand(null, null, Runnable::run).botCheckedManageServer(), Set.of("start", "continue", "standings", "cancel", "drop"));
+        assertBotCheckedManageServer(new TournamentCommand(null, null, Runnable::run),
+                "start", "continue", "standings", "cancel", "drop");
     }
 }

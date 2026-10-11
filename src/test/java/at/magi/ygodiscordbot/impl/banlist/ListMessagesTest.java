@@ -5,13 +5,12 @@ import at.magi.ygodiscordbot.entity.banlist.BanlistEntry;
 import at.magi.ygodiscordbot.entity.banlist.GenesysPointEntry;
 import at.magi.ygodiscordbot.entity.banlist.GenesysPointlist;
 import at.magi.ygodiscordbot.entity.banlist.TcgBanlist;
-import at.magi.ygodiscordbot.utils.discord.DcMessageUtils;
 import org.testng.annotations.Test;
 
 import java.time.Instant;
 import java.util.List;
 
-import static org.testng.Assert.assertEquals;
+import static at.magi.ygodiscordbot.testutil.DiscordAssert.assertSendable;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 
@@ -22,7 +21,7 @@ public class ListMessagesTest {
         TcgBanlist tcg = FixtureLists.tcg();
         List<String> messages = ListMessages.banlist("TCG Forbidden & Limited List", "Source: YGOProDeck", tcg);
 
-        assertValidMessages(messages);
+        assertSendable(messages);
         String all = String.join("\n", messages);
         for (BanlistEntry entry : tcg.entries()) {
             assertTrue(all.contains("  " + entry.cardName() + "\n"), entry.cardName());
@@ -38,7 +37,7 @@ public class ListMessagesTest {
         GenesysPointlist genesys = FixtureLists.genesys();
         List<String> messages = ListMessages.genesys(genesys);
 
-        assertValidMessages(messages);
+        assertSendable(messages);
         String all = String.join("\n", messages);
         for (GenesysPointEntry entry : genesys.entries()) {
             assertTrue(all.contains(String.format("%3d  %s%n", entry.points(), entry.cardName()).replace(System.lineSeparator(), "\n")),
@@ -49,8 +48,8 @@ public class ListMessagesTest {
 
     @Test
     public void staticListsFitDiscordLimits() {
-        assertValidMessages(ListMessages.banlist("Goat Format List", "April 2005 list", StaticBanlists.goat()));
-        assertValidMessages(ListMessages.banlist("Edison Format List", "March 2010 list", StaticBanlists.edison()));
+        assertSendable(ListMessages.banlist("Goat Format List", "April 2005 list", StaticBanlists.goat()));
+        assertSendable(ListMessages.banlist("Edison Format List", "March 2010 list", StaticBanlists.edison()));
     }
 
     @Test
@@ -72,14 +71,6 @@ public class ListMessagesTest {
         String message = ListMessages.banlist("Test", "test", list).get(0);
 
         assertFalse(message.contains("Evil```Card"));
-        assertValidMessages(List.of(message));
-    }
-
-    private static void assertValidMessages(List<String> messages) {
-        assertFalse(messages.isEmpty());
-        for (String message : messages) {
-            assertTrue(message.length() <= DcMessageUtils.MAX_MESSAGE_LENGTH, "too long: " + message.length());
-            assertEquals(message.split("```", -1).length % 2, 1, "unbalanced code fences in:\n" + message);
-        }
+        assertSendable(List.of(message));
     }
 }

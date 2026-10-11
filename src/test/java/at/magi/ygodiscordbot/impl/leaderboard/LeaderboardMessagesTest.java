@@ -3,7 +3,6 @@ package at.magi.ygodiscordbot.impl.leaderboard;
 import at.magi.ygodiscordbot.entity.leaderboard.LeaderboardPage;
 import at.magi.ygodiscordbot.entity.leaderboard.PointChange;
 import at.magi.ygodiscordbot.entity.leaderboard.RankedPlayer;
-import at.magi.ygodiscordbot.utils.discord.DcMessageUtils;
 import org.testng.annotations.Test;
 
 import java.util.ArrayList;
@@ -11,6 +10,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static at.magi.ygodiscordbot.testutil.DiscordAssert.assertSendable;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
@@ -69,15 +69,15 @@ public class LeaderboardMessagesTest {
         List<String> messages = LeaderboardMessages.page("🏆 Leaderboard", widePage(LeaderboardPage.PAGE_SIZE),
                 widestNames(LeaderboardPage.PAGE_SIZE));
         assertEquals(messages.size(), 1);
-        assertTrue(messages.get(0).length() <= DcMessageUtils.MAX_MESSAGE_LENGTH, "length " + messages.get(0).length());
+        assertSendable(messages);
     }
 
     @Test
     public void oversizedTableIsSplitWithHeaderRepeated() {
         List<String> messages = LeaderboardMessages.page("🏆 Leaderboard", widePage(60), widestNames(60));
         assertTrue(messages.size() > 1);
+        assertSendable(messages);
         for (String message : messages) {
-            assertTrue(message.length() <= DcMessageUtils.MAX_MESSAGE_LENGTH, "length " + message.length());
             assertTrue(message.contains("```\nRank  Player"), "table header missing: " + message);
         }
         assertTrue(messages.get(1).startsWith("Page 500 of 600 · 12000 players (continued)"), messages.get(1));
