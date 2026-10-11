@@ -42,7 +42,7 @@ public class SwissPairerTest {
         void check(Standings standings, Round round, int roundNumber);
     }
 
-    private record Outcome(int rounds, int playOffs) {
+    private record Outcome(int playOffs) {
     }
 
     private static final int DOUBLE_LOSS_PERCENT = 15;
@@ -100,7 +100,7 @@ public class SwissPairerTest {
             if (last.hasDoubleLossOrDrop()) {
                 assertTrue(round >= minimum, "winner after only " + round + " rounds");
             }
-            return new Outcome(round, playOffs);
+            return new Outcome(playOffs);
         } catch (AssertionError e) {
             throw new AssertionError("size " + size + " seed " + seed + ": " + e.getMessage(), e);
         }
@@ -247,14 +247,19 @@ public class SwissPairerTest {
         assertEquals(SwissPairer.pair(Standings.of(players(1, 4), Set.of(), List.of()), 1, new Random(1)).playOff(),
                 List.of());
 
-        // Round 4 after three rounds in which everyone met everyone: the tied leaders do not play off yet
-        List<MatchRecord> matches = List.of(
+        // After 3 rounds players 1 and 2 are tied at 2-1 (3 and 4 at 1-2): too early to play off, round 4 is a plain round
+        List<MatchRecord> matches = new ArrayList<>(List.of(
                 new MatchRecord(1, 1, 2L, 1L), new MatchRecord(1, 3, 4L, 3L),
                 new MatchRecord(2, 1, 3L, 1L), new MatchRecord(2, 2, 4L, 2L),
-                new MatchRecord(3, 1, 4L, 1L), new MatchRecord(3, 2, 3L, 2L));
+                new MatchRecord(3, 1, 4L, 4L), new MatchRecord(3, 2, 3L, 2L)));
         Round round = SwissPairer.pair(Standings.of(players(1, 4), Set.of(), matches), 4, new Random(1));
         assertEquals(round.playOff(), List.of());
         assertEquals(round.pairings().size(), 2);
+
+        // After 4 rounds 1 and 2 are still tied (3-1): now they play off
+        matches.addAll(List.of(new MatchRecord(4, 1, 3L, 1L), new MatchRecord(4, 2, 4L, 2L)));
+        Standings fourRounds = Standings.of(players(1, 4), Set.of(), matches);
+        assertEquals(SwissPairer.pair(fourRounds, 5, new Random(1)).playOff(), List.of(1L, 2L));
     }
 
     @Test
