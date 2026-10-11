@@ -72,10 +72,14 @@ public final class BanlistCommand implements SlashCommand {
                     .setEphemeral(true).queue();
             return;
         }
+        Runnable deliver = () -> MessageSender.deliver(event, messages.get(), "the " + format.label + " list",
+                "`/banlist`", () -> logSent(event, format, messages.get().size(), started));
         if (event.isFromGuild()) {
-            sendToDirectMessages(event, format, messages.get(), started);
+            // Only after Discord accepted the defer: an expired interaction would still DM, and the retry would DM again
+            event.deferReply(true).queue(hook -> deliver.run(),
+                    failure -> log.warn("Could not acknowledge /banlist by {}, nothing was sent", who(event), failure));
         } else {
-            replyHere(event, format, messages.get(), started);
+            deliver.run();
         }
     }
 
@@ -93,21 +97,12 @@ public final class BanlistCommand implements SlashCommand {
         };
     }
 
-    private void replyHere(SlashCommandInteractionEvent event, Format format, List<String> messages, Instant started) {
-        MessageSender.followUps(event.reply(messages.get(0)), event.getHook(), messages, false).queue(
-                last -> log.info("Sent {} list ({} messages) to {} in their DM with the bot, took {} ms",
-                        format.label, messages.size(), who(event), millisSince(started)),
-                error -> log.warn("Could not send {} list to {} in their DM with the bot", format.label, who(event), error));
-    }
-
-    private void sendToDirectMessages(SlashCommandInteractionEvent event, Format format, List<String> messages,
-                                      Instant started) {
-        // Only after Discord accepted the defer: an expired interaction would still DM, and the retry would DM again
-        event.deferReply(true).queue(
-                hook -> MessageSender.sendToDirectMessages(event, messages, "the " + format.label + " list",
-                        "`/banlist`", () -> log.info("Sent {} list ({} messages) to {} via DM, requested in server {}, took {} ms",
-                                format.label, messages.size(), who(event), event.getGuild().getId(), millisSince(started))),
-                failure -> log.warn("Could not acknowledge /banlist by {}, nothing was sent", who(event), failure));
+    private static void logSent(SlashCommandInteractionEvent event, Format format, int count, Instant started) {
+        String where = event.isFromGuild()
+                ? "via DM, requested in server " + event.getGuild().getId()
+                : "in their DM with the bot";
+        log.info("Sent {} list ({} messages) to {} {}, took {} ms", format.label, count, who(event), where,
+                millisSince(started));
     }
 
     private static String who(SlashCommandInteractionEvent event) {

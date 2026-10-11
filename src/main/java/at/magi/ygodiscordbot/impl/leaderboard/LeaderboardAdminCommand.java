@@ -1,8 +1,11 @@
 package at.magi.ygodiscordbot.impl.leaderboard;
 
 import at.magi.ygodiscordbot.entity.leaderboard.LeaderboardPage;
+import at.magi.ygodiscordbot.impl.command.CommandChecks;
 import at.magi.ygodiscordbot.impl.command.DatabaseReplies;
 import at.magi.ygodiscordbot.impl.command.SlashCommand;
+import at.magi.ygodiscordbot.utils.discord.ChannelChecks;
+import at.magi.ygodiscordbot.utils.discord.DisplayNames;
 import at.magi.ygodiscordbot.utils.discord.MessageSender;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Message;
@@ -21,7 +24,7 @@ import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.EnumSet;
+import java.util.Set;
 import java.util.concurrent.Executor;
 
 /**
@@ -36,15 +39,15 @@ public final class LeaderboardAdminCommand implements SlashCommand {
     private static final Logger log = LoggerFactory.getLogger(LeaderboardAdminCommand.class);
 
     /** The posted leaderboard never notifies anyone, whatever a player name looks like. */
-    static final EnumSet<Message.MentionType> SHARE_MENTIONS = EnumSet.noneOf(Message.MentionType.class);
+    static final Set<Message.MentionType> SHARE_MENTIONS = Set.of();
 
     private static final String CHANNEL = "channel";
 
     private final PlayerRepository players;
-    private final PlayerNames names;
+    private final DisplayNames names;
     private final Executor dbExecutor;
 
-    public LeaderboardAdminCommand(PlayerRepository players, PlayerNames names, Executor dbExecutor) {
+    public LeaderboardAdminCommand(PlayerRepository players, DisplayNames names, Executor dbExecutor) {
         this.players = players;
         this.names = names;
         this.dbExecutor = dbExecutor;
@@ -64,16 +67,15 @@ public final class LeaderboardAdminCommand implements SlashCommand {
     @Override
     public void execute(SlashCommandInteractionEvent event) {
         if (!"share".equals(event.getSubcommandName())) {
-            event.reply("Unknown subcommand.").setEphemeral(true).queue();
+            CommandChecks.unknownSubcommand(event);
             return;
         }
         GuildChannel chosen = event.getOption(CHANNEL, event.getGuildChannel(), OptionMapping::getAsChannel);
         String problem = chosen instanceof GuildMessageChannel target
-                ? channelProblem(target.canTalk(event.getMember()), target.canTalk(), target.getAsMention())
+                ? ChannelChecks.channelProblem(target.canTalk(event.getMember()), target.canTalk(), target.getAsMention())
                 : "I can only post the leaderboard into text channels.";
         if (problem != null) {
-            log.info("/leaderboard-admin share refused for {}: {}", MessageSender.who(event), problem);
-            event.reply(problem).setEphemeral(true).queue();
+            CommandChecks.refuse(event, problem);
             return;
         }
         GuildMessageChannel target = (GuildMessageChannel) chosen;
@@ -83,15 +85,9 @@ public final class LeaderboardAdminCommand implements SlashCommand {
     }
 
     private void post(SlashCommandInteractionEvent event, GuildMessageChannel target, LeaderboardPage page) {
-        String empty = LeaderboardCommand.noPageReply(page);
-        if (empty != null) {
-            event.getHook().editOriginal(empty).queue();
-            return;
-        }
-        names.resolve(event.getJDA(), page.rows(), found -> {
+        LeaderboardCommand.renderPage(event, names, page, messages -> {
             try {
-                MessageSender.sendAll(target, LeaderboardMessages.page(LeaderboardCommand.TITLE, page, found),
-                        SHARE_MENTIONS)
+                MessageSender.sendAll(target, messages, SHARE_MENTIONS)
                         .queue(last -> {
                                     log.info("Posted the leaderboard into #{} ({}) for {}", target.getName(),
                                             target.getId(), MessageSender.who(event));
@@ -104,9 +100,6 @@ public final class LeaderboardAdminCommand implements SlashCommand {
                 // JDA checks the bot's cached permissions before sending (permissions changed since canTalk)
                 postFailed(event, target, e);
             }
-        }, failure -> {
-            log.warn("Could not look up leaderboard names", failure);
-            event.getHook().editOriginal(LeaderboardCommand.UNAVAILABLE).queue();
         });
     }
 
@@ -114,16 +107,5 @@ public final class LeaderboardAdminCommand implements SlashCommand {
         log.warn("Could not post leaderboard into {}", target.getId(), failure);
         event.getHook().editOriginal("I could not post in " + target.getAsMention()
                 + ". Check that I can view the channel and send messages there.").queue();
-    }
-
-    /** Why the bot should not post in the channel for this member, or null if it can. */
-    public static String channelProblem(boolean memberCanTalk, boolean botCanTalk, String channelMention) {
-        if (!memberCanTalk) {
-            return "❌ You can't send messages in " + channelMention + ", so I won't post there for you.";
-        }
-        if (!botCanTalk) {
-            return "❌ I can't post in " + channelMention + ". Give me **View Channel** and **Send Messages** there.";
-        }
-        return null;
     }
 }

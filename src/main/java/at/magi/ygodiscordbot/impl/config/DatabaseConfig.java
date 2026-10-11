@@ -18,12 +18,21 @@ public record DatabaseConfig(String url, String user, String password) {
     }
 
     /**
-     * Exception class and message for logs. Hikari puts the raw URL into its messages
-     * ("Failed to get driver instance for jdbcUrl=..."), so the URL is masked there as well.
+     * Exception class and message for logs, followed by each cause ("A: msg ← B: msg"). Hikari puts the raw
+     * URL into its messages ("Failed to get driver instance for jdbcUrl=..."), so every message is masked.
      */
     public String describe(Throwable e) {
-        String message = e.getMessage();
-        return e.getClass().getSimpleName() + (message == null ? "" : ": " + mask(message.replace(url, safeUrl())));
+        StringBuilder text = new StringBuilder();
+        int depth = 0;
+        for (Throwable t = e; t != null && depth < 10; t = t.getCause() == t ? null : t.getCause(), depth++) {
+            if (depth > 0) {
+                text.append(" ← ");
+            }
+            String message = t.getMessage();
+            text.append(t.getClass().getSimpleName())
+                    .append(message == null ? "" : ": " + mask(message.replace(url, safeUrl())));
+        }
+        return text.toString();
     }
 
     private static String mask(String text) {

@@ -1,5 +1,6 @@
 package at.magi.ygodiscordbot.impl.tournament;
 
+import at.magi.ygodiscordbot.impl.command.CommandChecks;
 import at.magi.ygodiscordbot.impl.command.DatabaseReplies;
 import at.magi.ygodiscordbot.impl.command.SlashCommand;
 import net.dv8tion.jda.api.Permission;
@@ -68,7 +69,7 @@ public final class MatchCommand implements SlashCommand {
     public void execute(SlashCommandInteractionEvent event) {
         String subcommand = event.getSubcommandName();
         if (!"finish".equals(subcommand) && !"doubleloss".equals(subcommand)) {
-            event.reply("Unknown subcommand.").setEphemeral(true).queue();
+            CommandChecks.unknownSubcommand(event);
             return;
         }
         int id = event.getOption(ID, 0, OptionMapping::getAsInt);

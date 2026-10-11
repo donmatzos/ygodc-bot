@@ -19,6 +19,8 @@ final class RecordingAnnouncer implements TournamentAnnouncer {
     final List<Dm> dms = new ArrayList<>();
     /** When true, every DM throws like a user with closed DMs. */
     boolean dmsClosed;
+    /** When true, every post throws like a Discord error (the real announcer never does). */
+    boolean postsFail;
 
     /** Names as the tables show them: 101 → "P101". */
     static Map<Long, String> names(Set<Long> ids) {
@@ -29,6 +31,9 @@ final class RecordingAnnouncer implements TournamentAnnouncer {
 
     @Override
     public void post(long channelId, NamedText text, boolean ping) {
+        if (postsFail) {
+            throw new IllegalStateException("Cannot post");
+        }
         posts.add(new Post(channelId, String.join("\n", text.render().apply(names(text.users()))), ping));
     }
 

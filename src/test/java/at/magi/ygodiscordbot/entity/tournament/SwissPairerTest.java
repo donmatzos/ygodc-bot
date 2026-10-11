@@ -63,7 +63,7 @@ public class SwissPairerTest {
                     round++;
                     assertTrue(round <= roundsFor(size), "size " + size + " seed " + seed + " needs round " + round);
                     Standings standings = Standings.of(players, Set.of(), matches);
-                    List<Pairing> pairings = SwissPairer.pair(standings, round, random);
+                    List<Pairing> pairings = SwissPairer.pair(standings, round, random).pairings();
                     assertComplete(pairings, standings);
                     for (Pairing pairing : pairings) {
                         if (pairing.isBye()) {
@@ -108,7 +108,7 @@ public class SwissPairerTest {
                 round++;
                 assertTrue(round <= roundsFor(5), "seed " + seed + " needs round " + round);
                 Standings standings = Standings.of(players, Set.of(), matches);
-                List<Pairing> pairings = SwissPairer.pair(standings, round, random);
+                List<Pairing> pairings = SwissPairer.pair(standings, round, random).pairings();
                 assertComplete(pairings, standings);
                 long bye = pairings.get(pairings.size() - 1).player1();
                 boolean rematch = pairings.stream()
@@ -179,7 +179,7 @@ public class SwissPairerTest {
                     int bound = roundsFor(size) < WinnerRule.PLAY_OFF_ROUNDS ? roundsFor(size) : 20;
                     assertTrue(round <= bound, "size " + size + " seed " + seed + " needs round " + round);
                     Standings standings = Standings.of(players, Set.of(), matches, seed);
-                    List<Pairing> pairings = SwissPairer.pair(standings, round, random);
+                    List<Pairing> pairings = SwissPairer.pair(standings, round, random).pairings();
                     List<Long> playOff = WinnerRule.playOff(standings, round - 1);
                     if (playOff.isEmpty()) {
                         assertComplete(pairings, standings);
@@ -224,7 +224,7 @@ public class SwissPairerTest {
         Standings standings = Standings.of(List.of(1L, 2L, 3L, 4L), Set.of(), List.of(
                 new MatchRecord(1, 1, 3L, 1L), new MatchRecord(1, 2, 4L, 2L),
                 new MatchRecord(2, 1, 2L, null, true), new MatchRecord(2, 3, 4L, 3L)));
-        List<Pairing> pairings = SwissPairer.pair(standings, 5, new Random(1));
+        List<Pairing> pairings = SwissPairer.pair(standings, 5, new Random(1)).pairings();
         assertEquals(paired(pairings), Set.of(1L, 2L, 3L));
         assertEquals(pairings.size(), 2);
         assertTrue(pairings.get(1).isBye());
@@ -236,9 +236,17 @@ public class SwissPairerTest {
         Standings standings = Standings.of(List.of(1L, 2L), Set.of(), List.of(
                 new MatchRecord(1, 1, 2L, 1L), new MatchRecord(2, 1, 2L, 2L)));
         assertEquals(WinnerRule.playOff(standings, 4), standings.activeRanked());
-        List<Pairing> pairings = SwissPairer.pair(standings, 5, new Random(1));
+        Round round = SwissPairer.pair(standings, 5, new Random(1));
+        List<Pairing> pairings = round.pairings();
         assertEquals(pairings.size(), 1);
         assertEquals(Set.of(pairings.get(0).player1(), pairings.get(0).player2()), Set.of(1L, 2L));
+        assertEquals(round.playOff(), WinnerRule.playOff(standings, 4));
+    }
+
+    @Test
+    public void roundOneAndPlainRoundsHaveNoPlayOff() {
+        assertEquals(SwissPairer.pair(Standings.of(players(4), Set.of(), List.of()), 1, new Random(1)).playOff(),
+                List.of());
     }
 
     @Test
@@ -246,7 +254,7 @@ public class SwissPairerTest {
         // After round 1: 1 and 3 are 1-0, 2 and 4 are 0-1
         List<MatchRecord> matches = List.of(new MatchRecord(1, 1, 2L, 1L), new MatchRecord(1, 3, 4L, 3L));
         Standings standings = Standings.of(players(4), Set.of(), matches);
-        List<Pairing> pairings = SwissPairer.pair(standings, 2, new Random(1));
+        List<Pairing> pairings = SwissPairer.pair(standings, 2, new Random(1)).pairings();
         for (Pairing pairing : pairings) {
             assertEquals(standings.entry(pairing.player1()).losses(), standings.entry(pairing.player2()).losses());
         }
@@ -259,7 +267,7 @@ public class SwissPairerTest {
                 MatchRecord.of(1, Pairing.bye(5)));
         Standings standings = Standings.of(players(5), Set.of(), matches);
         for (int seed = 0; seed < 50; seed++) {
-            List<Pairing> pairings = SwissPairer.pair(standings, 2, new Random(seed));
+            List<Pairing> pairings = SwissPairer.pair(standings, 2, new Random(seed)).pairings();
             long bye = pairings.get(pairings.size() - 1).player1();
             assertTrue(bye == 2 || bye == 4, "bye went to " + bye);
         }
@@ -270,7 +278,7 @@ public class SwissPairerTest {
         Set<Long> byes = new HashSet<>();
         Standings standings = Standings.of(players(3), Set.of(), List.of());
         for (int seed = 0; seed < 50; seed++) {
-            List<Pairing> pairings = SwissPairer.pair(standings, 1, new Random(seed));
+            List<Pairing> pairings = SwissPairer.pair(standings, 1, new Random(seed)).pairings();
             byes.add(pairings.get(pairings.size() - 1).player1());
         }
         assertEquals(byes, Set.of(1L, 2L, 3L));
@@ -284,13 +292,13 @@ public class SwissPairerTest {
                 new MatchRecord(2, 1, 3L, 1L), new MatchRecord(2, 2, 4L, 2L),
                 new MatchRecord(3, 1, 4L, 1L), new MatchRecord(3, 2, 3L, 2L));
         Standings standings = Standings.of(players(4), Set.of(), matches);
-        List<Pairing> pairings = SwissPairer.pair(standings, 4, new Random(3));
+        List<Pairing> pairings = SwissPairer.pair(standings, 4, new Random(3)).pairings();
         assertComplete(pairings, standings);
 
         // 1 met only 2: a rematch-free pairing exists and must be found
         Standings partial = Standings.of(players(4), Set.of(), List.of(new MatchRecord(1, 1, 2L, 1L),
                 new MatchRecord(1, 3, 4L, 4L)));
-        for (Pairing pairing : SwissPairer.pair(partial, 2, new Random(5))) {
+        for (Pairing pairing : SwissPairer.pair(partial, 2, new Random(5)).pairings()) {
             assertFalse(partial.haveMet(pairing.player1(), pairing.player2()), pairing.toString());
         }
     }
@@ -298,7 +306,7 @@ public class SwissPairerTest {
     @Test
     public void droppedPlayersAreNotPaired() {
         Standings standings = Standings.of(players(4), Set.of(3L), List.of());
-        List<Pairing> pairings = SwissPairer.pair(standings, 1, new Random(0));
+        List<Pairing> pairings = SwissPairer.pair(standings, 1, new Random(0)).pairings();
         assertComplete(pairings, standings);
         assertTrue(pairings.stream().noneMatch(p -> p.player1() == 3 || Long.valueOf(3).equals(p.player2())));
     }

@@ -5,6 +5,7 @@ import at.magi.ygodiscordbot.entity.leaderboard.PointChange;
 import at.magi.ygodiscordbot.entity.leaderboard.RankedPlayer;
 import at.magi.ygodiscordbot.utils.discord.DcMessageUtils.Section;
 import at.magi.ygodiscordbot.utils.discord.DcMessageUtils;
+import at.magi.ygodiscordbot.utils.discord.DisplayNames;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -27,7 +28,7 @@ public final class LeaderboardMessages {
         List<String> playerNames = new ArrayList<>(players.size());
         for (RankedPlayer player : players) {
             playerNames.add(DcMessageUtils.safe(
-                    names.getOrDefault(player.userId(), "Unknown user (" + player.userId() + ")")));
+                    DisplayNames.nameOrUnknown(names, player.userId())));
         }
         Table table = table(players, playerNames);
         String summary = "Page " + page.page() + " of " + page.pageCount() + " · " + page.totalPlayers()

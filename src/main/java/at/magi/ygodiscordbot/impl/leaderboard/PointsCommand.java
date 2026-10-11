@@ -2,9 +2,9 @@ package at.magi.ygodiscordbot.impl.leaderboard;
 
 import at.magi.ygodiscordbot.entity.leaderboard.PointChange;
 import at.magi.ygodiscordbot.entity.leaderboard.Points;
+import at.magi.ygodiscordbot.impl.command.CommandChecks;
 import at.magi.ygodiscordbot.impl.command.DatabaseReplies;
 import at.magi.ygodiscordbot.impl.command.SlashCommand;
-import at.magi.ygodiscordbot.utils.discord.MessageSender;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
@@ -16,8 +16,6 @@ import net.dv8tion.jda.api.interactions.commands.build.Commands;
 import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import net.dv8tion.jda.api.interactions.commands.build.SlashCommandData;
 import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.Executor;
 
@@ -27,8 +25,6 @@ import java.util.concurrent.Executor;
  * Integrations), so the bot does not check that permission itself.
  */
 public final class PointsCommand implements SlashCommand {
-
-    private static final Logger log = LoggerFactory.getLogger(PointsCommand.class);
 
     private static final String AMOUNT = "amount";
 
@@ -65,16 +61,15 @@ public final class PointsCommand implements SlashCommand {
     public void execute(SlashCommandInteractionEvent event) {
         String subcommand = event.getSubcommandName();
         if (!"add".equals(subcommand) && !"remove".equals(subcommand)) {
-            event.reply("Unknown subcommand.").setEphemeral(true).queue();
+            CommandChecks.unknownSubcommand(event);
             return;
         }
         User player = event.getOption(LeaderboardCommand.PLAYER, OptionMapping::getAsUser);
         long delta = delta(subcommand, event.getOption(AMOUNT, 0L, OptionMapping::getAsLong));
         // Discord already enforces server + permission; only the target needs checking
-        String problem = LeaderboardCommand.changeProblem(true, true, player.isBot());
+        String problem = LeaderboardCommand.targetProblem(player.isBot());
         if (problem != null) {
-            log.info("/{} refused for {}: {}", event.getFullCommandName(), MessageSender.who(event), problem);
-            event.reply(problem).setEphemeral(true).queue();
+            CommandChecks.refuse(event, problem);
             return;
         }
         String name = player.getEffectiveName();

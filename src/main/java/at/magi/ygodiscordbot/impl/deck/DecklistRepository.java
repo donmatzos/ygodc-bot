@@ -1,15 +1,14 @@
 package at.magi.ygodiscordbot.impl.deck;
 
 import at.magi.ygodiscordbot.entity.deck.Decklist;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import at.magi.ygodiscordbot.impl.database.Jdbc;
+import at.magi.ygodiscordbot.impl.database.LazySchema;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
@@ -21,8 +20,6 @@ import java.util.Optional;
  * Name lookups ignore case (database collation).
  */
 public class DecklistRepository {
-
-    private static final Logger log = LoggerFactory.getLogger(DecklistRepository.class);
 
     /** Keeps the free database small and stops a single user from filling it. */
     public static final int MAX_DECKS_PER_USER = 50;
@@ -52,24 +49,17 @@ public class DecklistRepository {
 
     private final DataSource dataSource;
     private final Clock clock;
-    private volatile boolean schemaReady;
+    private final LazySchema schema;
 
     public DecklistRepository(DataSource dataSource, Clock clock) {
         this.dataSource = dataSource;
+        this.schema = new LazySchema(dataSource, "Decklist table", LazySchema.statements(SCHEMA));
         this.clock = clock;
     }
 
     /** Creates the table if it does not exist yet. Retried on the next call if the database is down. */
-    public synchronized void ensureSchema() throws SQLException {
-        if (schemaReady) {
-            return;
-        }
-        try (Connection connection = dataSource.getConnection();
-             Statement statement = connection.createStatement()) {
-            statement.execute(SCHEMA);
-        }
-        schemaReady = true;
-        log.info("Decklist table is ready");
+    public void ensureSchema() throws SQLException {
+        schema.ensure();
     }
 
     public SaveResult create(long userId, String name, String ydke) throws SQLException {
@@ -128,8 +118,9 @@ public class DecklistRepository {
     public Optional<Decklist> update(long userId, String name, String ydke) throws SQLException {
         ensureSchema();
         // Connector/J reports matched rows by default, so an unchanged deck still counts as found
-        int updated = execute("UPDATE decklist SET ydke = ?, updated_at = ? WHERE user_id = ? AND name = ?",
-                ydke, clock.millis(), userId, name);
+        int updated = Jdbc.update(dataSource,
+                "UPDATE decklist SET ydke = ?, updated_at = ? WHERE user_id = ? AND name = ?", ydke, clock.millis(),
+                userId, name);
         return updated > 0 ? find(userId, name) : Optional.empty();
     }
 
@@ -137,7 +128,7 @@ public class DecklistRepository {
     public Optional<Decklist> delete(long userId, String name) throws SQLException {
         Optional<Decklist> deck = find(userId, name);
         if (deck.isPresent()) {
-            execute("DELETE FROM decklist WHERE id = ?", deck.get().id());
+            Jdbc.update(dataSource, "DELETE FROM decklist WHERE id = ?", deck.get().id());
         }
         return deck;
     }
@@ -156,16 +147,6 @@ public class DecklistRepository {
                 }
                 return names;
             }
-        }
-    }
-
-    private int execute(String sql, Object... parameters) throws SQLException {
-        try (Connection connection = dataSource.getConnection();
-             PreparedStatement statement = connection.prepareStatement(sql)) {
-            for (int i = 0; i < parameters.length; i++) {
-                statement.setObject(i + 1, parameters[i]);
-            }
-            return statement.executeUpdate();
         }
     }
 }

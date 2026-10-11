@@ -8,6 +8,7 @@ import at.magi.ygodiscordbot.entity.tournament.TournamentStatus;
 import at.magi.ygodiscordbot.entity.tournament.TournamentSummary;
 import at.magi.ygodiscordbot.entity.tournament.WinnerRule;
 import at.magi.ygodiscordbot.utils.discord.DcMessageUtils;
+import at.magi.ygodiscordbot.utils.discord.DisplayNames;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -45,7 +46,14 @@ final class TournamentMessages {
     }
 
     static String name(Map<Long, String> names, long user) {
-        return DcMessageUtils.safe(names.getOrDefault(user, "Unknown user (" + user + ")"));
+        return DcMessageUtils.safe(DisplayNames.nameOrUnknown(names, user));
+    }
+
+    /** Who won a played match, or that both lost. */
+    private static String outcome(MatchRecord result) {
+        return result.doubleLoss()
+                ? mention(result.player1()) + " and " + mention(result.player2()) + " both lose (time limit)"
+                : mention(result.winner()) + " beat " + mention(result.loser());
     }
 
     private static String matchLine(ActiveMatch match) {
@@ -63,6 +71,11 @@ final class TournamentMessages {
     }
 
     // --- Standings table (posts and /tournament standings) ---
+
+    /** The head messages, then the standings table with the players' display names. */
+    private static NamedText withTable(List<String> head, Standings standings) {
+        return new NamedText(players(standings), names -> concat(head, standingsTable(standings, names)));
+    }
 
     /** Rank / Player / W-L / OMW% code block; players only the lot separates share a rank (1, 1, 3). */
     static List<String> standingsTable(Standings standings, Map<Long, String> names) {
@@ -141,7 +154,7 @@ final class TournamentMessages {
         addPlayOffLine(lines, round, playOff);
         lines.addAll(matchupLines(matches, byes));
         List<String> head = DcMessageUtils.packLines("## 🏁 " + tournament(code) + " · Round " + round, lines);
-        return new NamedText(players(standings), names -> concat(head, standingsTable(standings, names)));
+        return withTable(head, standings);
     }
 
     /** @param standings the table under the results, or null when a winner post with the final table follows */
@@ -150,10 +163,8 @@ final class TournamentMessages {
         for (MatchRecord result : results) {
             if (result.isBye()) {
                 lines.add(mention(result.player1()) + " had a free win");
-            } else if (result.doubleLoss()) {
-                lines.add(mention(result.player1()) + " and " + mention(result.player2()) + " both lose (time limit)");
             } else {
-                lines.add(mention(result.winner()) + " beat " + mention(result.loser()));
+                lines.add(outcome(result));
             }
         }
         List<String> head = DcMessageUtils.packLines("## 📋 " + tournament(code) + " · Round " + round + " results",
@@ -161,7 +172,7 @@ final class TournamentMessages {
         if (standings == null) {
             return NamedText.plain(head);
         }
-        return new NamedText(players(standings), names -> concat(head, standingsTable(standings, names)));
+        return withTable(head, standings);
     }
 
     /** @param playOff the tied leaders if this is a {@link WinnerRule#playOff} round, else empty */
@@ -205,7 +216,7 @@ final class TournamentMessages {
                     + (failed.contains(player) ? " ⚠️ not saved, an organizer has to add them with `/points add`" : "")));
         }
         List<String> head = DcMessageUtils.packLines("## 🎉 " + tournament(code) + " finished", lines);
-        return new NamedText(players(standings), names -> concat(head, standingsTable(standings, names)));
+        return withTable(head, standings);
     }
 
     static NamedText abandoned(String code, String reason) {
@@ -228,7 +239,7 @@ final class TournamentMessages {
             open.forEach(match -> openLines.add(matchLine(match)));
         }
         List<String> head = DcMessageUtils.packLines("## " + tournament(code) + " · " + state, openLines);
-        return new NamedText(players(standings), names -> concat(head, standingsTable(standings, names)));
+        return withTable(head, standings);
     }
 
     // --- /tournament list ---
@@ -268,10 +279,7 @@ final class TournamentMessages {
     // --- DMs ---
 
     static List<String> matchResultDm(String code, int round, int matchId, MatchRecord result, boolean corrected) {
-        String outcome = result.doubleLoss()
-                ? mention(result.player1()) + " and " + mention(result.player2()) + " both lose (time limit)"
-                : mention(result.winner()) + " beat " + mention(result.loser());
-        return List.of("🎴 " + tournament(code) + " · Round " + round + " · Match `" + matchId + "`\n" + outcome
+        return List.of("🎴 " + tournament(code) + " · Round " + round + " · Match `" + matchId + "`\n" + outcome(result)
                 + (corrected ? " (corrected by an organizer)" : "") + ".\nThe round results are posted in the "
                 + "tournament channel once every match is done.");
     }

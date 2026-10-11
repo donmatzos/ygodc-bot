@@ -1,5 +1,7 @@
 package at.magi.ygodiscordbot.utils.http;
 
+import at.magi.ygodiscordbot.utils.concurrent.DaemonThreads;
+
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -8,9 +10,9 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.zip.GZIPInputStream;
@@ -30,11 +32,14 @@ public final class HttpDownloader {
     private static final long GET_LIMIT = 10L * 1024 * 1024;
 
     /** Closes response bodies whose deadline passed; daemon so it never keeps the JVM alive. */
-    private static final ScheduledExecutorService WATCHDOG = Executors.newSingleThreadScheduledExecutor(task -> {
-        Thread thread = new Thread(task, "http-body-deadline");
-        thread.setDaemon(true);
-        return thread;
-    });
+    private static final ScheduledExecutorService WATCHDOG = newWatchdog();
+
+    private static ScheduledExecutorService newWatchdog() {
+        ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1,
+                DaemonThreads.named("http-body-deadline"));
+        executor.setRemoveOnCancelPolicy(true);
+        return executor;
+    }
 
     private final HttpClient client = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(10))
@@ -91,7 +96,7 @@ public final class HttpDownloader {
             InputStream decoded = gzip ? new GZIPInputStream(body, 64 * 1024) : body;
             return reader.read(new LimitedInputStream(decoded, maxBytes, uri));
         } catch (IOException e) {
-            if (expired.get() && !(e.getMessage() != null && e.getMessage().contains("exceeds"))) {
+            if (expired.get() && !(e instanceof LimitExceededException)) {
                 throw new IOException("GET " + uri + " did not finish within " + timeout.toMillis() + " ms", e);
             }
             throw e;
@@ -107,6 +112,13 @@ public final class HttpDownloader {
             in.close();
         } catch (IOException | RuntimeException ignored) {
             // the reader sees the failure on its next read
+        }
+    }
+
+    /** The body is larger than allowed; kept apart from a deadline failure that closes the stream. */
+    private static final class LimitExceededException extends IOException {
+        LimitExceededException(String message) {
+            super(message);
         }
     }
 
@@ -157,7 +169,7 @@ public final class HttpDownloader {
         private void count(long n) throws IOException {
             total += n;
             if (total > max) {
-                throw new IOException("Response from " + uri + " exceeds the limit of " + max + " bytes");
+                throw new LimitExceededException("Response from " + uri + " exceeds the limit of " + max + " bytes");
             }
         }
     }

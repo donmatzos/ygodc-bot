@@ -8,7 +8,6 @@ import org.testng.annotations.Test;
 import java.util.Set;
 
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 
 public class LeaderboardAdminCommandTest {
@@ -16,24 +15,6 @@ public class LeaderboardAdminCommandTest {
     @Test
     public void sharedLeaderboardNeverPings() {
         assertTrue(LeaderboardAdminCommand.SHARE_MENTIONS.isEmpty());
-    }
-
-    @Test
-    public void allowedWhenBothCanTalk() {
-        assertNull(LeaderboardAdminCommand.channelProblem(true, true, "#results"));
-    }
-
-    @Test
-    public void memberMustBeAbleToPostThere() {
-        String problem = LeaderboardAdminCommand.channelProblem(false, true, "#results");
-        assertTrue(problem.contains("You can't send messages in #results"), problem);
-    }
-
-    @Test
-    public void botMustBeAbleToPostThere() {
-        String problem = LeaderboardAdminCommand.channelProblem(true, false, "#results");
-        assertTrue(problem.contains("View Channel"), problem);
-        assertTrue(problem.contains("Send Messages"), problem);
     }
 
     @Test

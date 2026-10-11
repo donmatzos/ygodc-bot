@@ -4,6 +4,8 @@ import at.magi.ygodiscordbot.entity.banlist.BanlistSnapshot;
 import at.magi.ygodiscordbot.entity.banlist.GenesysPointlist;
 import at.magi.ygodiscordbot.entity.banlist.OcgBanlist;
 import at.magi.ygodiscordbot.entity.banlist.TcgBanlist;
+import at.magi.ygodiscordbot.utils.concurrent.RefreshLoop;
+import at.magi.ygodiscordbot.utils.http.Fetching;
 import at.magi.ygodiscordbot.utils.http.ListFetcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,9 +17,6 @@ import java.time.Instant;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
 /**
@@ -35,8 +34,6 @@ public final class BanlistRefresher implements AutoCloseable {
     /** A run firing slightly early (truncated delay, wall clock adjusted) still counts as the 03:00 run. */
     static final Duration EARLY_TOLERANCE = Duration.ofSeconds(5);
     static final Duration RETRY_DELAY = Duration.ofHours(1);
-    /** Kept short so all shutdown steps together stay below the supervisor's 20 s grace period (see YgoDiscordBot). */
-    static final Duration CLOSE_TIMEOUT = Duration.ofSeconds(5);
 
     private final BanlistRepository repository;
     private final SnapshotFileStore store;
@@ -44,11 +41,7 @@ public final class BanlistRefresher implements AutoCloseable {
     private final ListFetcher<OcgBanlist> ocgFetcher;
     private final ListFetcher<GenesysPointlist> genesysFetcher;
     private final Clock clock;
-    private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(runnable -> {
-        Thread thread = new Thread(runnable, "banlist-refresh");
-        thread.setDaemon(true);
-        return thread;
-    });
+    private final RefreshLoop loop = new RefreshLoop("banlist-refresh", "Banlist refresh");
 
     public BanlistRefresher(BanlistRepository repository, SnapshotFileStore store,
                             ListFetcher<TcgBanlist> tcgFetcher, ListFetcher<OcgBanlist> ocgFetcher,
@@ -79,7 +72,7 @@ public final class BanlistRefresher implements AutoCloseable {
         if (upToDate) {
             schedule(Duration.between(now, nextDailyRun(now)));
         } else {
-            scheduler.execute(this::runAndReschedule);
+            loop.schedule(Duration.ZERO, this::runAndReschedule);
         }
     }
 
@@ -124,41 +117,34 @@ public final class BanlistRefresher implements AutoCloseable {
     }
 
     private void schedule(Duration delay) {
-        if (!scheduler.isShutdown()) {
-            scheduler.schedule(this::runAndReschedule, delay.toMillis(), TimeUnit.MILLISECONDS);
-        }
+        loop.schedule(delay, this::runAndReschedule);
     }
 
-    /** The list to keep in the snapshot (null if never fetched), whether it was fetched just now, and whether the fetch failed. */
-    private record FetchResult<T>(T list, boolean fetched, boolean failed) {
+    private enum Outcome { UP_TO_DATE, FETCHED, FAILED }
+
+    /** The list to keep in the snapshot (null if never fetched) and what happened to it in this run. */
+    private record FetchResult<T>(T list, Outcome outcome) {
+        boolean fetched() {
+            return outcome == Outcome.FETCHED;
+        }
+
+        boolean failed() {
+            return outcome == Outcome.FAILED;
+        }
     }
 
     private <T> FetchResult<T> fetchIfStale(String name, T current, Function<T, Instant> fetchedAt,
                                             Instant lastDailyRun, ListFetcher<T> fetcher) {
         if (current != null && !fetchedAt.apply(current).isBefore(lastDailyRun)) {
             log.info("{} is up to date, skipped", name);
-            return new FetchResult<>(current, false, false);
+            return new FetchResult<>(current, Outcome.UP_TO_DATE);
         }
-        T list = fetch(name, fetcher);
-        return list != null ? new FetchResult<>(list, true, false) : new FetchResult<>(current, false, true);
-    }
-
-    private <T> T fetch(String name, ListFetcher<T> fetcher) {
-        if (Thread.currentThread().isInterrupted()) {
-            // Shutting down: do not start new requests
-            return null;
+        T list = Fetching.orNull(log, name + " list", fetcher);
+        if (list == null) {
+            return new FetchResult<>(current, Outcome.FAILED);
         }
-        try {
-            T list = fetcher.fetch();
-            log.info("Fetched {} list", name);
-            return list;
-        } catch (IOException | RuntimeException e) {
-            log.warn("Could not fetch {} list, keeping the previous one", name, e);
-            return null;
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            return null;
-        }
+        log.info("Fetched {} list", name);
+        return new FetchResult<>(list, Outcome.FETCHED);
     }
 
     static ZonedDateTime nextDailyRun(ZonedDateTime now) {
@@ -176,13 +162,6 @@ public final class BanlistRefresher implements AutoCloseable {
      */
     @Override
     public void close() {
-        scheduler.shutdownNow();
-        try {
-            if (!scheduler.awaitTermination(CLOSE_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS)) {
-                log.warn("Banlist refresh did not stop within {} s", CLOSE_TIMEOUT.toSeconds());
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
+        loop.close();
     }
 }
