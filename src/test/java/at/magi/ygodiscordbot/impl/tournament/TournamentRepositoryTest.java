@@ -8,12 +8,7 @@ import at.magi.ygodiscordbot.entity.tournament.TournamentListPage;
 import at.magi.ygodiscordbot.entity.tournament.TournamentRecord;
 import at.magi.ygodiscordbot.entity.tournament.TournamentStatus;
 import at.magi.ygodiscordbot.entity.tournament.TournamentSummary;
-import at.magi.ygodiscordbot.impl.config.DatabaseConfig;
-import at.magi.ygodiscordbot.impl.database.DatabasePool;
-import com.zaxxer.hikari.HikariDataSource;
-import org.testng.SkipException;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
+import at.magi.ygodiscordbot.testutil.DatabaseTestBase;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -36,7 +31,7 @@ import static org.testng.Assert.expectThrows;
  * Runs against a real MySQL/MariaDB database, only if TEST_DB_URL (plus TEST_DB_USER, TEST_DB_PASSWORD) is set.
  * The tournament tables in that database are dropped before each test.
  */
-public class TournamentRepositoryTest {
+public class TournamentRepositoryTest extends DatabaseTestBase {
 
     private static final Instant STARTED = Instant.parse("2026-10-10T12:00:00.123Z");
     private static final List<Long> PLAYERS = List.of(40L, 10L, 30L);
@@ -58,33 +53,11 @@ public class TournamentRepositoryTest {
             """;
 
     private int created;
-    private HikariDataSource dataSource;
     private TournamentRepository repository;
-
-    @BeforeClass
-    public void connect() {
-        String url = System.getenv("TEST_DB_URL");
-        if (url == null || url.isBlank()) {
-            throw new SkipException("TEST_DB_URL not set");
-        }
-        dataSource = DatabasePool.open(
-                new DatabaseConfig(url, System.getenv("TEST_DB_USER"), System.getenv("TEST_DB_PASSWORD")));
-    }
-
-    @AfterClass(alwaysRun = true)
-    public void close() {
-        if (dataSource != null) {
-            dataSource.close();
-        }
-    }
 
     @BeforeMethod
     public void freshTables() throws SQLException {
-        try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement()) {
-            statement.execute("DROP TABLE IF EXISTS tournament_match");
-            statement.execute("DROP TABLE IF EXISTS tournament_player");
-            statement.execute("DROP TABLE IF EXISTS tournament");
-        }
+        dropTables("tournament_match", "tournament_player", "tournament");
         repository = new TournamentRepository(dataSource);
         created = 0;
     }
@@ -254,15 +227,20 @@ public class TournamentRepositoryTest {
         assertEquals(repository.list(1, null, 2).rows(), List.of());
     }
 
-    @Test
-    public void migratesTableWithoutCode() throws SQLException {
+    /** Replaces the tournament tables by the old table without codes, holding one running tournament. */
+    private void createOldTournamentTable() throws SQLException {
+        dropTables("tournament_match", "tournament_player", "tournament");
         try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement()) {
-            statement.execute("DROP TABLE IF EXISTS tournament_match, tournament_player, tournament");
             statement.execute(OLD_TOURNAMENT_TABLE);
             // 2026-10-09T23:30Z is already the 10th in Vienna
             statement.execute("INSERT INTO tournament (guild_id, channel_id, created_by, status, started_at, current_round)"
                     + " VALUES (1, 2, 3, 'RUNNING', " + Instant.parse("2026-10-09T23:30:00Z").toEpochMilli() + ", 1)");
         }
+    }
+
+    @Test
+    public void migratesTableWithoutCode() throws SQLException {
+        createOldTournamentTable();
         TournamentRepository fresh = new TournamentRepository(dataSource);
         fresh.ensureSchema();
         TournamentRecord record = fresh.loadRunning().get(0);
@@ -275,11 +253,8 @@ public class TournamentRepositoryTest {
 
     @Test
     public void finishesAHalfDoneMigration() throws SQLException {
+        createOldTournamentTable();
         try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement()) {
-            statement.execute("DROP TABLE IF EXISTS tournament_match, tournament_player, tournament");
-            statement.execute(OLD_TOURNAMENT_TABLE);
-            statement.execute("INSERT INTO tournament (guild_id, channel_id, created_by, status, started_at, current_round)"
-                    + " VALUES (1, 2, 3, 'RUNNING', " + Instant.parse("2026-10-09T23:30:00Z").toEpochMilli() + ", 1)");
             // as if the first start died after adding the columns: no backfill, no index
             statement.execute("ALTER TABLE tournament ADD COLUMN code VARCHAR(18) NULL, ADD COLUMN played_on DATE NULL");
         }
