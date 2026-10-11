@@ -10,12 +10,14 @@ import net.dv8tion.jda.api.entities.channel.unions.MessageChannelUnion;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
@@ -30,6 +32,7 @@ import static at.magi.ygodiscordbot.testutil.FakeInteractions.guild;
 import static at.magi.ygodiscordbot.testutil.FakeInteractions.returns;
 import static at.magi.ygodiscordbot.testutil.FakeInteractions.stringOption;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 
@@ -63,14 +66,21 @@ public class TournamentCommandTest {
         assertEquals(id.getType(), OptionType.STRING);
     }
 
-    @Test
-    public void listDateAcceptsShortAndIsoForms() {
-        java.time.LocalDate day = java.time.LocalDate.of(2026, 10, 10);
-        assertEquals(TournamentCommand.parseListDay("26-10-10"), java.util.Optional.of(day));
-        assertEquals(TournamentCommand.parseListDay("2026-10-10"), java.util.Optional.of(day));
-        assertEquals(TournamentCommand.parseListDay("2026-02-30"), java.util.Optional.empty());
-        assertEquals(TournamentCommand.parseListDay("10-10-2026"), java.util.Optional.empty());
-        assertEquals(TournamentCommand.parseListDay("x"), java.util.Optional.empty());
+    @DataProvider
+    public Object[][] listDays() {
+        LocalDate day = LocalDate.of(2026, 10, 10);
+        return new Object[][]{
+                {"short form", "26-10-10", Optional.of(day)},
+                {"ISO form", "2026-10-10", Optional.of(day)},
+                {"no such day", "2026-02-30", Optional.empty()},
+                {"day first", "10-10-2026", Optional.empty()},
+                {"not a date", "x", Optional.empty()},
+        };
+    }
+
+    @Test(dataProvider = "listDays")
+    public void listDateAcceptsShortAndIsoForms(String name, String input, Optional<LocalDate> expected) {
+        assertEquals(TournamentCommand.parseListDay(input), expected, name);
     }
 
     @Test
@@ -148,29 +158,28 @@ public class TournamentCommandTest {
         assertEquals(list.ids(), List.of(FIRST, SECOND));
     }
 
-    @Test
-    public void duplicatesAreRefused() {
-        String problem = TournamentCommand.parsePlayers("<@" + FIRST + "> <@" + FIRST + ">").problem();
-        assertTrue(problem.contains("twice"), problem);
+    @DataProvider
+    public Object[][] refusedPlayers() {
+        return new Object[][]{
+                {"duplicate", "<@" + FIRST + "> <@" + FIRST + ">", List.of("twice")},
+                {"plain text name", "<@" + FIRST + "> @yugi", List.of("@mentions", "@yugi")},
+                {"role mention", mentions(2) + " <@&" + SECOND + ">", List.of("@mentions")},
+                {"one player", mentions(1), List.of("2–32")},
+                {"33 players", mentions(33), List.of("2–32")},
+        };
+    }
+
+    @Test(dataProvider = "refusedPlayers")
+    public void parsePlayersRefusals(String name, String input, List<String> fragments) {
+        String problem = TournamentCommand.parsePlayers(input).problem();
+        assertNotNull(problem, name);
+        for (String fragment : fragments) {
+            assertTrue(problem.contains(fragment), name + ": " + problem);
+        }
     }
 
     @Test
-    public void plainTextNamesAreRefused() {
-        String problem = TournamentCommand.parsePlayers("<@" + FIRST + "> @yugi").problem();
-        assertTrue(problem.contains("@mentions"), problem);
-        assertTrue(problem.contains("@yugi"), problem);
-    }
-
-    @Test
-    public void roleMentionsAreRefused() {
-        String problem = TournamentCommand.parsePlayers(mentions(2) + " <@&" + SECOND + ">").problem();
-        assertTrue(problem.contains("@mentions"), problem);
-    }
-
-    @Test
-    public void playerCountIsLimited() {
-        assertTrue(TournamentCommand.parsePlayers(mentions(1)).problem().contains("2–32"));
-        assertTrue(TournamentCommand.parsePlayers(mentions(33)).problem().contains("2–32"));
+    public void thirtyTwoPlayersAreFine() {
         assertNull(TournamentCommand.parsePlayers(mentions(32)).problem());
     }
 

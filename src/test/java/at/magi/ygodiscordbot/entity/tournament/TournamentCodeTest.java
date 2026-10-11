@@ -1,5 +1,6 @@
 package at.magi.ygodiscordbot.entity.tournament;
 
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.time.LocalDate;
@@ -31,13 +32,20 @@ public class TournamentCodeTest {
         assertEquals(TournamentCode.parse("  K7M2X9QP4-26-10-10 "), Optional.of("k7m2x9qp4-26-10-10"));
     }
 
-    @Test
-    public void parseRefusesOtherInput() {
-        assertEquals(TournamentCode.parse("#12"), Optional.empty());
-        assertEquals(TournamentCode.parse("k7m2x9qp-26-10-10"), Optional.empty());   // 8-char key
-        assertEquals(TournamentCode.parse("k7m2x9qp0-26-10-10"), Optional.empty());  // 0 not in the alphabet
-        assertEquals(TournamentCode.parse("k7m2x9qp4-26-02-30"), Optional.empty());  // no such day
-        assertEquals(TournamentCode.parse(null), Optional.empty());
+    @DataProvider
+    public Object[][] invalidCodes() {
+        return new Object[][]{
+                {"old numeric id", "#12"},
+                {"8-char key", "k7m2x9qp-26-10-10"},
+                {"0 not in the alphabet", "k7m2x9qp0-26-10-10"},
+                {"no such day", "k7m2x9qp4-26-02-30"},
+                {"null", null},
+        };
+    }
+
+    @Test(dataProvider = "invalidCodes")
+    public void parseRefusesOtherInput(String name, String input) {
+        assertEquals(TournamentCode.parse(input), Optional.empty(), name);
     }
 
     @Test

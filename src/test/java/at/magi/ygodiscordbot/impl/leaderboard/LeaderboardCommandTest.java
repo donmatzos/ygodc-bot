@@ -4,6 +4,7 @@ import at.magi.ygodiscordbot.entity.leaderboard.LeaderboardPage;
 import at.magi.ygodiscordbot.entity.leaderboard.RankedPlayer;
 import at.magi.ygodiscordbot.testutil.CommandAssert;
 import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.util.List;
@@ -19,24 +20,22 @@ import static org.testng.Assert.assertTrue;
 
 public class LeaderboardCommandTest {
 
-    @Test
-    public void emptyBoardReply() {
-        assertEquals(LeaderboardCommand.noPageReply(new LeaderboardPage(1, 0, 0, List.of())),
-                "No players on the leaderboard yet.");
-        // Even a later page of an empty board says "empty", not "page does not exist"
-        assertEquals(LeaderboardCommand.noPageReply(new LeaderboardPage(3, 0, 0, List.of())),
-                "No players on the leaderboard yet.");
+    @DataProvider
+    public Object[][] pages() {
+        return new Object[][]{
+                {"empty board", new LeaderboardPage(1, 0, 0, List.of()), "No players on the leaderboard yet."},
+                // Even a later page of an empty board says "empty", not "page does not exist"
+                {"later page of an empty board", new LeaderboardPage(3, 0, 0, List.of()),
+                        "No players on the leaderboard yet."},
+                {"missing page", new LeaderboardPage(4, 2, 30, List.of()),
+                        "Page 4 does not exist, the leaderboard has 2 pages."},
+                {"existing page", new LeaderboardPage(1, 1, 1, List.of(new RankedPlayer(1, 5, 2))), null},
+        };
     }
 
-    @Test
-    public void missingPageReply() {
-        assertEquals(LeaderboardCommand.noPageReply(new LeaderboardPage(4, 2, 30, List.of())),
-                "Page 4 does not exist, the leaderboard has 2 pages.");
-    }
-
-    @Test
-    public void existingPageHasNoErrorReply() {
-        assertNull(LeaderboardCommand.noPageReply(new LeaderboardPage(1, 1, 1, List.of(new RankedPlayer(1, 5, 2)))));
+    @Test(dataProvider = "pages")
+    public void noPageReply(String name, LeaderboardPage page, String expected) {
+        assertEquals(LeaderboardCommand.noPageReply(page), expected, name);
     }
 
     private static SubcommandData sub(String name) {
@@ -73,16 +72,21 @@ public class LeaderboardCommandTest {
         assertEquals(points.getDescription(), "New total (0–999,999)");
     }
 
-    @Test
-    public void changeProblemOutsideServer() {
-        assertEquals(LeaderboardCommand.changeProblem(false, false, false),
-                "❌ The leaderboard can only be changed in a server.");
+    @DataProvider
+    public Object[][] changes() {
+        return new Object[][]{
+                {"outside a server", false, false, false, "❌ The leaderboard can only be changed in a server."},
+                {"without Manage Server", true, false, false,
+                        "❌ You need **Manage Server** to change the leaderboard."},
+                {"target is a bot", true, true, true, "❌ Bots can't be on the leaderboard."},
+                {"allowed", true, true, false, null},
+        };
     }
 
-    @Test
-    public void changeProblemWithoutManageServer() {
-        assertEquals(LeaderboardCommand.changeProblem(true, false, false),
-                "❌ You need **Manage Server** to change the leaderboard.");
+    @Test(dataProvider = "changes")
+    public void changeProblem(String name, boolean inGuild, boolean canManageServer, boolean targetIsBot,
+                              String expected) {
+        assertEquals(LeaderboardCommand.changeProblem(inGuild, canManageServer, targetIsBot), expected, name);
     }
 
     @Test
@@ -91,12 +95,6 @@ public class LeaderboardCommandTest {
         assertEquals(LeaderboardCommand.permissionProblem(true, false), LeaderboardCommand.changeProblem(true, false, true));
         assertNull(LeaderboardCommand.targetProblem(false));
         assertEquals(LeaderboardCommand.targetProblem(true), "❌ Bots can't be on the leaderboard.");
-    }
-
-    @Test
-    public void changeProblemForBots() {
-        assertEquals(LeaderboardCommand.changeProblem(true, true, true), "❌ Bots can't be on the leaderboard.");
-        assertNull(LeaderboardCommand.changeProblem(true, true, false));
     }
 
     @Test

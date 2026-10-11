@@ -5,6 +5,7 @@ import at.magi.ygodiscordbot.entity.deck.Decklist;
 import at.magi.ygodiscordbot.entity.deck.Ydke;
 import at.magi.ygodiscordbot.entity.deck.YdkeDeck;
 import at.magi.ygodiscordbot.impl.deck.DecklistRepository.SaveResult;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.util.Collections;
@@ -30,30 +31,25 @@ public class DeckCommandTest {
         assertNull(DeckCommand.validateYdke(deck(60, 15, 15)));
     }
 
-    @Test
-    public void wrongPrefixShowsFormat() {
-        String error = DeckCommand.validateYdke("https://example.com/deck");
-        assertTrue(error.contains("ydke://"), error);
-        assertTrue(error.contains(Ydke.FORMAT), error);
+    @DataProvider
+    public Object[][] rejectedYdkes() {
+        return new Object[][]{
+                {"wrong prefix", "https://example.com/deck", "ydke://", true},
+                {"malformed uri", "ydke://not*base64!!!", "Base64", true},
+                {"empty deck", "ydke://!!!", "no cards", false},
+                {"61 main cards", deck(61, 0, 0), "Too many cards", false},
+                {"16 extra cards", deck(40, 16, 0), "Too many cards", false},
+                {"16 side cards", deck(40, 0, 16), "Too many cards", false},
+        };
     }
 
-    @Test
-    public void malformedUriShowsReasonAndFormat() {
-        String error = DeckCommand.validateYdke("ydke://not*base64!!!");
-        assertTrue(error.contains("Base64"), error);
-        assertTrue(error.contains(Ydke.FORMAT), error);
-    }
-
-    @Test
-    public void rejectsEmptyDeck() {
-        assertTrue(DeckCommand.validateYdke("ydke://!!!").contains("no cards"));
-    }
-
-    @Test
-    public void rejectsOversizedZones() {
-        assertTrue(DeckCommand.validateYdke(deck(61, 0, 0)).contains("Too many cards"));
-        assertTrue(DeckCommand.validateYdke(deck(40, 16, 0)).contains("Too many cards"));
-        assertTrue(DeckCommand.validateYdke(deck(40, 0, 16)).contains("Too many cards"));
+    @Test(dataProvider = "rejectedYdkes")
+    public void rejectsInvalidDecks(String name, String ydke, String reason, boolean showsFormat) {
+        String error = DeckCommand.validateYdke(ydke);
+        assertTrue(error.contains(reason), name + ": " + error);
+        if (showsFormat) {
+            assertTrue(error.contains(Ydke.FORMAT), name + ": " + error);
+        }
     }
 
     @Test
