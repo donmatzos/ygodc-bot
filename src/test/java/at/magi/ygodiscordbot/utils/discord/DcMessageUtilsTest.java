@@ -72,7 +72,9 @@ public class DcMessageUtilsTest {
         String all = String.join("\n", messages);
         assertTrue(messages.get(0).startsWith("## Intro"), messages.get(0));
         assertFalse(all.lines().anyMatch(line -> line.equals("a")), "row under the absurd heading was kept");
-        assertTrue(messages.get(messages.size() - 1).equals("continued\n```\nCOLS\nb\n```"), all);
+        assertEquals(messages.get(messages.size() - 1), "continued\n```\nCOLS\nb\n```");
+        // The message with the absurd heading (index 1) is oversized on purpose; the intro and the last must be fine
+        assertSendable(List.of(messages.get(0), messages.get(messages.size() - 1)));
     }
 
     @Test

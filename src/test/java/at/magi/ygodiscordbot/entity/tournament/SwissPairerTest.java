@@ -151,7 +151,7 @@ public class SwissPairerTest {
      * allowed, but only when no rematch-free pairing with a most-losses bye exists (checked by brute force). Leaders
      * still tied after ⌈log₂ 5⌉ rounds are decided by the tie-breakers. The brute-force branch never fires for these
      * seeds (random results keep a rematch-free pairing available); the hand-built histories of
-     * {@link #byeGoesToTheNextPlayerDownToAvoidARematch} and {@link #oneRematchWhenNoRematchFreePairingExists} pin
+     * {@link #byeGoesToTheNextPlayerDownToAvoidARematch} and {@link #byeStaysWithTheMostLossesPlayerWhenARematchIsUnavoidable} pin
      * down what the pairer does when it matters.
      */
     @Test(timeOut = 20_000)
@@ -174,6 +174,7 @@ public class SwissPairerTest {
     /**
      * After three rounds D has beaten E every time. Giving the bye to E (3 losses, the most) would leave A, B, C, D
      * with only rematches; giving it to C (2 losses, the next player down) leaves a rematch-free pairing, which wins.
+     * The history is a hand-built input to {@code SwissPairer.pair}, not a production sequence.
      */
     @Test
     public void byeGoesToTheNextPlayerDownToAvoidARematch() {
@@ -194,11 +195,12 @@ public class SwissPairerTest {
 
     /**
      * B, C, D and E have met each other, A has met nobody (three byes). Whoever gets the bye, the other four contain
-     * at least one pair that has met: the pairer takes exactly one rematch and gives the bye to E, who has the most
-     * losses.
+     * a pair that has met, so a rematch is unavoidable: the bye stays with E, who has the most losses, instead of
+     * moving down. (Any matching of A, B, C, D has exactly one rematch, so the count is a sanity check only.) The
+     * history is a hand-built input to {@code SwissPairer.pair}, not a production sequence.
      */
     @Test
-    public void oneRematchWhenNoRematchFreePairingExists() {
+    public void byeStaysWithTheMostLossesPlayerWhenARematchIsUnavoidable() {
         Standings standings = Standings.of(List.of(A, B, C, D, E), Set.of(), List.of(
                 bye(1, A), won(1, B, C), won(1, D, E),
                 bye(2, A), won(2, B, D), won(2, C, E),
@@ -208,8 +210,9 @@ public class SwissPairerTest {
             List<Pairing> pairings = SwissPairer.pair(standings, 4, new Random(seed)).pairings();
             assertComplete(pairings, standings);
             assertEquals(pairings.get(2), Pairing.bye(E), "seed " + seed + ": " + pairings);
-            assertEquals(pairings.subList(0, 2).stream()
-                    .filter(p -> standings.haveMet(p.player1(), p.player2())).count(), 1L, "seed " + seed + ": " + pairings);
+            long rematches = pairings.subList(0, 2).stream()
+                    .filter(p -> standings.haveMet(p.player1(), p.player2())).count();
+            assertEquals(rematches, 1L, "seed " + seed + ": " + pairings);
         }
     }
 

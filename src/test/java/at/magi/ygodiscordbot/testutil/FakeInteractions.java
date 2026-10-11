@@ -30,8 +30,8 @@ import java.util.function.Function;
 
 /**
  * Fake JDA objects (java.lang.reflect.Proxy) for tests of slash command code. Actions run their callbacks right away,
- * and what is sent is recorded in the order the calls are made, e.g. "reply (ephemeral)", "dm:first", "edit:done", "post:top 20
- * mentions=[]". A fake answers the methods named in its answers; any other method returns the fake itself if that
+ * and what is sent is recorded in the order the calls are made, e.g. "reply (ephemeral)", "dm:first", "edit:done",
+ * "post:top 20 mentions=[]". A fake answers the methods named in its answers; any other method returns the fake itself if that
  * fits the return type (builder methods), else null, false or 0.
  */
 public final class FakeInteractions {

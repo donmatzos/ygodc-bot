@@ -119,8 +119,9 @@ public class DeckCommandTest {
                 "You deleted the following deck", DeckCommand.Again.SAVE);
         hints.forEach((action, again) -> {
             String command = again == DeckCommand.Again.UPDATE ? "`/deck update`" : "`/deck save`";
-            assertEquals(DeckCommand.deckReply(action, again, deck, TestCards.names()), List.of(action + " **Dragons**:\n"
-                    + "This deck's stored YDKE is invalid; save it again with " + command + "."));
+            assertEquals(DeckCommand.deckReply(action, again, deck, TestCards.names()),
+                    List.of(action + " **Dragons**:\n"
+                            + "This deck's stored YDKE is invalid; save it again with " + command + "."));
         });
     }
 
