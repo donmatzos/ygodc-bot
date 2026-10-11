@@ -131,8 +131,6 @@ public class TournamentRepositoryTest {
     public void resultsPairingsRoundsAndDrops() throws SQLException {
         long id = create();
         repository.recordWinner(id, 1, 40, 10);
-        repository.savePairings(id, 2, List.of(new Pairing(10, 30L), Pairing.bye(40)));
-        repository.deletePairings(id, 2);
         repository.savePairings(id, 2, List.of(new Pairing(30, 10L), Pairing.bye(40)));
         repository.startRound(id, 2);
         repository.drop(id, 40, 2, null, false);

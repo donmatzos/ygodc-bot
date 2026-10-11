@@ -121,11 +121,6 @@ public class TournamentRepository implements TournamentStore {
     }
 
     @Override
-    public void deletePairings(long tournamentId, int round) throws SQLException {
-        update("DELETE FROM tournament_match WHERE tournament_id = ? AND round = ?", tournamentId, round);
-    }
-
-    @Override
     public void startRound(long tournamentId, int round) throws SQLException {
         if (update("UPDATE tournament SET current_round = ? WHERE id = ? AND status = 'RUNNING'",
                 round, tournamentId) != 1) {

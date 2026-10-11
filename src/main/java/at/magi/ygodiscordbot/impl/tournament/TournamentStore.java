@@ -21,8 +21,6 @@ public interface TournamentStore {
     /** Stores the pairings of a round; byes are stored as already won. */
     void savePairings(long tournamentId, int round, List<Pairing> pairings) throws SQLException;
 
-    void deletePairings(long tournamentId, int round) throws SQLException;
-
     /** Marks {@code round} as started (its pairings become matches); throws {@link TournamentNotRunningException} if it is not running. */
     void startRound(long tournamentId, int round) throws SQLException;
 

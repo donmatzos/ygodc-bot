@@ -108,12 +108,6 @@ final class FakeTournamentStore implements TournamentStore {
     }
 
     @Override
-    public void deletePairings(long tournamentId, int round) throws SQLException {
-        write();
-        row(tournamentId).matches.removeIf(match -> match.round() == round);
-    }
-
-    @Override
     public void startRound(long tournamentId, int round) throws SQLException {
         write();
         running(tournamentId).currentRound = round;

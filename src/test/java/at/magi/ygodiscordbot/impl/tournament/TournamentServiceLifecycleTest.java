@@ -251,6 +251,18 @@ public class TournamentServiceLifecycleTest extends TournamentServiceTestBase {
     }
 
     @Test
+    public void failedPostOfAnEndingDropIsNotReportedAsPrepareFailed() throws SQLException {
+        long id = start(List.of(101L, 102L, 103L));
+        playRound(id); // one match plus a bye
+        service.drop(code(id), GUILD, 101L);
+        announcer.postsFail = true;
+        String reply = service.drop(code(id), GUILD, 102L);
+        assertTrue(reply.contains("dropped out"), reply);
+        assertTrue(!reply.contains("could not be prepared"), reply);
+        assertEquals(stored(id).status(), TournamentStatus.FINISHED);
+    }
+
+    @Test
     public void dropsBetweenRoundsEndTheTournamentWithTheLastPlayer() throws SQLException {
         long id = start(List.of(101L, 102L, 103L));
         playRound(id); // one match plus a bye
