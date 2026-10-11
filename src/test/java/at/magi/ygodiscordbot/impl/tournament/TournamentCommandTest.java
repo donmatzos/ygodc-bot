@@ -3,13 +3,19 @@ package at.magi.ygodiscordbot.impl.tournament;
 import at.magi.ygodiscordbot.entity.tournament.TournamentListPage;
 import at.magi.ygodiscordbot.entity.tournament.TournamentStatus;
 import at.magi.ygodiscordbot.entity.tournament.TournamentSummary;
+import at.magi.ygodiscordbot.testutil.FakeInteractions;
+import net.dv8tion.jda.api.entities.Member;
+import net.dv8tion.jda.api.entities.channel.unions.GuildMessageChannelUnion;
+import net.dv8tion.jda.api.entities.channel.unions.MessageChannelUnion;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
 import org.testng.annotations.Test;
 
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
@@ -20,6 +26,9 @@ import static at.magi.ygodiscordbot.testutil.CommandAssert.assertOpenToEveryone;
 import static at.magi.ygodiscordbot.testutil.CommandAssert.assertSubcommands;
 import static at.magi.ygodiscordbot.testutil.CommandAssert.option;
 import static at.magi.ygodiscordbot.testutil.CommandAssert.sub;
+import static at.magi.ygodiscordbot.testutil.FakeInteractions.guild;
+import static at.magi.ygodiscordbot.testutil.FakeInteractions.returns;
+import static at.magi.ygodiscordbot.testutil.FakeInteractions.stringOption;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
@@ -68,6 +77,41 @@ public class TournamentCommandTest {
     public void organizerSubcommandsNeedManageServer() {
         assertTrue(TournamentCommand.organizerProblem(false).contains("Manage Server"));
         assertNull(TournamentCommand.organizerProblem(true));
+    }
+
+    /** /tournament start by an organizer with {@link TournamentService#MIN_PLAYERS} mentions; DB work is dropped. */
+    private static List<String> start(boolean lastIsMember) {
+        FakeInteractions fakes = new FakeInteractions();
+        Map<Long, Object> resolved = new HashMap<>();
+        for (int i = 0; i < TournamentService.MIN_PLAYERS; i++) {
+            long id = FIRST + i;
+            boolean member = lastIsMember || i < TournamentService.MIN_PLAYERS - 1;
+            resolved.put(id, member ? member(id) : FakeInteractions.user(id, "stranger"));
+        }
+        Object channel = FakeInteractions.fake(MessageChannelUnion.class, Map.of("canTalk", returns(true)),
+                GuildMessageChannelUnion.class);
+        new TournamentCommand(null, null, task -> {
+        }).execute(fakes.event(Map.of("getGuild", returns(guild()), "getChannel", returns(channel),
+                "getName", returns("tournament"), "getSubcommandName", returns("start"),
+                "getMember", returns(member(FIRST)), "getOptions", returns(List.of(
+                        stringOption("players", mentions(TournamentService.MIN_PLAYERS), resolved))))));
+        return fakes.sent();
+    }
+
+    private static Member member(long id) {
+        return FakeInteractions.fake(Member.class, Map.of("getIdLong", returns(id),
+                "getUser", returns(FakeInteractions.user(id, "player")), "hasPermission", returns(true)));
+    }
+
+    @Test
+    public void startRefusesAMentionedNonMember() {
+        long last = FIRST + TournamentService.MIN_PLAYERS - 1;
+        assertEquals(start(false), List.of("reply:❌ <@" + last + "> is not a member of this server. (ephemeral)"));
+    }
+
+    @Test
+    public void startWithOnlyMembersGoesOnToTheDatabase() {
+        assertEquals(start(true), List.of("reply (ephemeral)"));
     }
 
     @Test
