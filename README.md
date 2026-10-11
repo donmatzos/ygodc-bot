@@ -399,7 +399,7 @@ src/main/java/at/magi/ygodiscordbot/
     card/                   CardRepository, CardRefresher, CardFileStore, CardSource
     deck/                   DeckCommand, DeckMessages, DecklistRepository (JDBC + schema)
     leaderboard/            LeaderboardCommand, LeaderboardAdminCommand, PointsCommand, LeaderboardMessages,
-                            PlayerRepository (JDBC, RANK() per query), PlayerNames (cached names)
+                            PlayerRepository (JDBC, RANK() per query)
     tournament/             TournamentCommand, MatchCommand, TournamentService (all state, db thread only),
                             TournamentRepository (JDBC), TournamentMessages, JdaTournamentAnnouncer, TournamentTimer
     help/                   HelpCommand, HelpMessages
@@ -407,7 +407,8 @@ src/main/java/at/magi/ygodiscordbot/
     config/                 BotConfig, DatabaseConfig (bot.properties / environment variables)
     runtime/                Supervisor (child JVM, memory flags, restarts), RestartPolicy
   utils/                    feature-agnostic helpers; never depend on entity or impl
-    discord/                DcMessageUtils (2000-character split), MessageSender (ordered sends, DMs)
+    discord/                DcMessageUtils (2000-character split), MessageSender (ordered sends, DMs),
+                            DisplayNames (cached user names), ChannelChecks (can-post check)
     http/                   HttpDownloader, ListFetcher
     io/                     AtomicFiles
     json/                   JsonUtils (shared Jackson mapper)
