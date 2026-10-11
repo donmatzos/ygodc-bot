@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.Executor;
+import java.util.function.Consumer;
 
 /**
  * {@code /leaderboard page|get|add|update}: view pages of 20 players (used in a server, the page is sent to the
@@ -97,19 +98,28 @@ public final class LeaderboardCommand implements SlashCommand {
     }
 
     private void reply(SlashCommandInteractionEvent event, LeaderboardPage page) {
+        renderPage(event, names, page, messages -> MessageSender.deliver(event, messages, "the leaderboard",
+                "`/leaderboard page`", () -> log.info("Sent leaderboard page {} to {}", page.page(),
+                        MessageSender.who(event))));
+    }
+
+    /**
+     * Answers the deferred reply itself if there is no page to show or the player names can't be looked up;
+     * otherwise renders the page with names and passes its messages to {@code send} (shared by
+     * {@code /leaderboard page} and {@code /leaderboard-admin share}, which differ only in how they deliver).
+     */
+    static void renderPage(SlashCommandInteractionEvent event, DisplayNames names, LeaderboardPage page,
+                           Consumer<List<String>> send) {
         String noPage = noPageReply(page);
         if (noPage != null) {
             event.getHook().editOriginal(noPage).queue();
             return;
         }
-        names.resolve(event.getJDA(), page.rows(), found -> {
-            List<String> messages = LeaderboardMessages.page(TITLE, page, found);
-            MessageSender.deliver(event, messages, "the leaderboard", "`/leaderboard page`",
-                    () -> log.info("Sent leaderboard page {} to {}", page.page(), MessageSender.who(event)));
-        }, failure -> {
-            log.warn("Could not look up leaderboard names", failure);
-            event.getHook().editOriginal(UNAVAILABLE).queue();
-        });
+        names.resolve(event.getJDA(), page.rows(), found -> send.accept(LeaderboardMessages.page(TITLE, page, found)),
+                failure -> {
+                    log.warn("Could not look up leaderboard names", failure);
+                    event.getHook().editOriginal(UNAVAILABLE).queue();
+                });
     }
 
     private void get(SlashCommandInteractionEvent event) {

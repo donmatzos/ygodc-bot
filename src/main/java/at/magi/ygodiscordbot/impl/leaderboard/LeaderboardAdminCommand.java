@@ -85,15 +85,9 @@ public final class LeaderboardAdminCommand implements SlashCommand {
     }
 
     private void post(SlashCommandInteractionEvent event, GuildMessageChannel target, LeaderboardPage page) {
-        String empty = LeaderboardCommand.noPageReply(page);
-        if (empty != null) {
-            event.getHook().editOriginal(empty).queue();
-            return;
-        }
-        names.resolve(event.getJDA(), page.rows(), found -> {
+        LeaderboardCommand.renderPage(event, names, page, messages -> {
             try {
-                MessageSender.sendAll(target, LeaderboardMessages.page(LeaderboardCommand.TITLE, page, found),
-                        SHARE_MENTIONS)
+                MessageSender.sendAll(target, messages, SHARE_MENTIONS)
                         .queue(last -> {
                                     log.info("Posted the leaderboard into #{} ({}) for {}", target.getName(),
                                             target.getId(), MessageSender.who(event));
@@ -106,9 +100,6 @@ public final class LeaderboardAdminCommand implements SlashCommand {
                 // JDA checks the bot's cached permissions before sending (permissions changed since canTalk)
                 postFailed(event, target, e);
             }
-        }, failure -> {
-            log.warn("Could not look up leaderboard names", failure);
-            event.getHook().editOriginal(LeaderboardCommand.UNAVAILABLE).queue();
         });
     }
 
