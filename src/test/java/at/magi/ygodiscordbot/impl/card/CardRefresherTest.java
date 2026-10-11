@@ -134,7 +134,8 @@ public class CardRefresherTest extends TempDirTest {
             refresher.start();
             assertEquals(repository.names().name(TestCards.BLUE_EYES).orElseThrow(), "Blue-Eyes White Dragon");
             // start() schedules the first check at this delay: a check before it would be a bug
-            assertEquals(CardRefresher.firstDelay(repository.catalog(), NOW), CardRefresher.CHECK_INTERVAL.minusDays(2));
+            assertEquals(CardRefresher.firstDelay(repository.catalog(), NOW),
+                    CardRefresher.CHECK_INTERVAL.minusDays(2));
         }
         assertEquals(checks.get(), 0);
     }

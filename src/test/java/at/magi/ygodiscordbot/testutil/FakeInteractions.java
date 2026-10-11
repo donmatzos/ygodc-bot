@@ -5,6 +5,8 @@ import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.channel.concrete.PrivateChannel;
+import net.dv8tion.jda.api.entities.channel.unions.GuildMessageChannelUnion;
+import net.dv8tion.jda.api.entities.channel.unions.MessageChannelUnion;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.interactions.InteractionHook;
@@ -136,6 +138,13 @@ public final class FakeInteractions {
     /** A server, for "getGuild" (an event without one is in the bot DM). */
     public static Guild guild() {
         return fake(Guild.class, Map.of("getIdLong", returns(7L), "getId", returns("7")));
+    }
+
+    /** A server channel the bot can talk in (for "getChannel"); it answers {@code answers} too. */
+    public static MessageChannelUnion channel(Map<String, Answer> answers) {
+        Map<String, Answer> all = new HashMap<>(Map.of("canTalk", returns(true)));
+        all.putAll(answers);
+        return fake(MessageChannelUnion.class, all, GuildMessageChannelUnion.class);
     }
 
     public static Answer returns(Object value) {

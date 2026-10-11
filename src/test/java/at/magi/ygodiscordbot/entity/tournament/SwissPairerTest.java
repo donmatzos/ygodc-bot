@@ -59,6 +59,13 @@ public class SwissPairerTest {
         return IntStream.rangeClosed(2, 32).mapToObj(size -> new Object[]{size}).toArray(Object[][]::new);
     }
 
+    /** 5 players need rematches, see {@link #fivePlayersRematchOnlyWhenUnavoidable}. */
+    @DataProvider
+    public static Object[][] sizesWithoutFive() {
+        return IntStream.rangeClosed(2, 32).filter(size -> size != 5).mapToObj(size -> new Object[]{size})
+                .toArray(Object[][]::new);
+    }
+
     /**
      * Plays one whole tournament with random results (a match is a double loss with the given chance) and asserts
      * after every round: {@code round.playOff()} is {@link WinnerRule#playOff}, a plain round pairs every active player
@@ -74,6 +81,7 @@ public class SwissPairerTest {
             List<MatchRecord> matches = new ArrayList<>();
             Optional<Long> winner = Optional.empty();
             int minimum = WinnerRule.minimumRounds(size);
+            // 20 holds for the fixed seeds used here; some other seeds need more rounds
             int bound = doubleLossPercent == 0 || minimum < WinnerRule.PLAY_OFF_ROUNDS ? minimum : 20;
             int playOffs = 0;
             int round = 0;
@@ -132,14 +140,11 @@ public class SwissPairerTest {
 
     /**
      * Whole tournaments with random results for every size 2…32 except 5 (see
-     * {@link #fivePlayersRematchOnlyWhenUnavoidable}) and several seeds: a winner is clear after ⌈log₂ n⌉ rounds or
-     * one earlier (an undefeated player lost a play-down match), without rematches.
+     * {@link #fivePlayersRematchOnlyWhenUnavoidable}) and several seeds: a winner is clear after ⌈log₂ n⌉ rounds
+     * or one earlier (an undefeated player lost a play-down match), without rematches.
      */
-    @Test(dataProvider = "sizes", timeOut = 20_000)
+    @Test(dataProvider = "sizesWithoutFive", timeOut = 20_000)
     public void everySizeEndsWithAUniqueWinnerWithoutRematches(int size) {
-        if (size == 5) {
-            return;
-        }
         for (int seed = 0; seed < 20; seed++) {
             simulate(size, seed, 0, SwissPairerTest::assertNoRematchAndByeToMostLosses);
         }
@@ -149,10 +154,10 @@ public class SwissPairerTest {
      * With 5 players everyone has met all others after 4 rounds and a bye, and the forced bye can make the
      * rematch-free pairings split the two undefeated players. Then a rematch or a bye to the next player down is
      * allowed, but only when no rematch-free pairing with a most-losses bye exists (checked by brute force). Leaders
-     * still tied after ⌈log₂ 5⌉ rounds are decided by the tie-breakers. The brute-force branch never fires for these
-     * seeds (random results keep a rematch-free pairing available); the hand-built histories of
-     * {@link #byeGoesToTheNextPlayerDownToAvoidARematch} and {@link #byeStaysWithTheMostLossesPlayerWhenARematchIsUnavoidable} pin
-     * down what the pairer does when it matters.
+     * still tied after ⌈log₂ 5⌉ rounds are decided by the tie-breakers. The brute-force branch never fires for
+     * these seeds (random results keep a rematch-free pairing available); the hand-built histories of
+     * {@link #byeGoesToTheNextPlayerDownToAvoidARematch} and
+     * {@link #byeStaysWithTheMostLossesPlayerWhenARematchIsUnavoidable} pin down what the pairer does when it matters.
      */
     @Test(timeOut = 20_000)
     public void fivePlayersRematchOnlyWhenUnavoidable() {
@@ -257,7 +262,8 @@ public class SwissPairerTest {
         for (int seed = 0; seed < 20; seed++) {
             playOffs += simulate(size, seed, DOUBLE_LOSS_PERCENT, (standings, round, roundNumber) -> { }).playOffs();
         }
-        // From 9 players on, ⌈log₂ n⌉ ≥ PLAY_OFF_ROUNDS: tied leaders play off instead of going to the tie-breakers
+        // From 9 players on, ⌈log₂ n⌉ ≥ PLAY_OFF_ROUNDS: tied leaders play off instead of going to the
+        // tie-breakers
         if (WinnerRule.minimumRounds(size) >= WinnerRule.PLAY_OFF_ROUNDS) {
             assertTrue(playOffs > 0, "size " + size + ": no simulation reached a play-off");
         }
@@ -288,7 +294,7 @@ public class SwissPairerTest {
     public void playOffAllowsARematch() {
         // Two players, 1-1 each after beating each other once (rounds 3 and 4 left out): they meet again
         Standings standings = Standings.of(List.of(1L, 2L), Set.of(), List.of(
-                new MatchRecord(1, 1, 2L, 1L), new MatchRecord(2, 1, 2L, 2L)));
+                won(1, 1, 2), won(2, 2, 1)));
         assertEquals(WinnerRule.playOff(standings, 4), standings.activeRanked());
         Round round = SwissPairer.pair(standings, 5, new Random(1));
         List<Pairing> pairings = round.pairings();
@@ -302,17 +308,15 @@ public class SwissPairerTest {
         assertEquals(SwissPairer.pair(Standings.of(players(1, 4), Set.of(), List.of()), 1, new Random(1)).playOff(),
                 List.of());
 
-        // After 3 rounds players 1 and 2 are tied at 2-1 (3 and 4 at 1-2): too early to play off, round 4 is a plain round
-        List<MatchRecord> matches = new ArrayList<>(List.of(
-                new MatchRecord(1, 1, 2L, 1L), new MatchRecord(1, 3, 4L, 3L),
-                new MatchRecord(2, 1, 3L, 1L), new MatchRecord(2, 2, 4L, 2L),
-                new MatchRecord(3, 1, 4L, 4L), new MatchRecord(3, 2, 3L, 2L)));
+        // After 3 rounds players 1 and 2 are tied at 2-1 (3 and 4 at 1-2): too early to play off, round 4 is a
+        // plain round
+        List<MatchRecord> matches = new ArrayList<>(fourPlayerRoundRobin());
         Round round = SwissPairer.pair(Standings.of(players(1, 4), Set.of(), matches), 4, new Random(1));
         assertEquals(round.playOff(), List.of());
         assertEquals(round.pairings().size(), 2);
 
         // After 4 rounds 1 and 2 are still tied (3-1): now they play off
-        matches.addAll(List.of(new MatchRecord(4, 1, 3L, 1L), new MatchRecord(4, 2, 4L, 2L)));
+        matches.addAll(List.of(won(4, 1, 3), won(4, 2, 4)));
         Standings fourRounds = Standings.of(players(1, 4), Set.of(), matches);
         assertEquals(SwissPairer.pair(fourRounds, 5, new Random(1)).playOff(), List.of(1L, 2L));
     }
@@ -320,7 +324,7 @@ public class SwissPairerTest {
     @Test
     public void sameRecordsArePairedTogether() {
         // After round 1: 1 and 3 are 1-0, 2 and 4 are 0-1
-        List<MatchRecord> matches = List.of(new MatchRecord(1, 1, 2L, 1L), new MatchRecord(1, 3, 4L, 3L));
+        List<MatchRecord> matches = List.of(won(1, 1, 2), won(1, 3, 4));
         Standings standings = Standings.of(players(1, 4), Set.of(), matches);
         List<Pairing> pairings = SwissPairer.pair(standings, 2, new Random(1)).pairings();
         for (Pairing pairing : pairings) {
@@ -331,8 +335,7 @@ public class SwissPairerTest {
     @Test
     public void byeGoesToTheMostLossesAndPrefersNoSecondBye() {
         // 5 had a bye in round 1; 2 and 4 lost. Round 2: the bye goes to 2 or 4, never to 5.
-        List<MatchRecord> matches = List.of(new MatchRecord(1, 1, 2L, 1L), new MatchRecord(1, 3, 4L, 3L),
-                MatchRecord.of(1, Pairing.bye(5)));
+        List<MatchRecord> matches = List.of(won(1, 1, 2), won(1, 3, 4), bye(1, 5));
         Standings standings = Standings.of(players(1, 5), Set.of(), matches);
         for (int seed = 0; seed < 50; seed++) {
             List<Pairing> pairings = SwissPairer.pair(standings, 2, new Random(seed)).pairings();
@@ -355,20 +358,20 @@ public class SwissPairerTest {
     @Test
     public void rematchOnlyWhenUnavoidableAndAsFewAsPossible() {
         // 4 players who all met each other: round 4 needs exactly 2 rematches (one per match), nothing more
-        List<MatchRecord> matches = List.of(
-                new MatchRecord(1, 1, 2L, 1L), new MatchRecord(1, 3, 4L, 3L),
-                new MatchRecord(2, 1, 3L, 1L), new MatchRecord(2, 2, 4L, 2L),
-                new MatchRecord(3, 1, 4L, 1L), new MatchRecord(3, 2, 3L, 2L));
-        Standings standings = Standings.of(players(1, 4), Set.of(), matches);
+        Standings standings = Standings.of(players(1, 4), Set.of(), fourPlayerRoundRobin());
         List<Pairing> pairings = SwissPairer.pair(standings, 4, new Random(3)).pairings();
         assertComplete(pairings, standings);
 
         // 1 met only 2: a rematch-free pairing exists and must be found
-        Standings partial = Standings.of(players(1, 4), Set.of(), List.of(new MatchRecord(1, 1, 2L, 1L),
-                new MatchRecord(1, 3, 4L, 4L)));
+        Standings partial = Standings.of(players(1, 4), Set.of(), List.of(won(1, 1, 2), won(1, 4, 3)));
         for (Pairing pairing : SwissPairer.pair(partial, 2, new Random(5)).pairings()) {
             assertFalse(partial.haveMet(pairing.player1(), pairing.player2()), pairing.toString());
         }
+    }
+
+    /** Players 1…4 have all met once: 1 and 2 are 2-1, 3 and 4 are 1-2. */
+    private static List<MatchRecord> fourPlayerRoundRobin() {
+        return List.of(won(1, 1, 2), won(1, 3, 4), won(2, 1, 3), won(2, 2, 4), won(3, 4, 1), won(3, 2, 3));
     }
 
     @Test

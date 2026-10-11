@@ -43,7 +43,6 @@ public class LeaderboardCommandTest {
     @Test
     public void pageSubcommandKeepsBoundedOption() {
         var page = option(sub(DATA, "page"), "page");
-        assertEquals(page.getName(), "page");
         assertFalse(page.isRequired());
         assertEquals(page.getMinValue().longValue(), 1L);
         assertEquals(page.getMaxValue().longValue(), 10_000L);
@@ -62,7 +61,6 @@ public class LeaderboardCommandTest {
     @Test
     public void updatePointsRange() {
         var points = option(sub(DATA, "update"), "points");
-        assertEquals(points.getName(), "points");
         assertTrue(points.isRequired());
         assertEquals(points.getMinValue().longValue(), 0L);
         assertEquals(points.getMaxValue().longValue(), 999_999L);

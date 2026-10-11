@@ -18,6 +18,11 @@ import static org.testng.Assert.expectThrows;
 
 public class TournamentServiceLifecycleTest extends TournamentServiceTestBase {
 
+    /** The players of {@link #FOUR} are in no running tournament: a new one with them starts. */
+    private void assertPlayersAreFreeAgain() throws SQLException {
+        assertTrue(service.start(GUILD, CHANNEL, ADMIN, FOUR).contains("started"), "players are free again");
+    }
+
     @Test
     public void dropInAnOpenMatchGivesTheOpponentTheWin() throws SQLException {
         long id = start(FOUR);
@@ -132,8 +137,7 @@ public class TournamentServiceLifecycleTest extends TournamentServiceTestBase {
         assertTrue(awarded.isEmpty());
         assertTrue(announcer.last().contains("abandoned"), announcer.last());
         assertTrue(service.continueRound(code(id), GUILD).contains("already abandoned"));
-        // Its players are free again
-        assertTrue(service.start(GUILD, CHANNEL, ADMIN, FOUR).contains("started"));
+        assertPlayersAreFreeAgain();
     }
 
     @Test
@@ -299,7 +303,7 @@ public class TournamentServiceLifecycleTest extends TournamentServiceTestBase {
         store.endBehindTheServicesBack(id, TournamentStatus.FINISHED);
         assertTrue(service.cancel(code(id), GUILD).contains("already finished"));
         assertTrue(service.openMatches(id).isEmpty());
-        assertTrue(service.start(GUILD, CHANNEL, ADMIN, FOUR).contains("started")); // players are free again
+        assertPlayersAreFreeAgain();
     }
 
     @Test
@@ -308,7 +312,7 @@ public class TournamentServiceLifecycleTest extends TournamentServiceTestBase {
         playRound(id);
         store.endBehindTheServicesBack(id, TournamentStatus.ABANDONED);
         assertTrue(service.continueRound(code(id), GUILD).contains("already abandoned"));
-        assertTrue(service.start(GUILD, CHANNEL, ADMIN, FOUR).contains("started"));
+        assertPlayersAreFreeAgain();
     }
 
     @Test
@@ -328,7 +332,7 @@ public class TournamentServiceLifecycleTest extends TournamentServiceTestBase {
 
         store.endBehindTheServicesBack(id, TournamentStatus.FINISHED);
         assertTrue(service.continueRound(code(id), GUILD).contains("already finished"));
-        assertTrue(service.start(GUILD, CHANNEL, ADMIN, FOUR).contains("started"), "players are free again");
+        assertPlayersAreFreeAgain();
     }
 
     @Test
@@ -340,7 +344,7 @@ public class TournamentServiceLifecycleTest extends TournamentServiceTestBase {
         service.abandonExpired();
         service.abandonExpired();
         assertEquals(announcer.posts.size(), posts);
-        assertTrue(service.start(GUILD, CHANNEL, ADMIN, FOUR).contains("started"));
+        assertPlayersAreFreeAgain();
     }
 
     @Test

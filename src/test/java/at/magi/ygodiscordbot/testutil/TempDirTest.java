@@ -22,11 +22,14 @@ public abstract class TempDirTest {
 
     @AfterMethod(alwaysRun = true)
     public void deleteTempDir() throws IOException {
-        try (Stream<Path> paths = Files.walk(dir)) {
-            for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) {
-                Files.delete(path);
+        if (dir != null && Files.exists(dir)) {
+            try (Stream<Path> paths = Files.walk(dir)) {
+                for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) {
+                    Files.delete(path);
+                }
             }
         }
+        dir = null;
     }
 
     /** The sorted names of the files directly in the directory. */

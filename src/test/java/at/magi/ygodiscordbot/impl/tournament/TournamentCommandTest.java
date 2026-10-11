@@ -5,8 +5,6 @@ import at.magi.ygodiscordbot.entity.tournament.TournamentStatus;
 import at.magi.ygodiscordbot.entity.tournament.TournamentSummary;
 import at.magi.ygodiscordbot.testutil.FakeInteractions;
 import net.dv8tion.jda.api.entities.Member;
-import net.dv8tion.jda.api.entities.channel.unions.GuildMessageChannelUnion;
-import net.dv8tion.jda.api.entities.channel.unions.MessageChannelUnion;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
@@ -40,6 +38,7 @@ public class TournamentCommandTest {
 
     private static final long FIRST = 100_000_000_000_000_001L;
     private static final long SECOND = 100_000_000_000_000_002L;
+    private static final TournamentCommand COMMAND = new TournamentCommand(null, null, Runnable::run);
 
     private static String mentions(int count) {
         return LongStream.range(0, count).mapToObj(i -> "<@" + (FIRST + i) + ">").collect(Collectors.joining(" "));
@@ -47,14 +46,14 @@ public class TournamentCommandTest {
 
     @Test
     public void listPageOptionIsBounded() {
-        var page = option(sub(new TournamentCommand(null, null, Runnable::run).data(), "list"), "page");
+        var page = option(sub(COMMAND.data(), "list"), "page");
         assertEquals(page.getMinValue().longValue(), 1L);
         assertEquals(page.getMaxValue().longValue(), 10_000L);
     }
 
     @Test
     public void openToEveryoneInServersWithList() {
-        var data = new TournamentCommand(null, null, Runnable::run).data();
+        var data = COMMAND.data();
         assertEquals(data.getName(), "tournament");
         assertOpenToEveryone(data);
         assertGuildOnly(data);
@@ -98,10 +97,9 @@ public class TournamentCommandTest {
             boolean member = lastIsMember || i < TournamentService.MIN_PLAYERS - 1;
             resolved.put(id, member ? member(id) : FakeInteractions.user(id, "stranger"));
         }
-        Object channel = FakeInteractions.fake(MessageChannelUnion.class, Map.of("canTalk", returns(true)),
-                GuildMessageChannelUnion.class);
         new TournamentCommand(null, null, task -> {
-        }).execute(fakes.event(Map.of("getGuild", returns(guild()), "getChannel", returns(channel),
+        }).execute(fakes.event(Map.of("getGuild", returns(guild()),
+                "getChannel", returns(FakeInteractions.channel(Map.of())),
                 "getName", returns("tournament"), "getSubcommandName", returns("start"),
                 "getMember", returns(member(FIRST)), "getOptions", returns(List.of(
                         stringOption("players", mentions(TournamentService.MIN_PLAYERS), resolved))))));
@@ -185,7 +183,7 @@ public class TournamentCommandTest {
 
     @Test
     public void botCheckedManageServerSubcommands() {
-        assertBotCheckedManageServer(new TournamentCommand(null, null, Runnable::run),
+        assertBotCheckedManageServer(COMMAND,
                 "start", "continue", "standings", "cancel", "drop");
     }
 }

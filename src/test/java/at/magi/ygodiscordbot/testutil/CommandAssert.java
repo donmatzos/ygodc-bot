@@ -42,7 +42,7 @@ public final class CommandAssert {
 
     public static void assertBotCheckedManageServer(SlashCommand command, String... subcommands) {
         assertEquals(command.botCheckedManageServer(), Set.of(subcommands),
-                "bot-checked Manage Server subcommands of " + command.data().getName());
+                "bot-checked Manage Server subcommands of /" + command.data().getName());
     }
 
     public static SubcommandData sub(SlashCommandData data, String name) {
