@@ -5,20 +5,17 @@ import at.magi.ygodiscordbot.entity.banlist.GenesysPointlist;
 import at.magi.ygodiscordbot.entity.banlist.OcgBanlist;
 import at.magi.ygodiscordbot.entity.banlist.TcgBanlist;
 import at.magi.ygodiscordbot.utils.http.ListFetcher;
-import org.testng.annotations.AfterMethod;
+import at.magi.ygodiscordbot.testutil.TempDirTest;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -26,36 +23,24 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.LockSupport;
-import java.util.stream.Stream;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 
-public class BanlistRefresherTest {
+public class BanlistRefresherTest extends TempDirTest {
 
     /** 10:00 in Vienna, so the last daily run was today at 03:00 (01:00 UTC). */
     private static final Instant NOW = Instant.parse("2026-10-05T08:00:00Z");
     private static final Clock CLOCK = Clock.fixed(NOW, BanlistRefresher.ZONE);
 
-    private Path dir;
     private SnapshotFileStore store;
     private BanlistRepository repository;
 
     @BeforeMethod
     public void setUp() throws IOException {
-        dir = Files.createTempDirectory("refresher-test");
         store = new SnapshotFileStore(dir.resolve("banlists.json"));
         repository = TestLists.repository();
-    }
-
-    @AfterMethod(alwaysRun = true)
-    public void deleteTempDir() throws IOException {
-        try (Stream<Path> paths = Files.walk(dir)) {
-            for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) {
-                Files.delete(path);
-            }
-        }
     }
 
     @Test
@@ -135,9 +120,7 @@ public class BanlistRefresherTest {
         refresher.close();
 
         assertEquals(store.load().orElseThrow().tcg(), TestLists.tcg(NOW));
-        try (Stream<Path> files = Files.list(dir)) {
-            assertEquals(files.map(path -> path.getFileName().toString()).toList(), List.of("banlists.json"));
-        }
+        assertEquals(fileNames(), List.of("banlists.json"));
     }
 
     @Test

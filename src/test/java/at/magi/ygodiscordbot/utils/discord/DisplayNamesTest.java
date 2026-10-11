@@ -1,11 +1,10 @@
 package at.magi.ygodiscordbot.utils.discord;
 
+import at.magi.ygodiscordbot.testutil.MutableClock;
 import org.testng.annotations.Test;
 
-import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
@@ -14,40 +13,22 @@ import static org.testng.Assert.assertEquals;
 
 public class DisplayNamesTest {
 
-    /** A clock the test can move forward. */
-    private static final class MutableClock extends Clock {
-        private Instant now = Instant.parse("2026-10-09T12:00:00Z");
-
-        @Override
-        public ZoneOffset getZone() {
-            return ZoneOffset.UTC;
-        }
-
-        @Override
-        public Clock withZone(java.time.ZoneId zone) {
-            return this;
-        }
-
-        @Override
-        public Instant instant() {
-            return now;
-        }
-    }
+    private static final Instant START = Instant.parse("2026-10-09T12:00:00Z");
 
     @Test
     public void remembersNamesUntilTheyExpire() {
-        MutableClock clock = new MutableClock();
+        MutableClock clock = new MutableClock(START);
         DisplayNames names = new DisplayNames(clock);
         names.remember(1, "Yugi");
         assertEquals(names.cached(List.of(1L, 2L)), Map.of(1L, "Yugi"));
 
-        clock.now = clock.now.plus(DisplayNames.TTL).plusSeconds(1);
+        clock.advance(DisplayNames.TTL.plusSeconds(1));
         assertEquals(names.cached(List.of(1L)), Map.of());
     }
 
     @Test
     public void evictsLeastRecentlyUsedBeyondCapacity() {
-        DisplayNames names = new DisplayNames(new MutableClock());
+        DisplayNames names = new DisplayNames(new MutableClock(START));
         for (long id = 0; id < DisplayNames.CAPACITY; id++) {
             names.remember(id, "p" + id);
         }
@@ -59,7 +40,7 @@ public class DisplayNamesTest {
 
     @Test
     public void allCachedNeedsNoDiscordRequest() {
-        DisplayNames names = new DisplayNames(new MutableClock());
+        DisplayNames names = new DisplayNames(new MutableClock(START));
         names.remember(1, "Yugi");
         AtomicReference<Map<Long, String>> result = new AtomicReference<>();
         // A null JDA would throw if a lookup were attempted

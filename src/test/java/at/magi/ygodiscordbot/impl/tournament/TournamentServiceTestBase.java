@@ -1,6 +1,7 @@
 package at.magi.ygodiscordbot.impl.tournament;
 
 import at.magi.ygodiscordbot.entity.tournament.TournamentRecord;
+import at.magi.ygodiscordbot.testutil.MutableClock;
 import org.testng.annotations.BeforeMethod;
 
 import java.sql.SQLException;

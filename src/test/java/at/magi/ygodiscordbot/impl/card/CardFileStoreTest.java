@@ -3,41 +3,27 @@ package at.magi.ygodiscordbot.impl.card;
 import at.magi.ygodiscordbot.entity.card.CardCatalog;
 import at.magi.ygodiscordbot.entity.card.CardNames;
 import at.magi.ygodiscordbot.entity.card.TestCards;
-import org.testng.annotations.AfterMethod;
+import at.magi.ygodiscordbot.testutil.TempDirTest;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.Instant;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Stream;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
-public class CardFileStoreTest {
+public class CardFileStoreTest extends TempDirTest {
 
-    private Path dir;
     private CardFileStore store;
 
     @BeforeMethod
     public void setUp() throws IOException {
-        dir = Files.createTempDirectory("card-store-test");
         store = new CardFileStore(dir.resolve("cards.json"));
-    }
-
-    @AfterMethod(alwaysRun = true)
-    public void deleteTempDir() throws IOException {
-        try (Stream<Path> paths = Files.walk(dir)) {
-            for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) {
-                Files.delete(path);
-            }
-        }
     }
 
     @Test
@@ -73,8 +59,6 @@ public class CardFileStoreTest {
         Files.writeString(dir.resolve("cards98765.tmp"), "{\"version\":");
 
         assertTrue(store.load().isPresent());
-        try (Stream<Path> files = Files.list(dir)) {
-            assertEquals(files.map(path -> path.getFileName().toString()).toList(), List.of("cards.json"));
-        }
+        assertEquals(fileNames(), List.of("cards.json"));
     }
 }

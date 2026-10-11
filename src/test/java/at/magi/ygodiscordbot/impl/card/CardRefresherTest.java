@@ -4,56 +4,41 @@ import at.magi.ygodiscordbot.entity.card.CardCatalog;
 import at.magi.ygodiscordbot.entity.card.CardNames;
 import at.magi.ygodiscordbot.entity.card.TestCards;
 import at.magi.ygodiscordbot.utils.http.ListFetcher;
-import org.testng.annotations.AfterMethod;
+import at.magi.ygodiscordbot.testutil.TempDirTest;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
-import java.util.Comparator;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Stream;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 
-public class CardRefresherTest {
+public class CardRefresherTest extends TempDirTest {
 
     private static final Instant NOW = Instant.parse("2026-10-05T12:00:00Z");
     private static final Clock CLOCK = Clock.fixed(NOW, ZoneOffset.UTC);
     private static final CardNames NEW_NAMES = CardNames.of(Map.of(1, "New Card"));
 
-    private Path dir;
     private CardFileStore store;
     private CardRepository repository;
     private final AtomicInteger downloads = new AtomicInteger();
 
     @BeforeMethod
     public void setUp() throws IOException {
-        dir = Files.createTempDirectory("card-refresher-test");
         store = new CardFileStore(dir.resolve("cards.json"));
         repository = new CardRepository();
         downloads.set(0);
-    }
-
-    @AfterMethod(alwaysRun = true)
-    public void deleteTempDir() throws IOException {
-        try (Stream<Path> paths = Files.walk(dir)) {
-            for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) {
-                Files.delete(path);
-            }
-        }
     }
 
     @Test

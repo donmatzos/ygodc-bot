@@ -1,38 +1,19 @@
 package at.magi.ygodiscordbot.impl.banlist;
 
 import at.magi.ygodiscordbot.entity.banlist.BanlistSnapshot;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import at.magi.ygodiscordbot.testutil.TempDirTest;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
-import java.util.Comparator;
 import java.util.List;
-import java.util.stream.Stream;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
-public class SnapshotFileStoreTest {
-
-    private Path dir;
-
-    @BeforeMethod
-    public void createTempDir() throws IOException {
-        dir = Files.createTempDirectory("snapshot-store-test");
-    }
-
-    @AfterMethod(alwaysRun = true)
-    public void deleteTempDir() throws IOException {
-        try (Stream<Path> paths = Files.walk(dir)) {
-            for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) {
-                Files.delete(path);
-            }
-        }
-    }
+public class SnapshotFileStoreTest extends TempDirTest {
 
     @Test
     public void roundTrip() throws IOException {
@@ -63,10 +44,7 @@ public class SnapshotFileStoreTest {
         Files.writeString(dir.resolve("other.tmp"), "not ours");
 
         assertEquals(store.load().orElseThrow(), snapshot);
-        try (Stream<Path> files = Files.list(dir)) {
-            assertEquals(files.map(path -> path.getFileName().toString()).sorted().toList(),
-                    List.of("banlists.json", "other.tmp"));
-        }
+        assertEquals(fileNames(), List.of("banlists.json", "other.tmp"));
     }
 
     @Test
