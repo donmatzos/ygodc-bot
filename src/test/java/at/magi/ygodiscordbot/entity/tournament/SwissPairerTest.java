@@ -215,7 +215,7 @@ public class SwissPairerTest {
 
     @Test
     public void playOffPairsOnlyTheTiedLeaders() {
-        // A, B and C share 1 loss after 4 rounds (rounds 3 and 4 left out: only the records matter here)
+        // Rounds 3 and 4 left out: only the records matter here
         Standings standings = workedExample();
         List<Pairing> pairings = SwissPairer.pair(standings, 5, new Random(1)).pairings();
         assertEquals(paired(pairings), Set.of(1L, 2L, 3L));

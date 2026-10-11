@@ -14,6 +14,7 @@ import static at.magi.ygodiscordbot.entity.tournament.TournamentFixtures.bye;
 import static at.magi.ygodiscordbot.entity.tournament.TournamentFixtures.doubleLoss;
 import static at.magi.ygodiscordbot.entity.tournament.TournamentFixtures.players;
 import static at.magi.ygodiscordbot.entity.tournament.TournamentFixtures.won;
+import static at.magi.ygodiscordbot.entity.tournament.TournamentFixtures.workedExample;
 import static org.testng.Assert.assertEquals;
 
 public class WinnerRuleTest {
@@ -71,28 +72,20 @@ public class WinnerRuleTest {
     @Test
     public void tieBreakerDecidesTiedLeadersAfterTheMinimum() {
         // Both undefeated players ran out of time in round 2: A, B and C share 1 loss, A has the best OMW%
-        Standings standings = Standings.of(List.of(A, B, C, D), Set.of(), List.of(
-                won(1, A, C), won(1, B, D), new MatchRecord(2, A, B, null, true), won(2, C, D)));
-        assertEquals(WinnerRule.winner(standings, 2), Optional.of(A));
-    }
-
-    /** The tied leaders of {@link #tieBreakerDecidesTiedLeadersAfterTheMinimum} with more rounds played. */
-    private static Standings tiedLeaders() {
-        return Standings.of(List.of(A, B, C, D), Set.of(), List.of(
-                won(1, A, C), won(1, B, D), new MatchRecord(2, A, B, null, true), won(2, C, D)));
+        assertEquals(WinnerRule.winner(workedExample(), 2), Optional.of(A));
     }
 
     @Test
     public void tieBreakerDecidesUpToThreeRounds() {
-        assertEquals(WinnerRule.winner(tiedLeaders(), 3), Optional.of(A));
-        assertEquals(WinnerRule.playOff(tiedLeaders(), 3), List.of());
+        assertEquals(WinnerRule.winner(workedExample(), 3), Optional.of(A));
+        assertEquals(WinnerRule.playOff(workedExample(), 3), List.of());
     }
 
     @Test
     public void tiedLeadersPlayOffFromFourRounds() {
         for (int rounds = 4; rounds <= 6; rounds++) {
-            assertEquals(WinnerRule.winner(tiedLeaders(), rounds), Optional.empty());
-            assertEquals(WinnerRule.playOff(tiedLeaders(), rounds), tiedLeaders().activeRanked().subList(0, 3));
+            assertEquals(WinnerRule.winner(workedExample(), rounds), Optional.empty());
+            assertEquals(WinnerRule.playOff(workedExample(), rounds), workedExample().activeRanked().subList(0, 3));
         }
     }
 
@@ -100,7 +93,7 @@ public class WinnerRuleTest {
     public void uniqueLeaderWinsAfterAPlayOff() {
         // Play-off round 5: A beat B, C had the bye, so A and C are still tied; round 6: A beat C
         List<MatchRecord> matches = new java.util.ArrayList<>(List.of(
-                won(1, A, C), won(1, B, D), new MatchRecord(2, A, B, null, true), won(2, C, D),
+                won(1, A, C), won(1, B, D), doubleLoss(2, A, B), won(2, C, D),
                 won(5, A, B), bye(5, C)));
         Standings afterFive = Standings.of(List.of(A, B, C, D), Set.of(), matches);
         assertEquals(WinnerRule.winner(afterFive, 5), Optional.empty());
@@ -129,8 +122,7 @@ public class WinnerRuleTest {
     @Test
     public void droppedPlayerNeverWinsOnTieBreak() {
         // Same as above, but A dropped after round 2: B and C share the lead and are equal → the lot decides
-        Standings standings = Standings.of(List.of(A, B, C, D), Set.of(A), List.of(
-                won(1, A, C), won(1, B, D), new MatchRecord(2, A, B, null, true), won(2, C, D)));
+        Standings standings = workedExample(Set.of(A));
         Optional<Long> winner = WinnerRule.winner(standings, 2);
         assertEquals(winner, Optional.of(standings.ranked().get(1).player()));
         assertEquals(standings.ranked().get(0).player(), A);

@@ -211,11 +211,11 @@ public class StandingsTest {
         assertEquals(done.status(), MatchStatus.FINISHED);
         assertTrue(done.involves(B));
         assertFalse(done.involves(C));
-        MatchRecord bye = bye(3, C);
-        assertTrue(bye.isBye());
-        assertTrue(bye.isPlayed());
-        assertEquals(bye.winner(), Long.valueOf(C));
-        assertNull(bye.loser());
+        MatchRecord freeWin = bye(3, C);
+        assertTrue(freeWin.isBye());
+        assertTrue(freeWin.isPlayed());
+        assertEquals(freeWin.winner(), Long.valueOf(C));
+        assertNull(freeWin.loser());
     }
 
     @Test
