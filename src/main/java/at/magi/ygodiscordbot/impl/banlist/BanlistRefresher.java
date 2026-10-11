@@ -17,6 +17,7 @@ import java.time.Instant;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.Optional;
 import java.util.function.Function;
 
 /**
@@ -66,14 +67,14 @@ public final class BanlistRefresher implements AutoCloseable {
         });
 
         ZonedDateTime now = ZonedDateTime.now(clock);
-        boolean upToDate = repository.snapshot().oldestFetch()
-                .filter(oldest -> !oldest.isBefore(previousDailyRun(now).toInstant()))
+        schedule(firstDelay(repository.snapshot().oldestFetch(), now));
+    }
+
+    /** Right away if a list is missing or a daily run was missed, else until the next daily run. */
+    static Duration firstDelay(Optional<Instant> oldestFetch, ZonedDateTime now) {
+        boolean upToDate = oldestFetch.filter(oldest -> !oldest.isBefore(previousDailyRun(now).toInstant()))
                 .isPresent();
-        if (upToDate) {
-            schedule(Duration.between(now, nextDailyRun(now)));
-        } else {
-            loop.schedule(Duration.ZERO, this::runAndReschedule);
-        }
+        return upToDate ? Duration.between(now, nextDailyRun(now)) : Duration.ZERO;
     }
 
     /**
@@ -110,8 +111,7 @@ public final class BanlistRefresher implements AutoCloseable {
             log.error("Banlist refresh failed", e);
         }
         ZonedDateTime now = ZonedDateTime.now(clock);
-        Duration untilDaily = Duration.between(now, nextDailyRun(now));
-        Duration delay = complete || untilDaily.compareTo(RETRY_DELAY) < 0 ? untilDaily : RETRY_DELAY;
+        Duration delay = nextDelay(complete, now);
         log.info("Banlist refresh {}; next run in {}", complete ? "complete" : "incomplete", delay);
         schedule(delay);
     }
@@ -145,6 +145,12 @@ public final class BanlistRefresher implements AutoCloseable {
         }
         log.info("Fetched {} list", name);
         return new FetchResult<>(list, Outcome.FETCHED);
+    }
+
+    /** Until the next 03:00 run after a complete refresh; hourly retries after an incomplete one, never past 03:00. */
+    static Duration nextDelay(boolean complete, ZonedDateTime now) {
+        Duration untilDaily = Duration.between(now, nextDailyRun(now));
+        return complete || untilDaily.compareTo(RETRY_DELAY) < 0 ? untilDaily : RETRY_DELAY;
     }
 
     static ZonedDateTime nextDailyRun(ZonedDateTime now) {

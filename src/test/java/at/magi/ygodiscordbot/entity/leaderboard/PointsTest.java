@@ -19,11 +19,6 @@ public class PointsTest {
     }
 
     @Test
-    public void maximumIs999999() {
-        assertEquals(Points.MAX, 999_999);
-    }
-
-    @Test
     public void addStopsAtMaximum() {
         assertEquals(Points.apply(999_950, 99), 999_999);
         assertEquals(Points.apply(999_999, 1), 999_999);

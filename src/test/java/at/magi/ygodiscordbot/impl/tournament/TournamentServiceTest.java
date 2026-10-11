@@ -13,9 +13,11 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
-import java.util.stream.LongStream;
 
+import static at.magi.ygodiscordbot.entity.tournament.TournamentFixtures.players;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.expectThrows;
 
@@ -35,7 +37,7 @@ public class TournamentServiceTest extends TournamentServiceTestBase {
         long id = start(FOUR);
         assertEquals(store.rejectedCodes.size(), 1);
         assertEquals(stored(id).status(), TournamentStatus.RUNNING);
-        assertTrue(!code(id).equals(store.rejectedCodes.get(0)));
+        assertNotEquals(code(id), store.rejectedCodes.get(0));
     }
 
     @Test
@@ -57,6 +59,7 @@ public class TournamentServiceTest extends TournamentServiceTestBase {
         RecordingAnnouncer.Post post = announcer.posts.get(0);
         assertEquals(post.channelId(), CHANNEL);
         assertTrue(post.ping());
+        assertTrue(post.text().contains("Tournament `" + code(id) + "` · 2026-10-10 · Round 1"), post.text());
         for (ActiveMatch match : open) {
             assertTrue(match.id() >= TournamentService.MIN_MATCH_ID && match.id() <= TournamentService.MAX_MATCH_ID);
             assertTrue(post.text().contains("`" + match.id() + "`"), post.text());
@@ -67,7 +70,7 @@ public class TournamentServiceTest extends TournamentServiceTestBase {
     public void startAllowsAPlayerRunningInAnotherServer() throws SQLException {
         start(FOUR);
         String reply = service.start(GUILD + 1, CHANNEL, ADMIN, List.of(101L, 105L));
-        assertTrue(!reply.contains("Already playing"), reply);
+        assertFalse(reply.contains("Already playing"), reply);
         assertEquals(store.lastId(), 2);
     }
 
@@ -82,7 +85,7 @@ public class TournamentServiceTest extends TournamentServiceTestBase {
     @Test
     public void startRefusesTooFewOrTooManyPlayers() throws SQLException {
         assertTrue(service.start(GUILD, CHANNEL, ADMIN, List.of(101L)).contains("2–32"));
-        List<Long> many = LongStream.rangeClosed(1, 33).boxed().toList();
+        List<Long> many = players(1, 33);
         assertTrue(service.start(GUILD, CHANNEL, ADMIN, many).contains("2–32"));
         assertEquals(store.lastId(), 0);
     }
@@ -235,14 +238,6 @@ public class TournamentServiceTest extends TournamentServiceTestBase {
     }
 
     @Test
-    public void startPostIncludesCodeAndPings() throws SQLException {
-        long id = start(FOUR);
-        RecordingAnnouncer.Post post = announcer.posts.get(0);
-        assertTrue(post.ping());
-        assertTrue(post.text().contains("Tournament `" + code(id) + "` · 2026-10-10 · Round 1"), post.text());
-    }
-
-    @Test
     public void matchResultGoesToBothPlayersByDmNotToTheChannel() throws SQLException {
         long id = start(FOUR);
         int posts = announcer.posts.size();
@@ -324,12 +319,6 @@ public class TournamentServiceTest extends TournamentServiceTestBase {
         service = newService(7);
         service.recover(); // resume DMs the new match IDs
         assertEquals(service.openMatches(id).size(), 1);
-    }
-
-    @Test
-    public void unknownCodeInAnotherServer() throws SQLException {
-        long id = start(FOUR);
-        assertTrue(service.continueRound(code(id), GUILD + 1).contains("no tournament `" + code(id) + "`"));
     }
 
     @Test

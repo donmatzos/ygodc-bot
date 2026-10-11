@@ -2,7 +2,6 @@ package at.magi.ygodiscordbot.impl.banlist;
 
 import at.magi.ygodiscordbot.entity.banlist.BanStatus;
 import at.magi.ygodiscordbot.entity.banlist.BanlistEntry;
-import static org.testng.Assert.assertTrue;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
@@ -11,6 +10,7 @@ import java.util.List;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertThrows;
+import static org.testng.Assert.assertTrue;
 
 public class YgoProDeckSourceTest {
 

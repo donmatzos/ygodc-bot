@@ -4,56 +4,41 @@ import at.magi.ygodiscordbot.entity.card.CardCatalog;
 import at.magi.ygodiscordbot.entity.card.CardNames;
 import at.magi.ygodiscordbot.entity.card.TestCards;
 import at.magi.ygodiscordbot.utils.http.ListFetcher;
-import org.testng.annotations.AfterMethod;
+import at.magi.ygodiscordbot.testutil.TempDirTest;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
-import java.util.Comparator;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Stream;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 
-public class CardRefresherTest {
+public class CardRefresherTest extends TempDirTest {
 
     private static final Instant NOW = Instant.parse("2026-10-05T12:00:00Z");
     private static final Clock CLOCK = Clock.fixed(NOW, ZoneOffset.UTC);
     private static final CardNames NEW_NAMES = CardNames.of(Map.of(1, "New Card"));
 
-    private Path dir;
     private CardFileStore store;
     private CardRepository repository;
     private final AtomicInteger downloads = new AtomicInteger();
 
     @BeforeMethod
     public void setUp() throws IOException {
-        dir = Files.createTempDirectory("card-refresher-test");
         store = new CardFileStore(dir.resolve("cards.json"));
         repository = new CardRepository();
         downloads.set(0);
-    }
-
-    @AfterMethod(alwaysRun = true)
-    public void deleteTempDir() throws IOException {
-        try (Stream<Path> paths = Files.walk(dir)) {
-            for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) {
-                Files.delete(path);
-            }
-        }
     }
 
     @Test
@@ -141,15 +126,18 @@ public class CardRefresherTest {
     @Test
     public void startUsesStoredListWithoutCallingTheApiWhenNotDue() throws Exception {
         store.save(TestCards.catalog("147.22", NOW.minus(Duration.ofDays(2))));
-        CountDownLatch checked = new CountDownLatch(1);
+        AtomicInteger checks = new AtomicInteger();
         try (CardRefresher refresher = refresher(() -> {
-            checked.countDown();
+            checks.incrementAndGet();
             return "147.22";
         })) {
             refresher.start();
             assertEquals(repository.names().name(TestCards.BLUE_EYES).orElseThrow(), "Blue-Eyes White Dragon");
-            assertFalse(checked.await(500, TimeUnit.MILLISECONDS));
+            // start() schedules the first check at this delay: a check before it would be a bug
+            assertEquals(CardRefresher.firstDelay(repository.catalog(), NOW),
+                    CardRefresher.CHECK_INTERVAL.minusDays(2));
         }
+        assertEquals(checks.get(), 0);
     }
 
     @Test
@@ -181,20 +169,24 @@ public class CardRefresherTest {
     @DataProvider
     public Object[][] nextDelays() {
         return new Object[][]{
-                {true, 0, true, CardRefresher.CHECK_INTERVAL},
-                {true, 0, false, CardRefresher.CHECK_INTERVAL},
-                {false, 1, true, CardRefresher.RETRY_DELAY},
-                {false, CardRefresher.MAX_RETRIES, true, CardRefresher.RETRY_DELAY},
-                {false, CardRefresher.MAX_RETRIES, false, CardRefresher.RETRY_DELAY},
-                {false, CardRefresher.MAX_RETRIES + 1, true, CardRefresher.CHECK_INTERVAL},
+                {"success", true, 0, true, CardRefresher.CHECK_INTERVAL},
+                {"success without catalog", true, 0, false, CardRefresher.CHECK_INTERVAL},
+                {"first failure", false, 1, true, CardRefresher.RETRY_DELAY},
+                {"last allowed retry", false, CardRefresher.MAX_RETRIES, true, CardRefresher.RETRY_DELAY},
+                {"last allowed retry without catalog", false, CardRefresher.MAX_RETRIES, false,
+                        CardRefresher.RETRY_DELAY},
+                {"retries used up", false, CardRefresher.MAX_RETRIES + 1, true, CardRefresher.CHECK_INTERVAL},
                 // Without any catalog the names stay missing, so keep retrying hourly
-                {false, CardRefresher.MAX_RETRIES + 1, false, CardRefresher.RETRY_DELAY},
-                {false, CardRefresher.MAX_RETRIES + 10, false, CardRefresher.RETRY_DELAY},
+                {"retries used up without catalog", false, CardRefresher.MAX_RETRIES + 1, false,
+                        CardRefresher.RETRY_DELAY},
+                {"far past the retries without catalog", false, CardRefresher.MAX_RETRIES + 10, false,
+                        CardRefresher.RETRY_DELAY},
         };
     }
 
     @Test(dataProvider = "nextDelays")
-    public void nextDelayDependsOnFailuresAndCatalog(boolean ok, int failures, boolean haveCatalog, Duration expected) {
-        assertEquals(CardRefresher.nextDelay(ok, failures, haveCatalog), expected);
+    public void nextDelayDependsOnFailuresAndCatalog(String name, boolean ok, int failures, boolean haveCatalog,
+                                                     Duration expected) {
+        assertEquals(CardRefresher.nextDelay(ok, failures, haveCatalog), expected, name);
     }
 }

@@ -1,36 +1,25 @@
 package at.magi.ygodiscordbot.utils.io;
 
-import org.testng.annotations.AfterMethod;
+import at.magi.ygodiscordbot.testutil.TempDirTest;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Comparator;
 import java.util.Optional;
-import java.util.stream.Stream;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 
-public class AtomicFilesTest {
+public class AtomicFilesTest extends TempDirTest {
 
-    private Path dir;
     private Path file;
 
     @BeforeMethod
-    public void createTempDir() throws IOException {
-        dir = Files.createTempDirectory("atomic-files-test");
+    public void setUp() {
         file = dir.resolve("data.txt");
-    }
-
-    @AfterMethod(alwaysRun = true)
-    public void deleteTempDir() throws IOException {
-        try (Stream<Path> paths = Files.walk(dir)) {
-            paths.sorted(Comparator.reverseOrder()).forEach(path -> path.toFile().delete());
-        }
     }
 
     private static String readText(Path path) throws IOException {

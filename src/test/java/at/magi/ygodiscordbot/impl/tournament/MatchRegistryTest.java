@@ -49,6 +49,8 @@ public class MatchRegistryTest {
             assertNull(registry.get(match.id()));
         }
         assertEquals(seen.size(), 5);
+        // every ID in the range has been issued once and none comes back, even though all matches were removed
+        expectThrows(IllegalStateException.class, () -> registry.create(9, 1, 1, 2));
     }
 
     @Test
@@ -58,6 +60,7 @@ public class MatchRegistryTest {
         registry.create(1, 1, 3, 4);
         IllegalStateException e = expectThrows(IllegalStateException.class, () -> registry.create(1, 1, 5, 6));
         assertTrue(e.getMessage().contains("match IDs"), e.getMessage());
+        assertEquals(registry.open(tournament(1)).size(), 2, "failed create must not change the registry");
     }
 
     @Test
@@ -65,7 +68,8 @@ public class MatchRegistryTest {
         MatchRegistry registry = new MatchRegistry(new Random(1), 100, 199);
         ActiveMatch match = registry.create(7, 2, 1, 2);
         assertEquals(registry.get(match.id()), match);
-        assertNull(registry.get(match.id() == 100 ? 101 : 100));
+        int otherId = match.id() == 199 ? 198 : match.id() + 1;
+        assertNull(registry.get(otherId));
     }
 
     @Test

@@ -1,6 +1,5 @@
 package at.magi.ygodiscordbot.impl.help;
 
-import at.magi.ygodiscordbot.utils.discord.DcMessageUtils;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.Commands;
 import net.dv8tion.jda.api.interactions.commands.build.OptionData;
@@ -11,6 +10,7 @@ import org.testng.annotations.Test;
 import java.util.Collections;
 import java.util.List;
 
+import static at.magi.ygodiscordbot.testutil.DiscordAssert.assertSendable;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
@@ -61,6 +61,6 @@ public class HelpMessagesTest {
         var many = Collections.nCopies(60, "x".repeat(60));
         var messages = HelpMessages.build(many);
         assertTrue(messages.size() > 1);
-        messages.forEach(m -> assertTrue(m.length() <= DcMessageUtils.MAX_MESSAGE_LENGTH));
+        assertSendable(messages);
     }
 }

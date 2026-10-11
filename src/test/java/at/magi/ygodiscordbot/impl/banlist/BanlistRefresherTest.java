@@ -5,57 +5,43 @@ import at.magi.ygodiscordbot.entity.banlist.GenesysPointlist;
 import at.magi.ygodiscordbot.entity.banlist.OcgBanlist;
 import at.magi.ygodiscordbot.entity.banlist.TcgBanlist;
 import at.magi.ygodiscordbot.utils.http.ListFetcher;
-import org.testng.annotations.AfterMethod;
+import at.magi.ygodiscordbot.testutil.TempDirTest;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.LockSupport;
-import java.util.stream.Stream;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 
-public class BanlistRefresherTest {
+public class BanlistRefresherTest extends TempDirTest {
 
     /** 10:00 in Vienna, so the last daily run was today at 03:00 (01:00 UTC). */
     private static final Instant NOW = Instant.parse("2026-10-05T08:00:00Z");
     private static final Clock CLOCK = Clock.fixed(NOW, BanlistRefresher.ZONE);
 
-    private Path dir;
     private SnapshotFileStore store;
     private BanlistRepository repository;
 
     @BeforeMethod
     public void setUp() throws IOException {
-        dir = Files.createTempDirectory("refresher-test");
         store = new SnapshotFileStore(dir.resolve("banlists.json"));
         repository = TestLists.repository();
-    }
-
-    @AfterMethod(alwaysRun = true)
-    public void deleteTempDir() throws IOException {
-        try (Stream<Path> paths = Files.walk(dir)) {
-            for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) {
-                Files.delete(path);
-            }
-        }
     }
 
     @Test
@@ -107,17 +93,27 @@ public class BanlistRefresherTest {
     public void startUsesStoredSnapshotWhenUpToDate() throws Exception {
         BanlistSnapshot stored = TestLists.snapshot(Instant.parse("2026-10-05T01:05:00Z")); // 03:05 Vienna
         store.save(stored);
-        CountDownLatch fetched = new CountDownLatch(1);
+        AtomicInteger fetches = new AtomicInteger();
 
         try (BanlistRefresher refresher = refresher(() -> {
-            fetched.countDown();
+            fetches.incrementAndGet();
             return TestLists.tcg(NOW);
         }, () -> TestLists.ocg(NOW), () -> TestLists.genesys(NOW))) {
             refresher.start();
 
             assertEquals(repository.snapshot(), stored);
-            assertFalse(fetched.await(500, TimeUnit.MILLISECONDS));
         }
+        // start() schedules the first run at this delay: a fetch before it would be a bug
+        ZonedDateTime now = ZonedDateTime.ofInstant(NOW, BanlistRefresher.ZONE);
+        assertEquals(BanlistRefresher.firstDelay(stored.oldestFetch(), now), Duration.ofHours(17)); // 10:00 -> 03:00
+        assertEquals(fetches.get(), 0);
+    }
+
+    @Test
+    public void firstRunIsImmediateWhenAListIsMissing() {
+        // A missed daily run is covered by startRefreshesWhenStoredSnapshotMissedADailyRun
+        assertEquals(BanlistRefresher.firstDelay(Optional.empty(), ZonedDateTime.ofInstant(NOW, BanlistRefresher.ZONE)),
+                Duration.ZERO);
     }
 
     /** Regression: close() returned while the refresh thread was still writing the snapshot file. */
@@ -135,9 +131,7 @@ public class BanlistRefresherTest {
         refresher.close();
 
         assertEquals(store.load().orElseThrow().tcg(), TestLists.tcg(NOW));
-        try (Stream<Path> files = Files.list(dir)) {
-            assertEquals(files.map(path -> path.getFileName().toString()).toList(), List.of("banlists.json"));
-        }
+        assertEquals(fileNames(), List.of("banlists.json"));
     }
 
     @Test
@@ -304,6 +298,43 @@ public class BanlistRefresherTest {
         assertEquals(BanlistRefresher.nextDailyRun(beforeThree), atThree);
         assertEquals(BanlistRefresher.nextDailyRun(atThree), atThree.plusDays(1));
         assertEquals(BanlistRefresher.previousDailyRun(atThree.withHour(15)), atThree);
+    }
+
+    private static ZonedDateTime vienna(String utc) {
+        return ZonedDateTime.ofInstant(Instant.parse(utc), BanlistRefresher.ZONE);
+    }
+
+    /** Expected delays are worked out by hand from the Vienna offsets (CET +1, CEST +2). */
+    @DataProvider
+    public static Object[][] nextDelays() {
+        return new Object[][]{
+                // 10:00 CEST (08:00Z) on 2026-10-05
+                {"complete: waits for tomorrow's 03:00", true, "2026-10-05T08:00:00Z", Duration.ofHours(17)},
+                {"incomplete: retries hourly", false, "2026-10-05T08:00:00Z", Duration.ofHours(1)},
+                // 02:30 CEST (00:30Z): the retry must not skip 03:00
+                {"incomplete: retry shortened to 03:00", false, "2026-10-05T00:30:00Z", Duration.ofMinutes(30)},
+                {"incomplete at 02:00:01: 59m59s", false, "2026-10-05T00:00:01Z", Duration.ofSeconds(3599)},
+                {"incomplete at 02:00 sharp: a full hour", false, "2026-10-05T00:00:00Z", Duration.ofHours(1)},
+                {"complete at 03:00 sharp: a full day", true, "2026-10-05T01:00:00Z", Duration.ofHours(24)},
+                {"incomplete at 03:00 sharp: next 03:00 is a day away", false, "2026-10-05T01:00:00Z",
+                        Duration.ofHours(1)},
+                // spring forward 2026-03-29 (02:00 CET -> 03:00 CEST at 01:00Z): that night is one hour shorter
+                {"DST start: complete the day before", true, "2026-03-28T09:00:00Z", Duration.ofHours(16)},
+                {"DST start: retry shortened, 01:30 CET", false, "2026-03-29T00:30:00Z", Duration.ofMinutes(30)},
+                {"DST start: complete at 03:00 CEST", true, "2026-03-29T01:00:00Z", Duration.ofHours(24)},
+                // fall back 2026-10-25 (03:00 CEST -> 02:00 CET at 01:00Z): that day's 03:00 CET is 02:00Z
+                {"DST end: complete the day before", true, "2026-10-24T08:00:00Z", Duration.ofHours(18)},
+                {"DST end: retry shortened, 02:30 CET", false, "2026-10-25T01:30:00Z", Duration.ofMinutes(30)},
+                // 02:30 CEST is the first pass of the doubled hour: 03:00 CET is 90 real minutes away, so the hourly
+                // retry is not shortened
+                {"DST end: first pass of 02:30, hourly retry", false, "2026-10-25T00:30:00Z", Duration.ofHours(1)},
+                {"DST end: complete at 03:00 CET", true, "2026-10-25T02:00:00Z", Duration.ofHours(24)},
+        };
+    }
+
+    @Test(dataProvider = "nextDelays")
+    public void nextDelayNeverSkipsTheDailyRun(String name, boolean complete, String nowUtc, Duration expected) {
+        assertEquals(BanlistRefresher.nextDelay(complete, vienna(nowUtc)), expected, name);
     }
 
     private static void sleepIgnoringInterrupts(Duration duration) {

@@ -3,19 +3,12 @@ package at.magi.ygodiscordbot.impl.deck;
 import at.magi.ygodiscordbot.entity.deck.Decklist;
 import at.magi.ygodiscordbot.entity.deck.Ydke;
 import at.magi.ygodiscordbot.entity.deck.YdkeTest;
-import at.magi.ygodiscordbot.impl.config.DatabaseConfig;
-import at.magi.ygodiscordbot.impl.database.DatabasePool;
 import at.magi.ygodiscordbot.impl.deck.DecklistRepository.SaveResult;
-import com.zaxxer.hikari.HikariDataSource;
-import org.testng.SkipException;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
+import at.magi.ygodiscordbot.testutil.DatabaseTestBase;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import java.sql.Connection;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -30,38 +23,18 @@ import static org.testng.Assert.assertTrue;
  * Runs against a real MySQL/MariaDB database, only if TEST_DB_URL (plus TEST_DB_USER, TEST_DB_PASSWORD)
  * is set. The {@code decklist} table in that database is dropped before each test.
  */
-public class DecklistRepositoryTest {
+public class DecklistRepositoryTest extends DatabaseTestBase {
 
     private static final long ALICE = 111111111111111111L;
     private static final long BOB = 222222222222222222L;
     private static final String DECK = Ydke.encode(YdkeTest.DECK);
     private static final String OTHER_DECK = "ydke://o6lXBQ==!!!";
 
-    private HikariDataSource dataSource;
     private DecklistRepository repository;
-
-    @BeforeClass
-    public void connect() {
-        String url = System.getenv("TEST_DB_URL");
-        if (url == null || url.isBlank()) {
-            throw new SkipException("TEST_DB_URL not set");
-        }
-        dataSource = DatabasePool.open(
-                new DatabaseConfig(url, System.getenv("TEST_DB_USER"), System.getenv("TEST_DB_PASSWORD")));
-    }
-
-    @AfterClass(alwaysRun = true)
-    public void close() {
-        if (dataSource != null) {
-            dataSource.close();
-        }
-    }
 
     @BeforeMethod
     public void freshTable() throws SQLException {
-        try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement()) {
-            statement.execute("DROP TABLE IF EXISTS decklist");
-        }
+        dropTables("decklist");
         repository = new DecklistRepository(dataSource,
                 Clock.fixed(Instant.parse("2026-10-05T12:00:00Z"), ZoneOffset.UTC));
     }

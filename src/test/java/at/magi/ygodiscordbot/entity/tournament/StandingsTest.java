@@ -5,6 +5,14 @@ import org.testng.annotations.Test;
 import java.util.List;
 import java.util.Set;
 
+import static at.magi.ygodiscordbot.entity.tournament.TournamentFixtures.A;
+import static at.magi.ygodiscordbot.entity.tournament.TournamentFixtures.B;
+import static at.magi.ygodiscordbot.entity.tournament.TournamentFixtures.C;
+import static at.magi.ygodiscordbot.entity.tournament.TournamentFixtures.D;
+import static at.magi.ygodiscordbot.entity.tournament.TournamentFixtures.bye;
+import static at.magi.ygodiscordbot.entity.tournament.TournamentFixtures.doubleLoss;
+import static at.magi.ygodiscordbot.entity.tournament.TournamentFixtures.won;
+import static at.magi.ygodiscordbot.entity.tournament.TournamentFixtures.workedExample;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
@@ -13,16 +21,10 @@ import static org.testng.Assert.expectThrows;
 
 public class StandingsTest {
 
-    private static final long A = 1, B = 2, C = 3, D = 4, E = 5;
-
-    private static MatchRecord won(int round, long winner, long loser) {
-        return new MatchRecord(round, winner, loser, winner);
-    }
-
     @Test
     public void countsWinsLossesAndByes() {
         Standings standings = Standings.of(List.of(A, B, C), Set.of(), List.of(
-                won(1, A, B), MatchRecord.of(1, Pairing.bye(C))));
+                won(1, A, B), bye(1, C)));
         assertEquals(standings.entry(A), new Standings.Entry(A, 1, 0, 0, false));
         assertEquals(standings.entry(B), new Standings.Entry(B, 0, 1, 0, false));
         assertEquals(standings.entry(C), new Standings.Entry(C, 1, 0, 1, false));
@@ -44,12 +46,6 @@ public class StandingsTest {
     }
 
     // --- Tie-breakers ---
-
-    /** Round 1: A beat C, B beat D. Round 2: A and B double loss, C beat D. A, B, C are 1-1, D 0-2. */
-    private static Standings workedExample() {
-        return Standings.of(List.of(A, B, C, D), Set.of(), List.of(
-                won(1, A, C), won(1, B, D), new MatchRecord(2, A, B, null, true), won(2, C, D)));
-    }
 
     @Test
     public void workedExampleFigures() {
@@ -84,7 +80,7 @@ public class StandingsTest {
     public void byesAreNoOpponentsButCountAsWins() {
         // Round 1: A beat B, C bye. Round 2: A beat C, B bye.
         Standings standings = Standings.of(List.of(A, B, C), Set.of(), List.of(
-                won(1, A, B), MatchRecord.of(1, Pairing.bye(C)), won(2, A, C), MatchRecord.of(2, Pairing.bye(B))));
+                won(1, A, B), bye(1, C), won(2, A, C), bye(2, B)));
         // B and C are 1-1 including their bye → MW% 1/2 each
         assertEquals(standings.tieBreaks(A).omw(), 0.5, 1e-9);
         // B's and C's only real opponent is A (MW% 1)
@@ -95,7 +91,7 @@ public class StandingsTest {
     @Test
     public void onlyByesGiveTheFloor() {
         Standings standings = Standings.of(List.of(A, B, C), Set.of(), List.of(
-                won(1, A, B), MatchRecord.of(1, Pairing.bye(C))));
+                won(1, A, B), bye(1, C)));
         assertEquals(standings.tieBreaks(C).omw(), 1.0 / 3, 1e-9);
         assertEquals(standings.tieBreaks(C).oomw(), 1.0 / 3, 1e-9);
         assertEquals(standings.tieBreaks(A).omw(), 1.0 / 3, 1e-9);   // B is 0-1
@@ -173,9 +169,9 @@ public class StandingsTest {
         // A beat B, C beat A, B beat C, each with one bye: all 2-1 with equal figures, so only the lot orders them
         for (long tournament = 1; tournament < 20; tournament++) {
             Standings standings = Standings.of(List.of(A, B, C), Set.of(), List.of(
-                    won(1, A, B), MatchRecord.of(1, Pairing.bye(C)),
-                    won(2, C, A), MatchRecord.of(2, Pairing.bye(B)),
-                    won(3, B, C), MatchRecord.of(3, Pairing.bye(A))), tournament);
+                    won(1, A, B), bye(1, C),
+                    won(2, C, A), bye(2, B),
+                    won(3, B, C), bye(3, A)), tournament);
             List<Standings.Entry> ranked = standings.ranked();
             assertEquals(standings.decidedBy(ranked.get(0).player(), ranked.get(1).player()), Standings.Decider.LOT);
             assertEquals(standings.decidedBy(ranked.get(1).player(), ranked.get(2).player()), Standings.Decider.LOT);
@@ -215,11 +211,11 @@ public class StandingsTest {
         assertEquals(done.status(), MatchStatus.FINISHED);
         assertTrue(done.involves(B));
         assertFalse(done.involves(C));
-        MatchRecord bye = MatchRecord.of(3, Pairing.bye(C));
-        assertTrue(bye.isBye());
-        assertTrue(bye.isPlayed());
-        assertEquals(bye.winner(), Long.valueOf(C));
-        assertNull(bye.loser());
+        MatchRecord freeWin = bye(3, C);
+        assertTrue(freeWin.isBye());
+        assertTrue(freeWin.isPlayed());
+        assertEquals(freeWin.winner(), Long.valueOf(C));
+        assertNull(freeWin.loser());
     }
 
     @Test

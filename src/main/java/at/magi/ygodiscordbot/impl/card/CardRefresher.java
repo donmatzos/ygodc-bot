@@ -57,11 +57,14 @@ public final class CardRefresher implements AutoCloseable {
             log.info("Loaded {} stored card names (version {}, checked {})",
                     catalog.names().size(), catalog.version(), catalog.checkedAt());
         });
-        Duration delay = repository.catalog()
-                .map(catalog -> Duration.between(clock.instant(), catalog.checkedAt().plus(CHECK_INTERVAL)))
+        schedule(firstDelay(repository.catalog(), clock.instant()));
+    }
+
+    /** Until the stored list is due for a check; zero if it is due or nothing is stored. */
+    static Duration firstDelay(Optional<CardCatalog> catalog, Instant now) {
+        return catalog.map(stored -> Duration.between(now, stored.checkedAt().plus(CHECK_INTERVAL)))
                 .filter(untilDue -> !untilDue.isNegative())
                 .orElse(Duration.ZERO);
-        schedule(delay);
     }
 
     /** Checks the version and downloads the list if it changed. Returns whether the check succeeded. */

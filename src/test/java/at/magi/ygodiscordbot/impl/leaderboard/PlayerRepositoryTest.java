@@ -4,16 +4,11 @@ import at.magi.ygodiscordbot.entity.leaderboard.LeaderboardPage;
 import at.magi.ygodiscordbot.entity.leaderboard.PointChange;
 import at.magi.ygodiscordbot.entity.leaderboard.Points;
 import at.magi.ygodiscordbot.entity.leaderboard.RankedPlayer;
-import at.magi.ygodiscordbot.impl.config.DatabaseConfig;
-import at.magi.ygodiscordbot.impl.database.DatabasePool;
+import at.magi.ygodiscordbot.testutil.DatabaseTestBase;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
-import com.zaxxer.hikari.HikariDataSource;
 import org.slf4j.LoggerFactory;
-import org.testng.SkipException;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -33,33 +28,13 @@ import static org.testng.Assert.assertTrue;
  * Runs against a real MySQL/MariaDB database, only if TEST_DB_URL (plus TEST_DB_USER, TEST_DB_PASSWORD)
  * is set. The {@code players} table in that database is dropped before each test.
  */
-public class PlayerRepositoryTest {
+public class PlayerRepositoryTest extends DatabaseTestBase {
 
-    private HikariDataSource dataSource;
     private PlayerRepository repository;
-
-    @BeforeClass
-    public void connect() {
-        String url = System.getenv("TEST_DB_URL");
-        if (url == null || url.isBlank()) {
-            throw new SkipException("TEST_DB_URL not set");
-        }
-        dataSource = DatabasePool.open(
-                new DatabaseConfig(url, System.getenv("TEST_DB_USER"), System.getenv("TEST_DB_PASSWORD")));
-    }
-
-    @AfterClass(alwaysRun = true)
-    public void close() {
-        if (dataSource != null) {
-            dataSource.close();
-        }
-    }
 
     @BeforeMethod
     public void freshTable() throws SQLException {
-        try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement()) {
-            statement.execute("DROP TABLE IF EXISTS players");
-        }
+        dropTables("players");
         repository = new PlayerRepository(dataSource);
     }
 

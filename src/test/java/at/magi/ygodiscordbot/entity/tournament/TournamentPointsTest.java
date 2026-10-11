@@ -6,15 +6,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static at.magi.ygodiscordbot.entity.tournament.TournamentFixtures.A;
+import static at.magi.ygodiscordbot.entity.tournament.TournamentFixtures.B;
+import static at.magi.ygodiscordbot.entity.tournament.TournamentFixtures.C;
+import static at.magi.ygodiscordbot.entity.tournament.TournamentFixtures.D;
+import static at.magi.ygodiscordbot.entity.tournament.TournamentFixtures.E;
+import static at.magi.ygodiscordbot.entity.tournament.TournamentFixtures.bye;
+import static at.magi.ygodiscordbot.entity.tournament.TournamentFixtures.won;
 import static org.testng.Assert.assertEquals;
 
 public class TournamentPointsTest {
-
-    private static final long A = 1, B = 2, C = 3, D = 4, E = 5;
-
-    private static MatchRecord won(int round, long winner, long loser) {
-        return new MatchRecord(round, winner, loser, winner);
-    }
 
     @Test
     public void onePointPerRealWinPlusRoundsForTheWinner() {
@@ -27,7 +28,7 @@ public class TournamentPointsTest {
     @Test
     public void byesEarnNothingButDroppedPlayersKeepTheirWins() {
         Standings standings = Standings.of(List.of(A, B, C, D, E), Set.of(D), List.of(
-                won(1, A, B), won(1, D, C), MatchRecord.of(1, Pairing.bye(E))));
+                won(1, A, B), won(1, D, C), bye(1, E)));
         Map<Long, Long> points = TournamentPoints.award(standings, 1, A);
         assertEquals(points, Map.of(A, 2L, D, 1L));
     }

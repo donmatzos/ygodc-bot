@@ -4,7 +4,6 @@ import at.magi.ygodiscordbot.entity.card.CardNames;
 import at.magi.ygodiscordbot.entity.card.TestCards;
 import at.magi.ygodiscordbot.entity.deck.Ydke;
 import at.magi.ygodiscordbot.entity.deck.YdkeDeck;
-import at.magi.ygodiscordbot.utils.discord.DcMessageUtils;
 import org.testng.annotations.Test;
 
 import java.util.HashMap;
@@ -12,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.LongStream;
 
+import static at.magi.ygodiscordbot.testutil.DiscordAssert.assertSendable;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
@@ -75,10 +75,7 @@ public class DeckMessagesTest {
 
         assertTrue(messages.size() > 1);
         String all = String.join("\n", messages);
-        for (String message : messages) {
-            assertTrue(message.length() <= DcMessageUtils.MAX_MESSAGE_LENGTH, "message too long: " + message.length());
-            assertEquals(message.split("```", -1).length % 2, 1, "unbalanced code block: " + message);
-        }
+        assertSendable(messages);
         LongStream.range(0, 90).forEach(i -> assertTrue(all.contains("Number " + i + "\n"), "missing card " + i));
         assertTrue(messages.get(messages.size() - 1).contains(ydke));
     }

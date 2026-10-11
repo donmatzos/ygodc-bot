@@ -1,13 +1,14 @@
 package at.magi.ygodiscordbot.impl.leaderboard;
 
-import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.interactions.InteractionContextType;
-import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
 import org.testng.annotations.Test;
 
 import java.util.List;
-import java.util.Set;
 
+import static at.magi.ygodiscordbot.testutil.CommandAssert.assertGuildOnly;
+import static at.magi.ygodiscordbot.testutil.CommandAssert.assertManageServerOnly;
+import static at.magi.ygodiscordbot.testutil.CommandAssert.assertSubcommands;
+import static at.magi.ygodiscordbot.testutil.CommandAssert.option;
+import static at.magi.ygodiscordbot.testutil.CommandAssert.sub;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
@@ -17,19 +18,19 @@ public class PointsCommandTest {
     public void adminOnlyInServers() {
         var data = new PointsCommand(null, Runnable::run).data();
         assertEquals(data.getName(), "points");
-        assertEquals(data.getDefaultPermissions().getPermissionsRaw().longValue(), Permission.MANAGE_SERVER.getRawValue());
-        assertEquals(data.getContexts(), Set.of(InteractionContextType.GUILD));
-        assertEquals(data.getSubcommands().stream().map(SubcommandData::getName).toList(), List.of("add", "remove"));
+        assertManageServerOnly(data);
+        assertGuildOnly(data);
+        assertSubcommands(data, "add", "remove");
     }
 
     @Test
     public void amountIsRequiredAndLimitedTo99() {
-        for (SubcommandData sub : new PointsCommand(null, Runnable::run).data().getSubcommands()) {
-            var player = sub.getOptions().get(0);
-            var amount = sub.getOptions().get(1);
-            assertEquals(player.getName(), "player");
+        var data = new PointsCommand(null, Runnable::run).data();
+        for (String name : List.of("add", "remove")) {
+            var sub = sub(data, name);
+            var player = option(sub, "player");
+            var amount = option(sub, "amount");
             assertTrue(player.isRequired());
-            assertEquals(amount.getName(), "amount");
             assertTrue(amount.isRequired());
             assertEquals(amount.getMinValue().longValue(), 1L);
             assertEquals(amount.getMaxValue().longValue(), 99L);

@@ -41,47 +41,30 @@ public class YdkeTest {
         assertTrue(deck.main().isEmpty() && deck.extra().isEmpty() && deck.side().isEmpty());
     }
 
-    @Test
-    public void rejectsWrongPrefix() {
-        assertThrows(IllegalArgumentException.class, () -> Ydke.parse("https://o5pXBQ==!!!"));
-        assertThrows(IllegalArgumentException.class, () -> Ydke.parse(null));
-    }
-
-    @Test
-    public void rejectsMissingSections() {
-        assertThrows(IllegalArgumentException.class, () -> Ydke.parse("ydke://o5pXBQ==!"));
-    }
-
     @DataProvider
-    public Object[][] junkUris() {
+    public Object[][] rejectedUris() {
         return new Object[][]{
-                {"ydke://o6lXBQ==!!!junk"},
-                {"ydke://o6lXBQ==!!!!"},
-                {"ydke://o6lXBQ==!!!!!"},
-                {"ydke://o6lXBQ==!!side!"},
-                {"ydke://o6lXBQ==!!!`"},
-                {"ydke://o6lXBQ==!!!\u00e4"},
+                {"wrong prefix", "https://o5pXBQ==!!!"},
+                {"null", null},
+                {"missing sections", "ydke://o5pXBQ==!"},
+                {"text after the third separator", "ydke://o6lXBQ==!!!junk"},
+                {"fourth separator", "ydke://o6lXBQ==!!!!"},
+                {"fifth separator", "ydke://o6lXBQ==!!!!!"},
+                {"text in the side section", "ydke://o6lXBQ==!!side!"},
+                {"backtick after the third separator", "ydke://o6lXBQ==!!!`"},
+                {"non-ASCII after the third separator", "ydke://o6lXBQ==!!!\u00e4"},
+                {"invalid base64", "ydke://not*base64!!!"},
+                {"partial card (3 bytes)", "ydke://AAAA!!!"},
         };
     }
 
-    @Test(dataProvider = "junkUris")
-    public void rejectsAnythingAfterTheThirdSeparator(String uri) {
-        assertThrows(IllegalArgumentException.class, () -> Ydke.parse(uri));
+    @Test(dataProvider = "rejectedUris")
+    public void rejectsInvalidUris(String name, String uri) {
+        assertThrows(name, IllegalArgumentException.class, () -> Ydke.parse(uri));
     }
 
     @Test
     public void acceptsThreeSectionsWithoutTrailingSeparator() {
         assertEquals(Ydke.parse("ydke://o6lXBQ==!!").main(), List.of(89631139L));
-    }
-
-    @Test
-    public void rejectsInvalidBase64() {
-        assertThrows(IllegalArgumentException.class, () -> Ydke.parse("ydke://not*base64!!!"));
-    }
-
-    @Test
-    public void rejectsPartialCard() {
-        // 3 bytes
-        assertThrows(IllegalArgumentException.class, () -> Ydke.parse("ydke://AAAA!!!"));
     }
 }

@@ -3,20 +3,34 @@ package at.magi.ygodiscordbot.impl.tournament;
 import at.magi.ygodiscordbot.entity.tournament.TournamentListPage;
 import at.magi.ygodiscordbot.entity.tournament.TournamentStatus;
 import at.magi.ygodiscordbot.entity.tournament.TournamentSummary;
-import net.dv8tion.jda.api.interactions.InteractionContextType;
-import net.dv8tion.jda.api.interactions.commands.DefaultMemberPermissions;
+import at.magi.ygodiscordbot.testutil.FakeInteractions;
+import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 
+import static at.magi.ygodiscordbot.testutil.CommandAssert.assertBotCheckedManageServer;
+import static at.magi.ygodiscordbot.testutil.CommandAssert.assertGuildOnly;
+import static at.magi.ygodiscordbot.testutil.CommandAssert.assertOpenToEveryone;
+import static at.magi.ygodiscordbot.testutil.CommandAssert.assertSubcommands;
+import static at.magi.ygodiscordbot.testutil.CommandAssert.option;
+import static at.magi.ygodiscordbot.testutil.CommandAssert.sub;
+import static at.magi.ygodiscordbot.testutil.FakeInteractions.guild;
+import static at.magi.ygodiscordbot.testutil.FakeInteractions.returns;
+import static at.magi.ygodiscordbot.testutil.FakeInteractions.stringOption;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 
@@ -24,6 +38,7 @@ public class TournamentCommandTest {
 
     private static final long FIRST = 100_000_000_000_000_001L;
     private static final long SECOND = 100_000_000_000_000_002L;
+    private static final TournamentCommand COMMAND = new TournamentCommand(null, null, Runnable::run);
 
     private static String mentions(int count) {
         return LongStream.range(0, count).mapToObj(i -> "<@" + (FIRST + i) + ">").collect(Collectors.joining(" "));
@@ -31,40 +46,80 @@ public class TournamentCommandTest {
 
     @Test
     public void listPageOptionIsBounded() {
-        var page = new TournamentCommand(null, null, Runnable::run).data().getSubcommands().get(5).getOptions().get(0);
+        var page = option(sub(COMMAND.data(), "list"), "page");
         assertEquals(page.getMinValue().longValue(), 1L);
         assertEquals(page.getMaxValue().longValue(), 10_000L);
     }
 
     @Test
     public void openToEveryoneInServersWithList() {
-        var data = new TournamentCommand(null, null, Runnable::run).data();
+        var data = COMMAND.data();
         assertEquals(data.getName(), "tournament");
-        assertEquals(data.getDefaultPermissions(), DefaultMemberPermissions.ENABLED);
-        assertEquals(data.getContexts(), Set.of(InteractionContextType.GUILD));
-        assertEquals(data.getSubcommands().stream().map(SubcommandData::getName).toList(),
-                List.of("start", "continue", "standings", "cancel", "drop", "list"));
-        SubcommandData list = data.getSubcommands().get(5);
+        assertOpenToEveryone(data);
+        assertGuildOnly(data);
+        assertSubcommands(data, "start", "continue", "standings", "cancel", "drop", "list");
+        SubcommandData list = sub(data, "list");
         assertEquals(list.getOptions().stream().map(OptionData::getName).toList(), List.of("page", "date"));
         assertTrue(list.getOptions().stream().noneMatch(OptionData::isRequired));
-        OptionData id = data.getSubcommands().get(1).getOptions().get(0);
+        OptionData id = option(sub(data, "continue"), "id");
         assertEquals(id.getType(), OptionType.STRING);
     }
 
-    @Test
-    public void listDateAcceptsShortAndIsoForms() {
-        java.time.LocalDate day = java.time.LocalDate.of(2026, 10, 10);
-        assertEquals(TournamentCommand.parseListDay("26-10-10"), java.util.Optional.of(day));
-        assertEquals(TournamentCommand.parseListDay("2026-10-10"), java.util.Optional.of(day));
-        assertEquals(TournamentCommand.parseListDay("2026-02-30"), java.util.Optional.empty());
-        assertEquals(TournamentCommand.parseListDay("10-10-2026"), java.util.Optional.empty());
-        assertEquals(TournamentCommand.parseListDay("x"), java.util.Optional.empty());
+    @DataProvider
+    public Object[][] listDays() {
+        LocalDate day = LocalDate.of(2026, 10, 10);
+        return new Object[][]{
+                {"short form", "26-10-10", Optional.of(day)},
+                {"ISO form", "2026-10-10", Optional.of(day)},
+                {"no such day", "2026-02-30", Optional.empty()},
+                {"day first", "10-10-2026", Optional.empty()},
+                {"not a date", "x", Optional.empty()},
+        };
+    }
+
+    @Test(dataProvider = "listDays")
+    public void parsesListDay(String name, String input, Optional<LocalDate> expected) {
+        assertEquals(TournamentCommand.parseListDay(input), expected, name);
     }
 
     @Test
     public void organizerSubcommandsNeedManageServer() {
         assertTrue(TournamentCommand.organizerProblem(false).contains("Manage Server"));
         assertNull(TournamentCommand.organizerProblem(true));
+    }
+
+    /** /tournament start by an organizer with {@link TournamentService#MIN_PLAYERS} mentions; DB work is dropped. */
+    private static List<String> start(boolean lastIsMember) {
+        FakeInteractions fakes = new FakeInteractions();
+        Map<Long, Object> resolved = new HashMap<>();
+        for (int i = 0; i < TournamentService.MIN_PLAYERS; i++) {
+            long id = FIRST + i;
+            boolean member = lastIsMember || i < TournamentService.MIN_PLAYERS - 1;
+            resolved.put(id, member ? member(id) : FakeInteractions.user(id, "stranger"));
+        }
+        new TournamentCommand(null, null, task -> {
+        }).execute(fakes.event(Map.of("getGuild", returns(guild()),
+                "getChannel", returns(FakeInteractions.channel(Map.of())),
+                "getName", returns("tournament"), "getSubcommandName", returns("start"),
+                "getMember", returns(member(FIRST)), "getOptions", returns(List.of(
+                        stringOption("players", mentions(TournamentService.MIN_PLAYERS), resolved))))));
+        return fakes.sent();
+    }
+
+    private static Member member(long id) {
+        return FakeInteractions.fake(Member.class, Map.of("getIdLong", returns(id),
+                "getUser", returns(FakeInteractions.user(id, "player")), "hasPermission", returns(true)));
+    }
+
+    @Test
+    public void startRefusesAMentionedNonMember() {
+        long last = FIRST + TournamentService.MIN_PLAYERS - 1;
+        assertEquals(start(false), List.of("reply:❌ <@" + last + "> is not a member of this server. (ephemeral)"));
+    }
+
+    @Test
+    public void startWithOnlyMembersGoesOnToTheDatabase() {
+        assertEquals(start(true), List.of("reply (ephemeral)"));
     }
 
     @Test
@@ -101,34 +156,34 @@ public class TournamentCommandTest {
         assertEquals(list.ids(), List.of(FIRST, SECOND));
     }
 
-    @Test
-    public void duplicatesAreRefused() {
-        String problem = TournamentCommand.parsePlayers("<@" + FIRST + "> <@" + FIRST + ">").problem();
-        assertTrue(problem.contains("twice"), problem);
+    @DataProvider
+    public Object[][] refusedPlayers() {
+        return new Object[][]{
+                {"duplicate", "<@" + FIRST + "> <@" + FIRST + ">", List.of("twice")},
+                {"plain text name", "<@" + FIRST + "> @yugi", List.of("@mentions", "@yugi")},
+                {"role mention", mentions(2) + " <@&" + SECOND + ">", List.of("@mentions")},
+                {"one player", mentions(1), List.of("2–32")},
+                {"33 players", mentions(33), List.of("2–32")},
+        };
+    }
+
+    @Test(dataProvider = "refusedPlayers")
+    public void parsePlayersRefusals(String name, String input, List<String> fragments) {
+        String problem = TournamentCommand.parsePlayers(input).problem();
+        assertNotNull(problem, name);
+        for (String fragment : fragments) {
+            assertTrue(problem.contains(fragment), name + ": " + problem);
+        }
     }
 
     @Test
-    public void plainTextNamesAreRefused() {
-        String problem = TournamentCommand.parsePlayers("<@" + FIRST + "> @yugi").problem();
-        assertTrue(problem.contains("@mentions"), problem);
-        assertTrue(problem.contains("@yugi"), problem);
-    }
-
-    @Test
-    public void roleMentionsAreRefused() {
-        String problem = TournamentCommand.parsePlayers(mentions(2) + " <@&" + SECOND + ">").problem();
-        assertTrue(problem.contains("@mentions"), problem);
-    }
-
-    @Test
-    public void playerCountIsLimited() {
-        assertTrue(TournamentCommand.parsePlayers(mentions(1)).problem().contains("2–32"));
-        assertTrue(TournamentCommand.parsePlayers(mentions(33)).problem().contains("2–32"));
+    public void thirtyTwoPlayersAreFine() {
         assertNull(TournamentCommand.parsePlayers(mentions(32)).problem());
     }
 
     @Test
     public void botCheckedManageServerSubcommands() {
-        assertEquals(new TournamentCommand(null, null, Runnable::run).botCheckedManageServer(), Set.of("start", "continue", "standings", "cancel", "drop"));
+        assertBotCheckedManageServer(COMMAND,
+                "start", "continue", "standings", "cancel", "drop");
     }
 }

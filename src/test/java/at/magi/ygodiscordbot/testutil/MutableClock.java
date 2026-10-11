@@ -1,4 +1,4 @@
-package at.magi.ygodiscordbot.impl.tournament;
+package at.magi.ygodiscordbot.testutil;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -6,20 +6,20 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 
-/** A clock the test moves forward by hand. */
-final class MutableClock extends Clock {
+/** A UTC clock the test moves forward by hand. */
+public final class MutableClock extends Clock {
 
     private Instant now;
 
-    MutableClock(Instant start) {
+    public MutableClock(Instant start) {
         now = start;
     }
 
-    void set(Instant instant) {
+    public void set(Instant instant) {
         now = instant;
     }
 
-    void advance(Duration duration) {
+    public void advance(Duration duration) {
         now = now.plus(duration);
     }
 

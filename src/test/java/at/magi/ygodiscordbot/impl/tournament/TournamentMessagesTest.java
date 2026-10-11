@@ -1,11 +1,11 @@
 package at.magi.ygodiscordbot.impl.tournament;
 
 import at.magi.ygodiscordbot.entity.tournament.MatchRecord;
-import at.magi.ygodiscordbot.entity.tournament.Pairing;
 import at.magi.ygodiscordbot.entity.tournament.Standings;
 import at.magi.ygodiscordbot.entity.tournament.TournamentListPage;
 import at.magi.ygodiscordbot.entity.tournament.TournamentStatus;
 import at.magi.ygodiscordbot.entity.tournament.TournamentSummary;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.time.LocalDate;
@@ -13,7 +13,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static at.magi.ygodiscordbot.entity.tournament.TournamentFixtures.A;
+import static at.magi.ygodiscordbot.entity.tournament.TournamentFixtures.B;
+import static at.magi.ygodiscordbot.entity.tournament.TournamentFixtures.bye;
+import static at.magi.ygodiscordbot.entity.tournament.TournamentFixtures.doubleLoss;
+import static at.magi.ygodiscordbot.entity.tournament.TournamentFixtures.won;
+import static at.magi.ygodiscordbot.entity.tournament.TournamentFixtures.workedExample;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 
 public class TournamentMessagesTest {
@@ -29,7 +36,7 @@ public class TournamentMessagesTest {
     public void standingsTableSharesRanksAndMarksDrops() {
         // Yugi and Joey are equal on everything (only the lot orders them), so are Kaiba and Mai
         Standings standings = Standings.of(List.of(1L, 2L, 3L, 4L), Set.of(4L), List.of(
-                new MatchRecord(1, 1, 2L, 1L), new MatchRecord(1, 3, 4L, 3L)));
+                won(1, 1, 2), won(1, 3, 4)));
         List<Long> order = standings.ranked().stream().map(Standings.Entry::player).toList();
         assertEquals(Set.copyOf(order.subList(0, 2)), Set.of(1L, 3L));
         assertEquals(TournamentMessages.standingsTable(standings, NAMES), List.of("""
@@ -78,13 +85,13 @@ public class TournamentMessagesTest {
 
     @Test
     public void continuePostRepeatsMatchupsAndStandings() {
-        Standings standings = Standings.of(List.of(1L, 2L), Set.of(), List.of(new MatchRecord(1, 1, 2L, 1L)));
+        Standings standings = Standings.of(List.of(1L, 2L), Set.of(), List.of(won(1, 1, 2)));
         String post = render(TournamentMessages.roundStart(CODE, 2,
                 List.of(new ActiveMatch(48213, 12, 2, 1, 2)), List.of(), standings, List.of()));
         assertTrue(post.contains("Tournament `" + CODE + "` · Round 2"), post);
         assertTrue(post.contains("`48213` · <@1> vs <@2>"), post);
         assertTrue(post.contains("   1  Yugi    1-0"), post);
-        assertTrue(!post.contains("Play-off"), post);
+        assertFalse(post.contains("Play-off"), post);
     }
 
     @Test
@@ -132,13 +139,13 @@ public class TournamentMessagesTest {
     @Test
     public void resultDmNamesTournamentRoundAndMatch() {
         String dm = String.join("\n", TournamentMessages.matchResultDm(CODE, 2, 48213,
-                new MatchRecord(2, 1, 2L, 2L), false));
+                won(2, 2, 1), false));
         assertTrue(dm.contains("`" + CODE + "`"), dm);
         assertTrue(dm.contains("Round 2"), dm);
         assertTrue(dm.contains("`48213`"), dm);
         assertTrue(dm.contains("<@2> beat <@1>"), dm);
         String corrected = String.join("\n", TournamentMessages.matchResultDm(CODE, 2, 48213,
-                new MatchRecord(2, 1, 2L, null, true), true));
+                doubleLoss(2, 1, 2), true));
         assertTrue(corrected.contains("both lose"), corrected);
         assertTrue(corrected.contains("corrected"), corrected);
     }
@@ -149,7 +156,7 @@ public class TournamentMessagesTest {
         assertTrue(TournamentMessages.doubleLossRecorded(CODE, 48213, 1, 2, false).contains(CODE));
         assertTrue(TournamentMessages.roundComplete(CODE, 1).contains(CODE));
         assertTrue(TournamentMessages.started(CODE, 4).contains(CODE));
-        assertTrue(TournamentMessages.alreadyFinished(CODE, 48213, new MatchRecord(1, 1, 2L, 1L)).contains(CODE));
+        assertTrue(TournamentMessages.alreadyFinished(CODE, 48213, won(1, 1, 2)).contains(CODE));
         assertTrue(TournamentMessages.notYourMatch(CODE, 48213).contains(CODE));
         assertTrue(TournamentMessages.winnerNotInMatch(CODE, 48213, 3L).contains(CODE));
     }
@@ -157,9 +164,9 @@ public class TournamentMessagesTest {
     @Test
     public void resultsNameWinnersAndByes() {
         Standings standings = Standings.of(List.of(1L, 2L, 3L), Set.of(), List.of(
-                new MatchRecord(1, 1, 2L, 2L), MatchRecord.of(1, Pairing.bye(3))));
+                won(1, 2, 1), bye(1, 3)));
         String post = render(TournamentMessages.roundResults(CODE, 1,
-                List.of(new MatchRecord(1, 1, 2L, 2L), MatchRecord.of(1, Pairing.bye(3))), standings));
+                List.of(won(1, 2, 1), bye(1, 3)), standings));
         assertTrue(post.contains("<@2> beat <@1>"), post);
         assertTrue(post.contains("<@3> had a free win"), post);
         assertTrue(post.contains("**Standings**"), post);
@@ -167,13 +174,13 @@ public class TournamentMessagesTest {
 
     @Test
     public void resultsWithoutStandingsHaveNoTable() {
-        String post = render(TournamentMessages.roundResults(CODE, 1, List.of(new MatchRecord(1, 1, 2L, 2L)), null));
-        assertTrue(!post.contains("**Standings**"), post);
+        String post = render(TournamentMessages.roundResults(CODE, 1, List.of(won(1, 2, 1)), null));
+        assertFalse(post.contains("**Standings**"), post);
     }
 
     @Test
     public void doubleLossesNameBothPlayers() {
-        MatchRecord doubleLoss = new MatchRecord(1, 1, 2L, null, true);
+        MatchRecord doubleLoss = doubleLoss(1, A, B);
         Standings standings = Standings.of(List.of(1L, 2L), Set.of(), List.of(doubleLoss));
         String post = render(TournamentMessages.roundResults(CODE, 1, List.of(doubleLoss), standings));
         assertTrue(post.contains("<@1> and <@2> both lose (time limit)"), post);
@@ -182,7 +189,7 @@ public class TournamentMessagesTest {
 
     @Test
     public void winnerPostWarnsAboutUnsavedPoints() {
-        Standings standings = Standings.of(List.of(1L, 2L), Set.of(), List.of(new MatchRecord(1, 1, 2L, 1L)));
+        Standings standings = Standings.of(List.of(1L, 2L), Set.of(), List.of(won(1, 1, 2)));
         String post = render(TournamentMessages.winner(CODE, 1, 1, standings, Map.of(1L, 2L), List.of(1L)));
         assertTrue(post.contains("<@1> wins after 1 round!"), post);
         assertTrue(post.contains("<@1> +2"), post);
@@ -190,43 +197,33 @@ public class TournamentMessagesTest {
         assertTrue(post.contains("**Standings**"), post);
     }
 
-    private static Standings workedExample() {
-        return Standings.of(List.of(1L, 2L, 3L, 4L), Set.of(), List.of(
-                new MatchRecord(1, 1, 3L, 1L), new MatchRecord(1, 2, 4L, 2L),
-                new MatchRecord(2, 1, 2L, null, true), new MatchRecord(2, 3, 4L, 3L)));
+    @DataProvider
+    public static Object[][] tieLines() {
+        return new Object[][]{
+                {"OMW% decides", workedExample(),
+                        "Tied on 1 loss with <@%d>, decided by opponents' win rate (50.0%% vs 41.7%%)."},
+                {"lot decides", Standings.of(List.of(A, B), Set.of(), List.of(doubleLoss(1, A, B))),
+                        "Tied on 1 loss with <@%d>, all tie-breakers equal, decided by lot."},
+                {"clear winner has no tie line", Standings.of(List.of(A, B), Set.of(), List.of(
+                        won(1, A, B))), null}};
     }
 
-    @Test
-    public void winnerPostNamesTheDecidingTieBreaker() {
-        Standings standings = workedExample();
-        long runnerUp = standings.ranked().get(1).player();
-        String post = render(TournamentMessages.winner(CODE, 1, 2, standings, Map.of(), List.of()));
-        assertTrue(post.contains("Tied on 1 loss with <@" + runnerUp
-                + ">, decided by opponents' win rate (50.0% vs 41.7%)."), post);
-    }
-
-    @Test
-    public void winnerPostNamesTheLot() {
-        Standings standings = Standings.of(List.of(1L, 2L), Set.of(), List.of(
-                new MatchRecord(1, 1, 2L, null, true)));
+    @Test(dataProvider = "tieLines")
+    public void winnerPostNamesTheDecidingTieBreaker(String name, Standings standings, String tieLine) {
         long winner = standings.ranked().get(0).player();
         long runnerUp = standings.ranked().get(1).player();
-        String post = render(TournamentMessages.winner(CODE, winner, 1, standings, Map.of(), List.of()));
-        assertTrue(post.contains("Tied on 1 loss with <@" + runnerUp + ">, all tie-breakers equal, decided by lot."),
-                post);
-    }
-
-    @Test
-    public void clearWinnerHasNoTieLine() {
-        Standings standings = Standings.of(List.of(1L, 2L), Set.of(), List.of(new MatchRecord(1, 1, 2L, 1L)));
-        String post = render(TournamentMessages.winner(CODE, 1, 1, standings, Map.of(), List.of()));
-        assertTrue(!post.contains("Tied"), post);
+        String post = render(TournamentMessages.winner(CODE, winner, 2, standings, Map.of(), List.of()));
+        if (tieLine == null) {
+            assertFalse(post.contains("Tied"), name + ": " + post);
+        } else {
+            assertTrue(post.contains(tieLine.formatted(runnerUp)), name + ": " + post);
+        }
     }
 
     @Test
     public void nextPairingsTellHowToContinue() {
         String post = render(TournamentMessages.nextPairings(CODE, 2,
-                List.of(new MatchRecord(2, 1, 3L, null), MatchRecord.of(2, Pairing.bye(2))), List.of()));
+                List.of(new MatchRecord(2, 1, 3L, null), bye(2, 2)), List.of()));
         assertTrue(post.contains("<@1> vs <@3>"), post);
         assertTrue(post.contains("<@2> gets a free win"), post);
         assertTrue(post.contains("/tournament continue id:" + CODE), post);

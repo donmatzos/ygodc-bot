@@ -3,17 +3,16 @@ package at.magi.ygodiscordbot.impl.leaderboard;
 import at.magi.ygodiscordbot.entity.leaderboard.PointChange;
 import at.magi.ygodiscordbot.entity.leaderboard.Points;
 import at.magi.ygodiscordbot.entity.leaderboard.RankedPlayer;
+import at.magi.ygodiscordbot.impl.config.DatabaseConfig;
+import at.magi.ygodiscordbot.testutil.DatabaseTestBase;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
-import org.testng.SkipException;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import java.sql.Connection;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -32,45 +31,39 @@ import static org.testng.Assert.assertTrue;
  * runs all writes on one thread, so these guard against a second bot instance or a future multi-threaded executor.
  * Runs only with TEST_DB_URL (plus TEST_DB_USER, TEST_DB_PASSWORD); the {@code players} table there is dropped.
  */
-public class PlayerRepositoryConcurrencyTest {
+public class PlayerRepositoryConcurrencyTest extends DatabaseTestBase {
 
     private static final int THREADS = 8;
 
-    private HikariDataSource dataSource;
     private PlayerRepository repository;
     private ExecutorService pool;
 
-    @BeforeClass
-    public void connect() {
-        String url = System.getenv("TEST_DB_URL");
-        if (url == null || url.isBlank()) {
-            throw new SkipException("TEST_DB_URL not set");
-        }
-        HikariConfig config = new HikariConfig();
-        config.setJdbcUrl(url);
-        config.setUsername(System.getenv("TEST_DB_USER"));
-        config.setPassword(System.getenv("TEST_DB_PASSWORD"));
+    @Override
+    protected HikariDataSource openPool(DatabaseConfig config) {
         // One connection per thread, so the transactions really overlap
-        config.setMaximumPoolSize(THREADS);
-        dataSource = new HikariDataSource(config);
+        HikariConfig hikari = new HikariConfig();
+        hikari.setJdbcUrl(config.url());
+        hikari.setUsername(config.user());
+        hikari.setPassword(config.password());
+        hikari.setMaximumPoolSize(THREADS);
+        return new HikariDataSource(hikari);
+    }
+
+    @BeforeClass
+    public void startThreads() {
         pool = Executors.newFixedThreadPool(THREADS);
     }
 
     @AfterClass(alwaysRun = true)
-    public void close() {
+    public void stopThreads() {
         if (pool != null) {
             pool.shutdownNow();
-        }
-        if (dataSource != null) {
-            dataSource.close();
         }
     }
 
     @BeforeMethod
     public void freshTable() throws SQLException {
-        try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement()) {
-            statement.execute("DROP TABLE IF EXISTS players");
-        }
+        dropTables("players");
         repository = new PlayerRepository(dataSource);
         repository.ensureSchema();
     }

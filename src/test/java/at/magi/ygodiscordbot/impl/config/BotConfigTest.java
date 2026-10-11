@@ -1,15 +1,12 @@
 package at.magi.ygodiscordbot.impl.config;
 
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import at.magi.ygodiscordbot.testutil.TempDirTest;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Comparator;
 import java.util.Map;
-import java.util.stream.Stream;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -17,23 +14,7 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 
-public class BotConfigTest {
-
-    private Path dir;
-
-    @BeforeMethod
-    public void createTempDir() throws IOException {
-        dir = Files.createTempDirectory("bot-config-test");
-    }
-
-    @AfterMethod(alwaysRun = true)
-    public void deleteTempDir() throws IOException {
-        try (Stream<Path> paths = Files.walk(dir)) {
-            for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) {
-                Files.delete(path);
-            }
-        }
-    }
+public class BotConfigTest extends TempDirTest {
 
     @Test
     public void readsTokenAndGuild() {

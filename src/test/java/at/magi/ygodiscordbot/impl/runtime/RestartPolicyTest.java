@@ -1,30 +1,29 @@
 package at.magi.ygodiscordbot.impl.runtime;
 
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.time.Duration;
 import java.util.Optional;
 
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
 
 public class RestartPolicyTest {
 
     private static final Duration SHORT = Duration.ofSeconds(30);
 
-    @Test
-    public void cleanExitIsNotRestarted() {
-        assertTrue(new RestartPolicy().afterExit(0, SHORT).isEmpty());
+    @DataProvider
+    public static Object[][] exitCodes() {
+        return new Object[][]{
+                {"clean exit", 0, Optional.empty()},
+                {"config error", Supervisor.EXIT_CONFIG_ERROR, Optional.empty()},
+                {"out of memory", Supervisor.EXIT_OUT_OF_MEMORY, Optional.of(Duration.ofSeconds(5))},
+                {"crash", 1, Optional.of(Duration.ofSeconds(5))}};
     }
 
-    @Test
-    public void configErrorIsNotRestarted() {
-        assertTrue(new RestartPolicy().afterExit(Supervisor.EXIT_CONFIG_ERROR, SHORT).isEmpty());
-    }
-
-    @Test
-    public void outOfMemoryIsRestarted() {
-        assertEquals(new RestartPolicy().afterExit(Supervisor.EXIT_OUT_OF_MEMORY, SHORT), Optional.of(Duration.ofSeconds(5)));
+    @Test(dataProvider = "exitCodes")
+    public void restartDependsOnTheExitCode(String name, int exitCode, Optional<Duration> expected) {
+        assertEquals(new RestartPolicy().afterExit(exitCode, SHORT), expected, name);
     }
 
     @Test
