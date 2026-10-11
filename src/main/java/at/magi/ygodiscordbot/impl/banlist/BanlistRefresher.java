@@ -110,8 +110,7 @@ public final class BanlistRefresher implements AutoCloseable {
             log.error("Banlist refresh failed", e);
         }
         ZonedDateTime now = ZonedDateTime.now(clock);
-        Duration untilDaily = Duration.between(now, nextDailyRun(now));
-        Duration delay = complete || untilDaily.compareTo(RETRY_DELAY) < 0 ? untilDaily : RETRY_DELAY;
+        Duration delay = nextDelay(complete, now);
         log.info("Banlist refresh {}; next run in {}", complete ? "complete" : "incomplete", delay);
         schedule(delay);
     }
@@ -145,6 +144,12 @@ public final class BanlistRefresher implements AutoCloseable {
         }
         log.info("Fetched {} list", name);
         return new FetchResult<>(list, Outcome.FETCHED);
+    }
+
+    /** Until the next 03:00 run after a complete refresh; hourly retries after an incomplete one, never past 03:00. */
+    static Duration nextDelay(boolean complete, ZonedDateTime now) {
+        Duration untilDaily = Duration.between(now, nextDailyRun(now));
+        return complete || untilDaily.compareTo(RETRY_DELAY) < 0 ? untilDaily : RETRY_DELAY;
     }
 
     static ZonedDateTime nextDailyRun(ZonedDateTime now) {

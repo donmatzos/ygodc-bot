@@ -1,5 +1,6 @@
 package at.magi.ygodiscordbot.entity.tournament;
 
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.util.List;
@@ -19,13 +20,17 @@ import static org.testng.Assert.assertEquals;
 
 public class WinnerRuleTest {
 
-    @Test
-    public void minimumRoundsIsLog2OfThePlayers() {
-        assertEquals(WinnerRule.minimumRounds(2), 1);
-        assertEquals(WinnerRule.minimumRounds(3), 2);
-        assertEquals(WinnerRule.minimumRounds(4), 2);
-        assertEquals(WinnerRule.minimumRounds(5), 3);
-        assertEquals(WinnerRule.minimumRounds(32), 5);
+    @DataProvider
+    public static Object[][] minimumRounds() {
+        return new Object[][]{
+                {"0 players", 0, 0}, {"1 player", 1, 0}, {"2 players", 2, 1}, {"3 players", 3, 2},
+                {"4 players", 4, 2}, {"5 players", 5, 3}, {"8 players", 8, 3}, {"9 players", 9, 4},
+                {"32 players", 32, 5}};
+    }
+
+    @Test(dataProvider = "minimumRounds")
+    public void minimumRoundsIsLog2OfThePlayers(String name, int players, int expected) {
+        assertEquals(WinnerRule.minimumRounds(players), expected, name);
     }
 
     @Test
@@ -69,24 +74,20 @@ public class WinnerRuleTest {
         assertEquals(WinnerRule.winner(standings, 2), Optional.of(C));
     }
 
-    @Test
-    public void tieBreakerDecidesTiedLeadersAfterTheMinimum() {
-        // Both undefeated players ran out of time in round 2: A, B and C share 1 loss, A has the best OMW%
-        assertEquals(WinnerRule.winner(workedExample(), 2), Optional.of(A));
+    @DataProvider
+    public static Object[][] tiedLeadersByRounds() {
+        // A, B and C share 1 loss and the lead; A has the best OMW%. From PLAY_OFF_ROUNDS on, the three play off.
+        return new Object[][]{
+                {"2 rounds: tie-breaker", 2, true}, {"3 rounds: tie-breaker", 3, true},
+                {"4 rounds: play-off", 4, false}, {"5 rounds: play-off", 5, false}, {"6 rounds: play-off", 6, false}};
     }
 
-    @Test
-    public void tieBreakerDecidesUpToThreeRounds() {
-        assertEquals(WinnerRule.winner(workedExample(), 3), Optional.of(A));
-        assertEquals(WinnerRule.playOff(workedExample(), 3), List.of());
-    }
-
-    @Test
-    public void tiedLeadersPlayOffFromFourRounds() {
-        for (int rounds = 4; rounds <= 6; rounds++) {
-            assertEquals(WinnerRule.winner(workedExample(), rounds), Optional.empty());
-            assertEquals(WinnerRule.playOff(workedExample(), rounds), workedExample().activeRanked().subList(0, 3));
-        }
+    @Test(dataProvider = "tiedLeadersByRounds")
+    public void tiedLeadersAreDecidedByTieBreakerOrPlayOff(String name, int rounds, boolean tieBreaker) {
+        Optional<Long> expectedWinner = tieBreaker ? Optional.of(A) : Optional.empty();
+        List<Long> expectedPlayOff = tieBreaker ? List.of() : workedExample().activeRanked().subList(0, 3);
+        assertEquals(WinnerRule.winner(workedExample(), rounds), expectedWinner, name);
+        assertEquals(WinnerRule.playOff(workedExample(), rounds), expectedPlayOff, name);
     }
 
     @Test

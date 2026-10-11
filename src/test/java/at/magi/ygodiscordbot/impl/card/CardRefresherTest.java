@@ -166,20 +166,24 @@ public class CardRefresherTest extends TempDirTest {
     @DataProvider
     public Object[][] nextDelays() {
         return new Object[][]{
-                {true, 0, true, CardRefresher.CHECK_INTERVAL},
-                {true, 0, false, CardRefresher.CHECK_INTERVAL},
-                {false, 1, true, CardRefresher.RETRY_DELAY},
-                {false, CardRefresher.MAX_RETRIES, true, CardRefresher.RETRY_DELAY},
-                {false, CardRefresher.MAX_RETRIES, false, CardRefresher.RETRY_DELAY},
-                {false, CardRefresher.MAX_RETRIES + 1, true, CardRefresher.CHECK_INTERVAL},
+                {"success", true, 0, true, CardRefresher.CHECK_INTERVAL},
+                {"success without catalog", true, 0, false, CardRefresher.CHECK_INTERVAL},
+                {"first failure", false, 1, true, CardRefresher.RETRY_DELAY},
+                {"last allowed retry", false, CardRefresher.MAX_RETRIES, true, CardRefresher.RETRY_DELAY},
+                {"last allowed retry without catalog", false, CardRefresher.MAX_RETRIES, false,
+                        CardRefresher.RETRY_DELAY},
+                {"retries used up", false, CardRefresher.MAX_RETRIES + 1, true, CardRefresher.CHECK_INTERVAL},
                 // Without any catalog the names stay missing, so keep retrying hourly
-                {false, CardRefresher.MAX_RETRIES + 1, false, CardRefresher.RETRY_DELAY},
-                {false, CardRefresher.MAX_RETRIES + 10, false, CardRefresher.RETRY_DELAY},
+                {"retries used up without catalog", false, CardRefresher.MAX_RETRIES + 1, false,
+                        CardRefresher.RETRY_DELAY},
+                {"far past the retries without catalog", false, CardRefresher.MAX_RETRIES + 10, false,
+                        CardRefresher.RETRY_DELAY},
         };
     }
 
     @Test(dataProvider = "nextDelays")
-    public void nextDelayDependsOnFailuresAndCatalog(boolean ok, int failures, boolean haveCatalog, Duration expected) {
-        assertEquals(CardRefresher.nextDelay(ok, failures, haveCatalog), expected);
+    public void nextDelayDependsOnFailuresAndCatalog(String name, boolean ok, int failures, boolean haveCatalog,
+                                                     Duration expected) {
+        assertEquals(CardRefresher.nextDelay(ok, failures, haveCatalog), expected, name);
     }
 }

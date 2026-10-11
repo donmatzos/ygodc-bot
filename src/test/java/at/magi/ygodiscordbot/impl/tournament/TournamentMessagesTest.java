@@ -6,6 +6,7 @@ import at.magi.ygodiscordbot.entity.tournament.Standings;
 import at.magi.ygodiscordbot.entity.tournament.TournamentListPage;
 import at.magi.ygodiscordbot.entity.tournament.TournamentStatus;
 import at.magi.ygodiscordbot.entity.tournament.TournamentSummary;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.time.LocalDate;
@@ -18,6 +19,7 @@ import static at.magi.ygodiscordbot.entity.tournament.TournamentFixtures.B;
 import static at.magi.ygodiscordbot.entity.tournament.TournamentFixtures.doubleLoss;
 import static at.magi.ygodiscordbot.entity.tournament.TournamentFixtures.workedExample;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 
 public class TournamentMessagesTest {
@@ -194,31 +196,27 @@ public class TournamentMessagesTest {
         assertTrue(post.contains("**Standings**"), post);
     }
 
-    @Test
-    public void winnerPostNamesTheDecidingTieBreaker() {
-        Standings standings = workedExample();
-        long runnerUp = standings.ranked().get(1).player();
-        String post = render(TournamentMessages.winner(CODE, 1, 2, standings, Map.of(), List.of()));
-        assertTrue(post.contains("Tied on 1 loss with <@" + runnerUp
-                + ">, decided by opponents' win rate (50.0% vs 41.7%)."), post);
+    @DataProvider
+    public static Object[][] tieLines() {
+        return new Object[][]{
+                {"OMW% decides", workedExample(),
+                        "Tied on 1 loss with <@%d>, decided by opponents' win rate (50.0%% vs 41.7%%)."},
+                {"lot decides", Standings.of(List.of(A, B), Set.of(), List.of(doubleLoss(1, A, B))),
+                        "Tied on 1 loss with <@%d>, all tie-breakers equal, decided by lot."},
+                {"clear winner has no tie line", Standings.of(List.of(A, B), Set.of(), List.of(
+                        new MatchRecord(1, A, B, A))), null}};
     }
 
-    @Test
-    public void winnerPostNamesTheLot() {
-        Standings standings = Standings.of(List.of(1L, 2L), Set.of(), List.of(
-                doubleLoss(1, A, B)));
+    @Test(dataProvider = "tieLines")
+    public void winnerPostNamesTheDecidingTieBreaker(String name, Standings standings, String tieLine) {
         long winner = standings.ranked().get(0).player();
         long runnerUp = standings.ranked().get(1).player();
-        String post = render(TournamentMessages.winner(CODE, winner, 1, standings, Map.of(), List.of()));
-        assertTrue(post.contains("Tied on 1 loss with <@" + runnerUp + ">, all tie-breakers equal, decided by lot."),
-                post);
-    }
-
-    @Test
-    public void clearWinnerHasNoTieLine() {
-        Standings standings = Standings.of(List.of(1L, 2L), Set.of(), List.of(new MatchRecord(1, 1, 2L, 1L)));
-        String post = render(TournamentMessages.winner(CODE, 1, 1, standings, Map.of(), List.of()));
-        assertTrue(!post.contains("Tied"), post);
+        String post = render(TournamentMessages.winner(CODE, winner, 2, standings, Map.of(), List.of()));
+        if (tieLine == null) {
+            assertFalse(post.contains("Tied"), name + ": " + post);
+        } else {
+            assertTrue(post.contains(tieLine.formatted(runnerUp)), name + ": " + post);
+        }
     }
 
     @Test
