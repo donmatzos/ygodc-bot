@@ -24,15 +24,17 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
- * Fake JDA objects (java.lang.reflect.Proxy) for tests of slash command code. Actions run their callbacks right away,
- * and what is sent is recorded in the order the calls are made, e.g. "reply (ephemeral)", "dm:first", "edit:done",
- * "post:top 20 mentions=[]". A fake answers the methods named in its answers; any other method returns the fake itself if that
- * fits the return type (builder methods), else null, false or 0.
+ * Fake JDA objects (java.lang.reflect.Proxy) for tests of slash command code. Actions run their callbacks right away
+ * when queued. What is sent counts once its action, or an action chained from it (flatMap, map, and, ...), is queued,
+ * and is listed in the order the actions were made, e.g. "reply (ephemeral)", "dm:first", "edit:done",
+ * "post:top 20 mentions=[]". A fake answers the methods named in its answers; any other method returns the fake
+ * itself if that fits the return type (builder methods), else null, false or 0.
  */
 public final class FakeInteractions {
 
@@ -42,12 +44,33 @@ public final class FakeInteractions {
         Object answer(Method method, Object[] args) throws Throwable;
     }
 
-    private final List<String> sent = new ArrayList<>();
+    /** Implemented by every fake action, for chaining; the names do not clash with JDA's. */
+    private interface Chained {
+        /** Also runs {@code upstream} when this action is queued. */
+        void fakeOnQueue(Runnable upstream);
+
+        /** Marks what this action and its upstream actions send as sent, as queueing it does. */
+        void fakeCommit();
+
+        Object fakeValue();
+    }
+
+    /** Something sent; it counts once its action is queued. */
+    private static final class Entry {
+        private String text;
+        private boolean queued;
+
+        private Entry(String text) {
+            this.text = text;
+        }
+    }
+
+    private final List<Entry> entries = new ArrayList<>();
     private final InteractionHook hook = fake(InteractionHook.class, Map.of(
             "editOriginal", sends("edit"), "sendMessage", sends("follow-up")));
 
     public synchronized List<String> sent() {
-        return List.copyOf(sent);
+        return entries.stream().filter(entry -> entry.queued).map(entry -> entry.text).toList();
     }
 
     /** Records editOriginal as "edit:text" and sendMessage as "follow-up:text". */
@@ -61,18 +84,21 @@ public final class FakeInteractions {
     }
 
     /**
-     * An action recorded as {@code record}, succeeding with {@code value}. setContent, setEphemeral(true) and
-     * setAllowedMentions add to its record (":text", " (ephemeral)", " mentions=[…]").
+     * An action recorded as {@code record} once queued, succeeding with {@code value}. setContent,
+     * setEphemeral(true) and setAllowedMentions add to its record (":text", " (ephemeral)", " mentions=[…]").
      */
-    public <T> T sending(Class<T> type, String record, Object value) {
-        int entry;
+    private <T> T sending(Class<T> type, String record, Object value) {
+        Entry entry = new Entry(record);
         synchronized (this) {
-            entry = sent.size();
-            sent.add(record);
+            entries.add(entry);
         }
         return action(type, value, null, note -> {
             synchronized (this) {
-                sent.set(entry, sent.get(entry) + note);
+                entry.text += note;
+            }
+        }, () -> {
+            synchronized (this) {
+                entry.queued = true;
             }
         });
     }
@@ -132,11 +158,13 @@ public final class FakeInteractions {
 
     public static <T> T succeeding(Class<T> type, Object value) {
         return action(type, value, null, note -> {
+        }, () -> {
         });
     }
 
     public static <T> T failing(Class<T> type, Throwable error) {
         return action(type, null, error, note -> {
+        }, () -> {
         });
     }
 
@@ -155,12 +183,25 @@ public final class FakeInteractions {
                 });
     }
 
-    /** A RestAction (or any subtype) that ends in {@code value}, or in {@code error} if that is not null. */
+    /**
+     * A RestAction (or any subtype) that ends in {@code value}, or in {@code error} if that is not null; queueing it
+     * runs {@code commit}, and so does queueing an action chained from it.
+     */
     @SuppressWarnings({"unchecked", "rawtypes"})
-    private static <T> T action(Class<T> type, Object value, Throwable error, Consumer<String> note) {
+    private static <T> T action(Class<T> type, Object value, Throwable error, Consumer<String> note,
+                                Runnable commit) {
         Map<String, Answer> answers = new HashMap<>();
         Object[] self = new Object[1]; // the action itself, filled in below: builder-style calls return it
+        List<Runnable> onQueue = new CopyOnWriteArrayList<>(List.of(commit));
+        Runnable commitAll = () -> onQueue.forEach(Runnable::run);
+        answers.put("fakeOnQueue", (m, a) -> onQueue.add((Runnable) a[0]));
+        answers.put("fakeCommit", (m, a) -> {
+            commitAll.run();
+            return null;
+        });
+        answers.put("fakeValue", (m, a) -> value);
         answers.put("queue", (m, a) -> {
+            commitAll.run();
             if (error == null && a.length > 0 && a[0] != null) {
                 ((Consumer) a[0]).accept(value);
             } else if (error != null && a.length > 1 && a[1] != null) {
@@ -169,33 +210,42 @@ public final class FakeInteractions {
             return null;
         });
         // flatMap(condition, fn) has the function last; the condition is ignored
-        answers.put("flatMap", (m, a) -> error == null ? ((Function) a[a.length - 1]).apply(value) : self[0]);
-        answers.put("map", (m, a) -> error == null ? succeeding(RestAction.class, ((Function) a[0]).apply(value))
-                : self[0]);
-        answers.put("mapToResult", (m, a) -> succeeding(RestAction.class,
-                error == null ? Result.success(value) : Result.failure(error)));
+        answers.put("flatMap", (m, a) -> error == null
+                ? chained(((Function) a[a.length - 1]).apply(value), commitAll) : self[0]);
+        answers.put("map", (m, a) -> error == null
+                ? chained(succeeding(RestAction.class, ((Function) a[0]).apply(value)), commitAll) : self[0]);
+        answers.put("mapToResult", (m, a) -> chained(succeeding(RestAction.class,
+                error == null ? Result.success(value) : Result.failure(error)), commitAll));
         answers.put("onErrorMap", (m, a) -> error == null ? self[0]
-                : succeeding(RestAction.class, ((Function) a[a.length - 1]).apply(error)));
-        // and(other, accumulator): other is queued for its value; a failing other is not modelled
-        answers.put("and", (m, a) -> error == null
-                ? succeeding(RestAction.class, ((BiFunction) a[1]).apply(value, resultOf((RestAction<?>) a[0])))
-                : self[0]);
+                : chained(succeeding(RestAction.class, ((Function) a[a.length - 1]).apply(error)), commitAll));
+        // and(other, accumulator): queueing the result queues other too; a failing other is not modelled
+        answers.put("and", (m, a) -> {
+            if (error != null) {
+                return self[0];
+            }
+            Chained other = (Chained) a[0];
+            Object both = succeeding(RestAction.class, ((BiFunction) a[1]).apply(value, other.fakeValue()));
+            return chained(both, () -> {
+                commitAll.run();
+                other.fakeCommit();
+            });
+        });
         answers.put("setContent", (m, a) -> noted(self[0], note, ":" + a[0]));
         answers.put("setEphemeral", (m, a) -> noted(self[0], note, Boolean.TRUE.equals(a[0]) ? " (ephemeral)" : ""));
         answers.put("setAllowedMentions", (m, a) -> noted(self[0], note, " mentions=" + a[0]));
-        self[0] = fake(type, answers);
+        self[0] = fake(type, answers, Chained.class);
         return (T) self[0];
+    }
+
+    /** {@code next}, which also runs {@code upstream} when queued. */
+    private static Object chained(Object next, Runnable upstream) {
+        ((Chained) next).fakeOnQueue(upstream);
+        return next;
     }
 
     private static Object noted(Object action, Consumer<String> note, String text) {
         note.accept(text);
         return action;
-    }
-
-    private static Object resultOf(RestAction<?> action) {
-        Object[] result = new Object[1];
-        action.queue(value -> result[0] = value);
-        return result[0];
     }
 
     private static Object fallback(Object proxy, Method method, Object[] args) {
