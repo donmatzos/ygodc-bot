@@ -10,6 +10,7 @@ import org.testng.annotations.Test;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.IntStream;
 
 import static org.testng.Assert.assertEquals;
@@ -56,6 +57,33 @@ public class DeckCommandTest {
     }
 
     @Test
+    public void canonicalYdkeIsWhatGetsStored() {
+        String canonical = Ydke.encode(Ydke.parse("ydke://o6lXBQ==!!"));
+        assertEquals(DeckCommand.canonicalYdke("ydke://o6lXBQ==!!"), canonical);
+        assertTrue(canonical.endsWith("!"));
+    }
+
+    @Test
+    public void deckReplyShowsTheCanonicalYdkeForOldRows() {
+        // a row saved before junk after the third "!" was rejected, but which still parses
+        Decklist deck = new Decklist(1, 2, "Dragons", "ydke://o6lXBQ==!!", 0, 1_760_000_000_000L);
+        String reply = String.join("\n", DeckCommand.deckReply("Showing deck", deck, TestCards.names()));
+        assertTrue(reply.contains("```\nydke://o6lXBQ==!!!\n```"), reply);
+    }
+
+    @Test
+    public void deckReplyForAnUnparsableStoredRowOnlyNamesTheDeck() {
+        Decklist deck = new Decklist(1, 2, "Dragons", "ydke://o6lXBQ==!!!junk", 0, 1_760_000_000_000L);
+        // After a delete the deck is gone, so /deck update would answer "no deck named"
+        Map<String, String> hints = Map.of("Showing deck", "`/deck update`", "You deleted the following deck", "`/deck save`");
+        hints.forEach((action, command) -> {
+            List<String> reply = DeckCommand.deckReply(action, deck, TestCards.names());
+            assertEquals(reply, List.of(action + " **Dragons**:\n"
+                    + "This deck's stored YDKE is invalid; save it again with " + command + "."));
+        });
+    }
+
+    @Test
     public void largestValidDeckFitsInOneMessage() {
         // name (50) + summary + code block must stay below Discord's 2000 character limit
         assertTrue(deck(60, 15, 15).length() + 50 + 100 < 2000);
@@ -97,5 +125,19 @@ public class DeckCommandTest {
             assertTrue(message.length() <= DcMessageUtils.MAX_MESSAGE_LENGTH, "too long: " + message.length());
         }
         assertEquals(String.join("\n", messages).lines().filter(line -> line.startsWith("• ")).count(), 50L);
+    }
+
+    @Test
+    public void deckNamesAreMarkdownEscapedInReplies() {
+        String name = "**x||y||";
+        String escaped = "**x\\||y\\||";
+        Decklist deck = new Decklist(1, 2, name, "ydke://o6lXBQ==!!", 0, 1_760_000_000_000L);
+        assertTrue(DeckCommand.deckReply("Showing deck", deck, TestCards.names()).get(0)
+                .contains("Showing deck **" + escaped + "**:"));
+        Decklist broken = new Decklist(1, 2, name, "junk", 0, 1_760_000_000_000L);
+        assertTrue(DeckCommand.deckReply("Showing deck", broken, TestCards.names()).get(0)
+                .contains("Showing deck **" + escaped + "**:"));
+        assertTrue(DeckCommand.saveError(SaveResult.NAME_TAKEN, name).contains("named **" + escaped + "**"));
+        assertEquals(DeckCommand.listReply(List.of(name)), List.of("Your decks (1):\n• " + escaped));
     }
 }

@@ -53,6 +53,27 @@ public class CardSourceTest {
     }
 
     @Test
+    public void rejectsMoreCardsThanTheCap() {
+        assertThrows(IOException.class, () -> CardSource.parseCards(json(CARDS), 1, 2));
+    }
+
+    @Test
+    public void rejectsMoreNamesThanTheCap() {
+        // 4 names: 3 cards' passcodes plus one alternate artwork
+        assertThrows(IOException.class, () -> CardSource.parseCards(json(CARDS), 1, 10, 3));
+    }
+
+    @Test
+    public void acceptsNamesUpToTheCap() throws IOException {
+        assertEquals(CardSource.parseCards(json(CARDS), 1, 10, 4).size(), 4);
+    }
+
+    @Test
+    public void acceptsCardsUpToTheCap() throws IOException {
+        assertEquals(CardSource.parseCards(json(CARDS), 1, 3).size(), 4);
+    }
+
+    @Test
     public void rejectsTruncatedOrInvalidResponses() {
         assertThrows(IOException.class, () -> CardSource.parseCards(json(CARDS.substring(0, 300)), 1));
         assertThrows(IOException.class, () -> CardSource.parseCards(json("[1,2,3]"), 1));
@@ -65,5 +86,12 @@ public class CardSourceTest {
                 .getBytes(StandardCharsets.UTF_8);
         assertEquals(CardSource.parseVersion(json), "147.22");
         assertThrows(IOException.class, () -> CardSource.parseVersion("[]".getBytes(StandardCharsets.UTF_8)));
+    }
+
+    @Test
+    public void capsOverLongNames() throws IOException {
+        String text = "{\"data\":[{\"id\":1,\"name\":\"" + "x".repeat(5000) + "\"}]}";
+        CardNames names = CardSource.parseCards(json(text), 1);
+        assertEquals(names.name(1), Optional.of("x".repeat(199) + "…"));
     }
 }

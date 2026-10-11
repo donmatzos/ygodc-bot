@@ -18,6 +18,7 @@ import java.time.ZonedDateTime;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 
 /**
  * Refreshes TCG, OCG and Genesys once a day on a single background thread, the only writer.
@@ -31,9 +32,11 @@ public final class BanlistRefresher implements AutoCloseable {
 
     public static final LocalTime DAILY_RUN = LocalTime.of(3, 0);
     public static final ZoneId ZONE = ZoneId.of("Europe/Vienna");
+    /** A run firing slightly early (truncated delay, wall clock adjusted) still counts as the 03:00 run. */
+    static final Duration EARLY_TOLERANCE = Duration.ofSeconds(5);
     static final Duration RETRY_DELAY = Duration.ofHours(1);
-    /** Below the supervisor's 20 s grace period before it kills the bot. */
-    static final Duration CLOSE_TIMEOUT = Duration.ofSeconds(10);
+    /** Kept short so all shutdown steps together stay below the supervisor's 20 s grace period (see YgoDiscordBot). */
+    static final Duration CLOSE_TIMEOUT = Duration.ofSeconds(5);
 
     private final BanlistRepository repository;
     private final SnapshotFileStore store;
@@ -80,27 +83,30 @@ public final class BanlistRefresher implements AutoCloseable {
         }
     }
 
-    /** Fetches all lists and swaps in the new snapshot. Returns whether every source succeeded. */
+    /**
+     * Fetches the lists that are missing or older than the last daily run, keeps the others, and swaps
+     * in the new snapshot, so a retry does not download lists that already succeeded.
+     * Returns whether every list is up to date afterwards.
+     */
     public synchronized boolean refresh() {
         BanlistSnapshot old = repository.snapshot();
-        TcgBanlist tcg = fetch("TCG", tcgFetcher);
-        OcgBanlist ocg = fetch("OCG", ocgFetcher);
-        GenesysPointlist genesys = fetch("Genesys", genesysFetcher);
+        Instant lastDailyRun = previousDailyRun(ZonedDateTime.now(clock).plus(EARLY_TOLERANCE)).toInstant();
+        FetchResult<TcgBanlist> tcg = fetchIfStale("TCG", old.tcg(), TcgBanlist::fetchedAt, lastDailyRun, tcgFetcher);
+        FetchResult<OcgBanlist> ocg = fetchIfStale("OCG", old.ocg(), OcgBanlist::fetchedAt, lastDailyRun, ocgFetcher);
+        FetchResult<GenesysPointlist> genesys = fetchIfStale("Genesys", old.genesys(),
+                GenesysPointlist::fetchedAt, lastDailyRun, genesysFetcher);
 
-        BanlistSnapshot updated = new BanlistSnapshot(
-                tcg != null ? tcg : old.tcg(),
-                ocg != null ? ocg : old.ocg(),
-                genesys != null ? genesys : old.genesys());
+        BanlistSnapshot updated = new BanlistSnapshot(tcg.list(), ocg.list(), genesys.list());
         repository.replace(updated);
 
-        if (tcg != null || ocg != null || genesys != null) {
+        if (tcg.fetched() || ocg.fetched() || genesys.fetched()) {
             try {
                 store.save(updated);
             } catch (IOException e) {
                 log.warn("Could not store banlists", e);
             }
         }
-        return tcg != null && ocg != null && genesys != null;
+        return !tcg.failed() && !ocg.failed() && !genesys.failed();
     }
 
     private void runAndReschedule() {
@@ -121,6 +127,20 @@ public final class BanlistRefresher implements AutoCloseable {
         if (!scheduler.isShutdown()) {
             scheduler.schedule(this::runAndReschedule, delay.toMillis(), TimeUnit.MILLISECONDS);
         }
+    }
+
+    /** The list to keep in the snapshot (null if never fetched), whether it was fetched just now, and whether the fetch failed. */
+    private record FetchResult<T>(T list, boolean fetched, boolean failed) {
+    }
+
+    private <T> FetchResult<T> fetchIfStale(String name, T current, Function<T, Instant> fetchedAt,
+                                            Instant lastDailyRun, ListFetcher<T> fetcher) {
+        if (current != null && !fetchedAt.apply(current).isBefore(lastDailyRun)) {
+            log.info("{} is up to date, skipped", name);
+            return new FetchResult<>(current, false, false);
+        }
+        T list = fetch(name, fetcher);
+        return list != null ? new FetchResult<>(list, true, false) : new FetchResult<>(current, false, true);
     }
 
     private <T> T fetch(String name, ListFetcher<T> fetcher) {

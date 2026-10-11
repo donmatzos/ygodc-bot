@@ -2,6 +2,7 @@ package at.magi.ygodiscordbot.impl.banlist;
 
 import at.magi.ygodiscordbot.entity.banlist.BanStatus;
 import at.magi.ygodiscordbot.entity.banlist.BanlistEntry;
+import static org.testng.Assert.assertTrue;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
@@ -46,5 +47,21 @@ public class YgoProDeckSourceTest {
 
     private static long count(List<BanlistEntry> entries, BanStatus status) {
         return entries.stream().filter(entry -> entry.status() == status).count();
+    }
+
+    @Test
+    public void capsOverLongNames() throws IOException {
+        StringBuilder json = new StringBuilder("{\"data\":[");
+        for (int i = 0; i < YgoProDeckSource.MIN_ENTRIES; i++) {
+            String name = i == 0 ? "x".repeat(5000) : "Card " + i;
+            json.append(i == 0 ? "" : ",").append("{\"name\":\"").append(name)
+                    .append("\",\"banlist_info\":{\"ban_tcg\":\"Banned\"}}");
+        }
+        json.append("]}");
+
+        List<BanlistEntry> entries = YgoProDeckSource.parse(json.toString().getBytes(StandardCharsets.UTF_8), "tcg");
+
+        assertEquals(entries.stream().mapToInt(e -> e.cardName().length()).max().orElseThrow(), 200);
+        assertTrue(entries.stream().anyMatch(e -> e.cardName().equals("x".repeat(199) + "…")));
     }
 }

@@ -13,6 +13,7 @@ import java.util.Set;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.expectThrows;
 
 public class TournamentServiceLifecycleTest extends TournamentServiceTestBase {
 
@@ -211,6 +212,38 @@ public class TournamentServiceLifecycleTest extends TournamentServiceTestBase {
     }
 
     @Test
+    public void failedDropBetweenRoundsChangesNothingAndCanBeRetried() throws SQLException {
+        long id = start(FOUR);
+        playRound(id);
+        List<MatchRecord> before = stored(id).matches();
+        store.writesUntilFailure = 0;
+        expectThrows(SQLException.class, () -> service.drop(code(id), GUILD, 101L));
+        assertEquals(stored(id).matches(), before); // prepared round 2 still there
+        assertTrue(stored(id).droppedInRound().isEmpty());
+        store.writesUntilFailure = -1;
+        assertTrue(service.drop(code(id), GUILD, 101L).contains("made again"));
+        assertEquals(stored(id).droppedInRound().get(101L), Integer.valueOf(1));
+        assertTrue(stored(id).matches().stream().filter(m -> m.round() == 2).noneMatch(m -> m.involves(101L)));
+    }
+
+    @Test
+    public void failedRepairAfterDropBetweenRoundsIsRepairedByContinue() throws SQLException {
+        long id = start(FOUR);
+        playRound(id);
+        store.writesUntilFailure = 1; // the drop (with the deletion of round 2) succeeds, the new pairings do not
+        String reply = service.drop(code(id), GUILD, 101L);
+        assertTrue(reply.contains("dropped out"), reply);
+        assertTrue(reply.contains("could not be prepared"), reply);
+        assertEquals(stored(id).droppedInRound().get(101L), Integer.valueOf(1));
+        assertTrue(stored(id).matches().stream().noneMatch(m -> m.round() == 2));
+        store.writesUntilFailure = -1;
+        service.continueRound(code(id), GUILD);
+        List<MatchRecord> round2 = stored(id).matches().stream().filter(m -> m.round() == 2).toList();
+        assertEquals(round2.size(), 2);
+        assertTrue(round2.stream().noneMatch(m -> m.involves(101L)));
+    }
+
+    @Test
     public void dropThatEndsTheTournamentIsPosted() throws SQLException {
         long id = start(List.of(101L, 102L));
         service.drop(code(id), GUILD, 101L);   // forfeit closes round 1 → winner decided
@@ -242,5 +275,45 @@ public class TournamentServiceLifecycleTest extends TournamentServiceTestBase {
             assertTrue(announcer.dmsTo(fresh.player1()).get(0).contains("`" + fresh.id() + "`"));
             assertTrue(announcer.dmsTo(fresh.player2()).get(0).contains("`" + fresh.id() + "`"));
         }
+    }
+
+    @Test
+    public void cancelOfATournamentTheStoreAlreadyEndedForgetsIt() throws SQLException {
+        long id = start(FOUR);
+        store.endBehindTheServicesBack(id, TournamentStatus.FINISHED);
+        assertTrue(service.cancel(code(id), GUILD).contains("already finished"));
+        assertTrue(service.openMatches(id).isEmpty());
+        assertTrue(service.start(GUILD, CHANNEL, ADMIN, FOUR).contains("started")); // players are free again
+    }
+
+    @Test
+    public void continueOfATournamentTheStoreAlreadyEndedForgetsIt() throws SQLException {
+        long id = start(FOUR);
+        playRound(id);
+        store.endBehindTheServicesBack(id, TournamentStatus.ABANDONED);
+        assertTrue(service.continueRound(code(id), GUILD).contains("already abandoned"));
+        assertTrue(service.start(GUILD, CHANNEL, ADMIN, FOUR).contains("started"));
+    }
+
+    @Test
+    public void timerForgetsATournamentTheStoreAlreadyEndedAndDoesNotFailAgain() throws SQLException {
+        long id = start(FOUR);
+        store.endBehindTheServicesBack(id, TournamentStatus.ABANDONED);
+        clock.advance(Duration.ofHours(49));
+        int posts = announcer.posts.size();
+        service.abandonExpired();
+        service.abandonExpired();
+        assertEquals(announcer.posts.size(), posts);
+        assertTrue(service.start(GUILD, CHANNEL, ADMIN, FOUR).contains("started"));
+    }
+
+    @Test
+    public void aWriteFailureOfARunningTournamentKeepsItRunning() throws SQLException {
+        long id = start(FOUR);
+        store.failWrites = true;
+        expectThrows(SQLException.class, () -> service.cancel(code(id), GUILD));
+        store.failWrites = false;
+        assertEquals(stored(id).status(), TournamentStatus.RUNNING);
+        assertTrue(service.cancel(code(id), GUILD).contains("cancelled"));
     }
 }

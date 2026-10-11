@@ -240,8 +240,10 @@ public class TournamentRepository implements TournamentStore {
 
     @Override
     public void startRound(long tournamentId, int round) throws SQLException {
-        expectOneRow(update("UPDATE tournament SET current_round = ? WHERE id = ? AND status = 'RUNNING'",
-                round, tournamentId), "Tournament " + tournamentId + " is not running");
+        if (update("UPDATE tournament SET current_round = ? WHERE id = ? AND status = 'RUNNING'",
+                round, tournamentId) != 1) {
+            throw new TournamentNotRunningException(tournamentId);
+        }
     }
 
     @Override
@@ -264,7 +266,8 @@ public class TournamentRepository implements TournamentStore {
     }
 
     @Override
-    public void drop(long tournamentId, long player, int round, MatchRecord forfeit) throws SQLException {
+    public void drop(long tournamentId, long player, int round, MatchRecord forfeit, boolean deletePendingRound)
+            throws SQLException {
         inTransaction(connection -> {
             try (PreparedStatement drop = connection.prepareStatement(
                     "UPDATE tournament_player SET dropped_in_round = ? WHERE tournament_id = ? AND player_id = ?")) {
@@ -285,6 +288,14 @@ public class TournamentRepository implements TournamentStore {
                             + forfeit.round() + " of tournament " + tournamentId);
                 }
             }
+            if (deletePendingRound) {
+                try (PreparedStatement delete = connection.prepareStatement(
+                        "DELETE FROM tournament_match WHERE tournament_id = ? AND round = ?")) {
+                    delete.setLong(1, tournamentId);
+                    delete.setInt(2, round + 1);
+                    delete.executeUpdate();
+                }
+            }
             return null;
         });
     }
@@ -300,11 +311,12 @@ public class TournamentRepository implements TournamentStore {
     }
 
     private void end(long tournamentId, TournamentStatus status, Long winner, Instant at) throws SQLException {
-        expectOneRow(update("""
+        if (update("""
                 UPDATE tournament SET status = ?, winner_id = ?, finished_at = ?
                 WHERE id = ? AND status = 'RUNNING'
-                """, status.name(), winner, at.toEpochMilli(), tournamentId),
-                "Tournament " + tournamentId + " is not running");
+                """, status.name(), winner, at.toEpochMilli(), tournamentId) != 1) {
+            throw new TournamentNotRunningException(tournamentId);
+        }
         log.info("Tournament {} is now {}", tournamentId, status);
     }
 

@@ -5,6 +5,7 @@ import at.magi.ygodiscordbot.impl.command.DatabaseReplies;
 import at.magi.ygodiscordbot.impl.command.SlashCommand;
 import at.magi.ygodiscordbot.utils.discord.MessageSender;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.channel.ChannelType;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
@@ -20,6 +21,7 @@ import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.EnumSet;
 import java.util.concurrent.Executor;
 
 /**
@@ -32,6 +34,9 @@ import java.util.concurrent.Executor;
 public final class LeaderboardAdminCommand implements SlashCommand {
 
     private static final Logger log = LoggerFactory.getLogger(LeaderboardAdminCommand.class);
+
+    /** The posted leaderboard never notifies anyone, whatever a player name looks like. */
+    static final EnumSet<Message.MentionType> SHARE_MENTIONS = EnumSet.noneOf(Message.MentionType.class);
 
     private static final String CHANNEL = "channel";
 
@@ -85,7 +90,8 @@ public final class LeaderboardAdminCommand implements SlashCommand {
         }
         names.resolve(event.getJDA(), page.rows(), found -> {
             try {
-                MessageSender.sendAll(target, LeaderboardMessages.page(LeaderboardCommand.TITLE, page, found))
+                MessageSender.sendAll(target, LeaderboardMessages.page(LeaderboardCommand.TITLE, page, found),
+                        SHARE_MENTIONS)
                         .queue(last -> {
                                     log.info("Posted the leaderboard into #{} ({}) for {}", target.getName(),
                                             target.getId(), MessageSender.who(event));

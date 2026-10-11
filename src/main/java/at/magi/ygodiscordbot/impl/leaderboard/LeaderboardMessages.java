@@ -5,7 +5,6 @@ import at.magi.ygodiscordbot.entity.leaderboard.PointChange;
 import at.magi.ygodiscordbot.entity.leaderboard.RankedPlayer;
 import at.magi.ygodiscordbot.utils.discord.DcMessageUtils.Section;
 import at.magi.ygodiscordbot.utils.discord.DcMessageUtils;
-import net.dv8tion.jda.api.utils.MarkdownSanitizer;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -71,37 +70,33 @@ public final class LeaderboardMessages {
     }
 
     public static String notOnBoard(String name) {
-        return bold(name) + " is not on the leaderboard.";
+        return DcMessageUtils.bold(name) + " is not on the leaderboard.";
     }
 
     public static String added(String name) {
-        return "✅ Added " + bold(name) + " to the leaderboard with 0 points.";
+        return "✅ Added " + DcMessageUtils.bold(name) + " to the leaderboard with 0 points.";
     }
 
     public static String alreadyOnBoard(String name) {
-        return bold(name) + " is already on the leaderboard.";
+        return DcMessageUtils.bold(name) + " is already on the leaderboard.";
     }
 
     public static String pointsSet(String name, PointChange change) {
-        return "✅ " + bold(name) + " now has " + points(change.after()) + " (was " + change.before() + ").";
+        return "✅ " + DcMessageUtils.bold(name) + " now has " + points(change.after()) + " (was " + change.before() + ").";
     }
 
     /** @param requested the asked change: positive for /points add, negative for /points remove */
     public static String pointsChanged(String name, PointChange change, long requested) {
         if (change.created()) {
-            return "✅ Added " + bold(name) + " to the leaderboard with " + points(change.after()) + ".";
+            return "✅ Added " + DcMessageUtils.bold(name) + " to the leaderboard with " + points(change.after()) + ".";
         }
         long applied = Math.abs(change.applied());
         long asked = Math.abs(requested);
         boolean adding = requested > 0;
         String amount = applied == asked ? points(asked) : applied + " of " + points(asked);
         String limit = applied == asked ? "" : adding ? " (maximum reached)" : " (stopped at 0)";
-        return "✅ " + (adding ? "Added " : "Removed ") + amount + (adding ? " to " : " from ") + bold(name) + limit
+        return "✅ " + (adding ? "Added " : "Removed ") + amount + (adding ? " to " : " from ") + DcMessageUtils.bold(name) + limit
                 + ": " + change.before() + " → " + change.after() + ".";
-    }
-
-    private static String bold(String name) {
-        return "**" + MarkdownSanitizer.escape(name) + "**";
     }
 
     private static String points(long points) {

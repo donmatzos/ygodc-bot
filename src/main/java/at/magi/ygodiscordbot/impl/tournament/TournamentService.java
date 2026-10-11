@@ -23,6 +23,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -45,6 +46,7 @@ public final class TournamentService {
     static final Duration TIMEOUT = Duration.ofHours(48);
     static final int MIN_MATCH_ID = 10_000;
     static final int MAX_MATCH_ID = 99_999;
+    static final int MAX_RUNNING_PER_GUILD = 10;
 
     /** Adds leaderboard points (the leaderboard's {@code changePoints}). */
     @FunctionalInterface
@@ -57,6 +59,10 @@ public final class TournamentService {
     private final TournamentAnnouncer announcer;
     private final Clock clock;
     private final Random random;
+    private final int minMatchId;
+    private final int maxMatchId;
+    /** Every match ID issued since the bot started, so a stale ID never points at another match. */
+    private final Set<Integer> issuedMatchIds = new HashSet<>();
     private final Map<Long, ActiveTournament> tournaments = new HashMap<>();
     /** Matches of the current rounds (finished ones too, so an organizer can correct them until the round closes). */
     private final Map<Integer, ActiveMatch> matches = new HashMap<>();
@@ -64,6 +70,14 @@ public final class TournamentService {
 
     public TournamentService(TournamentStore store, PointsAwarder points, TournamentAnnouncer announcer, Clock clock,
                              Random random) {
+        this(store, points, announcer, clock, random, MIN_MATCH_ID, MAX_MATCH_ID);
+    }
+
+    /** With a custom match ID range, so tests can exhaust it. */
+    TournamentService(TournamentStore store, PointsAwarder points, TournamentAnnouncer announcer, Clock clock,
+                      Random random, int minMatchId, int maxMatchId) {
+        this.minMatchId = minMatchId;
+        this.maxMatchId = maxMatchId;
         this.store = store;
         this.points = points;
         this.announcer = announcer;
@@ -96,7 +110,7 @@ public final class TournamentService {
 
     private void resume(ActiveTournament tournament) throws SQLException {
         if (expired(tournament)) {
-            announcer.post(tournament.channelId, abandon(tournament, TournamentMessages.TIMEOUT_REASON), false);
+            abandonAndPost(tournament, TournamentMessages.TIMEOUT_REASON);
         } else if (!tournament.roundClosed()) {
             int round = tournament.currentRound();
             createMatches(tournament, round);
@@ -119,7 +133,11 @@ public final class TournamentService {
         if (players.size() < MIN_PLAYERS || players.size() > MAX_PLAYERS) {
             return TournamentMessages.playerCount(players.size());
         }
-        List<Long> busy = players.stream().filter(this::inRunningTournament).toList();
+        long running = tournaments.values().stream().filter(tournament -> tournament.guildId == guildId).count();
+        if (running >= MAX_RUNNING_PER_GUILD) {
+            return TournamentMessages.tooManyRunning(MAX_RUNNING_PER_GUILD);
+        }
+        List<Long> busy = players.stream().filter(player -> inRunningTournament(player, guildId)).toList();
         if (!busy.isEmpty()) {
             return TournamentMessages.alreadyPlaying(busy);
         }
@@ -215,13 +233,20 @@ public final class TournamentService {
         }
         // Retries a round end that failed before (e.g. the database was down); may finish the tournament. New
         // pairings are not posted on their own: the round start below shows them.
-        Announcement prepared = prepareNextRound(tournament);
-        if (!tournaments.containsKey(tournament.id)) {
-            announcer.post(tournament.channelId, prepared.text(), prepared.ping());
-            return TournamentMessages.endedInsteadOfContinue(code);
-        }
         int next = tournament.currentRound() + 1;
-        store.startRound(tournament.id, next);
+        try {
+            Announcement prepared = prepareNextRound(tournament);
+            if (!tournaments.containsKey(tournament.id)) {
+                announcer.post(tournament.channelId, prepared.text(), prepared.ping());
+                return TournamentMessages.endedInsteadOfContinue(code);
+            }
+            store.startRound(tournament.id, next);
+        } catch (TournamentNotRunningException e) {
+            if (forgetIfEnded(tournament, e)) {
+                return notRunning(code, guildId);
+            }
+            throw e;
+        }
         tournament.startRound(next);
         List<ActiveMatch> created = createMatches(tournament, next);
         log.info("Tournament {}: round {} started", tournament.id, next);
@@ -260,15 +285,12 @@ public final class TournamentService {
         if (tournament == null) {
             return notRunning(code, guildId);
         }
-        announcer.post(tournament.channelId, abandon(tournament, TournamentMessages.CANCELLED_REASON), false);
+        if (!abandonAndPost(tournament, TournamentMessages.CANCELLED_REASON)) {
+            return notRunning(code, guildId);
+        }
         return TournamentMessages.cancelled(code);
     }
 
-    /**
-     * Removes a player from the remaining rounds. Their open match is won by the opponent; prepared next pairings are
-     * made again without them (which may also decide the winner). The players are told by DM; the channel only gets a
-     * post when the drop ends the round or the tournament.
-     */
     /** A failing DM (closed DMs, Discord error) must never abort the operation that triggered it. */
     private void dm(long user, List<String> messages) {
         try {
@@ -278,6 +300,11 @@ public final class TournamentService {
         }
     }
 
+    /**
+     * Removes a player from the remaining rounds. Their open match is won by the opponent; prepared next pairings are
+     * made again without them (which may also decide the winner). The players are told by DM; the channel only gets a
+     * post when the drop ends the round or the tournament.
+     */
     public String drop(String code, long guildId, long player) throws SQLException {
         recover();
         ActiveTournament tournament = running(code, guildId);
@@ -298,8 +325,14 @@ public final class TournamentService {
         // The drop and the opponent's win are one write, so a failure can't leave the player dropped but playing
         MatchRecord forfeit = match == null ? null
                 : tournament.record(match.round(), match.player1()).withWinner(match.opponentOf(player));
-        store.drop(tournament.id, player, round, forfeit);
+        // Prepared pairings of the next round (only without an open match) go in the same write: a failed deletion
+        // must not leave the dropped player paired
+        boolean repair = match == null && !tournament.pending().isEmpty();
+        store.drop(tournament.id, player, round, forfeit, repair);
         tournament.drop(player, round);
+        if (repair) {
+            tournament.removeRound(round + 1);
+        }
         log.info("Tournament {}: player {} dropped in round {}", tournament.id, player, round);
         StringBuilder reply = new StringBuilder(TournamentMessages.dropped(code, player));
 
@@ -317,16 +350,19 @@ public final class TournamentService {
         }
 
         dm(player, TournamentMessages.droppedDm(code));
-        if (!tournament.pending().isEmpty()) {
-            int next = round + 1;
-            store.deletePairings(tournament.id, next);
-            tournament.removeRound(next);
-            Announcement prepared = prepareNextRound(tournament);
-            if (!tournaments.containsKey(tournament.id)) {
-                // The drop ended the tournament: that is posted; new pairings are not (continue shows them)
-                announcer.post(tournament.channelId, prepared.text(), prepared.ping());
-            } else {
-                reply.append('\n').append(TournamentMessages.repaired(next));
+        if (repair) {
+            try {
+                Announcement prepared = prepareNextRound(tournament);
+                if (!tournaments.containsKey(tournament.id)) {
+                    // The drop ended the tournament: that is posted; new pairings are not (continue shows them)
+                    announcer.post(tournament.channelId, prepared.text(), prepared.ping());
+                } else {
+                    reply.append('\n').append(TournamentMessages.repaired(round + 1));
+                }
+            } catch (SQLException | RuntimeException e) {
+                // The drop is saved; /tournament continue (or the next startup) pairs the round again
+                log.warn("Tournament {}: could not pair round {} again after the drop", tournament.id, round + 1, e);
+                reply.append('\n').append(TournamentMessages.prepareFailed(tournament.code));
             }
         }
         return reply.toString();
@@ -337,9 +373,41 @@ public final class TournamentService {
         recover();
         for (ActiveTournament tournament : List.copyOf(tournaments.values())) {
             if (expired(tournament)) {
-                announcer.post(tournament.channelId, abandon(tournament, TournamentMessages.TIMEOUT_REASON), false);
+                abandonAndPost(tournament, TournamentMessages.TIMEOUT_REASON);
             }
         }
+    }
+
+    /**
+     * Abandons the tournament and posts that. False if the store had already ended it (then it is forgotten and
+     * nothing is posted).
+     */
+    private boolean abandonAndPost(ActiveTournament tournament, String reason) throws SQLException {
+        try {
+            announcer.post(tournament.channelId, abandon(tournament, reason), false);
+            return true;
+        } catch (TournamentNotRunningException e) {
+            if (forgetIfEnded(tournament, e)) {
+                return false;
+            }
+            throw e;
+        }
+    }
+
+    /**
+     * After a "not running" failure: if the store really has the tournament ended (lost commit acknowledgement, manual
+     * edit), the memory is brought in line and true is returned. False if the store still has it running.
+     */
+    private boolean forgetIfEnded(ActiveTournament tournament, TournamentNotRunningException cause)
+            throws SQLException {
+        Optional<TournamentRecord> stored = store.load(tournament.id);
+        if (stored.isPresent() && stored.get().status() == TournamentStatus.RUNNING) {
+            return false;
+        }
+        log.info("Tournament {} is already {} in the store, removed from memory ({})", tournament.id,
+                stored.map(TournamentRecord::status).orElse(null), cause.getMessage());
+        forget(tournament);
+        return true;
     }
 
     private boolean expired(ActiveTournament tournament) {
@@ -471,15 +539,22 @@ public final class TournamentService {
     }
 
     private int newMatchId() {
-        int id;
-        do {
-            id = MIN_MATCH_ID + random.nextInt(MAX_MATCH_ID - MIN_MATCH_ID + 1);
-        } while (matches.containsKey(id));
-        return id;
+        int range = maxMatchId - minMatchId + 1;
+        // Random pick first; if it is taken, scan from there for the next free ID (wrapping), so it always terminates
+        int start = random.nextInt(range);
+        for (int i = 0; i < range; i++) {
+            int id = minMatchId + (start + i) % range;
+            if (issuedMatchIds.add(id)) {
+                return id;
+            }
+        }
+        throw new IllegalStateException("All " + range + " match IDs are used up until the bot restarts");
     }
 
-    private boolean inRunningTournament(long player) {
-        return tournaments.values().stream().anyMatch(tournament -> tournament.isActivePlayer(player));
+    /** Whether the player is still playing in a running tournament of this server (other servers don't matter). */
+    private boolean inRunningTournament(long player, long guildId) {
+        return tournaments.values().stream()
+                .anyMatch(tournament -> tournament.guildId == guildId && tournament.isActivePlayer(player));
     }
 
     /** The running tournament with this code in this server, or null. */

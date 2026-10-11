@@ -12,6 +12,7 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.function.Function;
 
 /**
  * Runs database work off the JDA event thread, only after Discord accepted the (ephemeral) deferred reply. While it
@@ -62,7 +63,18 @@ public final class DatabaseReplies {
 
     public static void deferEphemeral(SlashCommandInteractionEvent event, Executor executor, Texts texts,
                                       SqlWork work) {
-        afterDefer(event.deferReply(true), executor, texts, what(event), work);
+        defer(event, true, executor, texts, work);
+    }
+
+    /** Like {@link #deferEphemeral}, but the reply is public (e.g. in the bot DM) when {@code ephemeral} is false. */
+    public static void defer(SlashCommandInteractionEvent event, boolean ephemeral, Executor executor, Texts texts,
+                             SqlWork work) {
+        deferVia(event::deferReply, ephemeral, executor, texts, what(event), work);
+    }
+
+    static void deferVia(Function<Boolean, RestAction<InteractionHook>> deferReply, boolean ephemeral,
+                         Executor executor, Texts texts, String what, SqlWork work) {
+        afterDefer(deferReply.apply(ephemeral), executor, texts, what, work);
     }
 
     private static String what(SlashCommandInteractionEvent event) {

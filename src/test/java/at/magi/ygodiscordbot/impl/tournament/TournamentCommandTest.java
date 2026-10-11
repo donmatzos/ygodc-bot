@@ -30,6 +30,13 @@ public class TournamentCommandTest {
     }
 
     @Test
+    public void listPageOptionIsBounded() {
+        var page = new TournamentCommand(null, null, Runnable::run).data().getSubcommands().get(5).getOptions().get(0);
+        assertEquals(page.getMinValue().longValue(), 1L);
+        assertEquals(page.getMaxValue().longValue(), 10_000L);
+    }
+
+    @Test
     public void openToEveryoneInServersWithList() {
         var data = new TournamentCommand(null, null, Runnable::run).data();
         assertEquals(data.getName(), "tournament");
@@ -58,6 +65,17 @@ public class TournamentCommandTest {
     public void organizerSubcommandsNeedManageServer() {
         assertTrue(TournamentCommand.organizerProblem(false).contains("Manage Server"));
         assertNull(TournamentCommand.organizerProblem(true));
+    }
+
+    @Test
+    public void membersProblemRefusesTheFirstNonMember() {
+        assertEquals(TournamentCommand.membersProblem(List.of(FIRST, SECOND), Set.of(FIRST)),
+                "❌ <@" + SECOND + "> is not a member of this server.");
+    }
+
+    @Test
+    public void membersProblemIsNullWhenAllAreMembers() {
+        assertNull(TournamentCommand.membersProblem(List.of(FIRST, SECOND), Set.of(SECOND, FIRST)));
     }
 
     @Test
@@ -107,5 +125,10 @@ public class TournamentCommandTest {
         assertTrue(TournamentCommand.parsePlayers(mentions(1)).problem().contains("2–32"));
         assertTrue(TournamentCommand.parsePlayers(mentions(33)).problem().contains("2–32"));
         assertNull(TournamentCommand.parsePlayers(mentions(32)).problem());
+    }
+
+    @Test
+    public void botCheckedManageServerSubcommands() {
+        assertEquals(new TournamentCommand(null, null, Runnable::run).botCheckedManageServer(), Set.of("start", "continue", "standings", "cancel", "drop"));
     }
 }

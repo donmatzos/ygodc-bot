@@ -3,6 +3,7 @@ package at.magi.ygodiscordbot.impl.card;
 import at.magi.ygodiscordbot.entity.card.CardNames;
 import at.magi.ygodiscordbot.utils.http.HttpDownloader;
 import at.magi.ygodiscordbot.utils.json.JsonUtils;
+import at.magi.ygodiscordbot.utils.text.Truncation;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -30,6 +31,14 @@ public final class CardSource {
     /** Fewer cards than this means the response is broken, not that the game shrank (about 14,600 in 2026). */
     static final int MIN_CARDS = 10_000;
 
+    /** More cards than this means the response is not the card list (a runaway or hostile response). */
+    static final int MAX_CARDS = 100_000;
+    /** Cards plus alternate artworks; every artwork passcode is a map entry, so this bounds the memory. */
+    static final int MAX_NAMES = 200_000;
+
+    /** Decompressed cardinfo.php is about 21 MB. */
+    private static final long MAX_BYTES = 150L * 1024 * 1024;
+
     private final HttpDownloader http;
 
     public CardSource(HttpDownloader http) {
@@ -42,7 +51,7 @@ public final class CardSource {
     }
 
     public CardNames fetchCards() throws IOException, InterruptedException {
-        return http.stream(CARDS, body -> parseCards(body, MIN_CARDS));
+        return http.stream(CARDS, MAX_BYTES, body -> parseCards(body, MIN_CARDS));
     }
 
     static String parseVersion(byte[] json) throws IOException {
@@ -59,6 +68,14 @@ public final class CardSource {
      * Alternate artworks have their own passcode in {@code card_images} and map to the card's name.
      */
     static CardNames parseCards(InputStream body, int minCards) throws IOException {
+        return parseCards(body, minCards, MAX_CARDS, MAX_NAMES);
+    }
+
+    static CardNames parseCards(InputStream body, int minCards, int maxCards) throws IOException {
+        return parseCards(body, minCards, maxCards, MAX_NAMES);
+    }
+
+    static CardNames parseCards(InputStream body, int minCards, int maxCards, int maxNames) throws IOException {
         Map<Integer, String> names = new HashMap<>(20_000);
         int cards = 0;
         try (JsonParser parser = JsonUtils.MAPPER.getFactory().createParser(body)) {
@@ -73,7 +90,12 @@ public final class CardSource {
                         if (element != JsonToken.START_OBJECT) {
                             parser.skipChildren();
                         } else if (readCard(parser, names)) {
-                            cards++;
+                            if (++cards > maxCards) {
+                                throw new IOException("YGOProDeck returned more than " + maxCards + " cards");
+                            }
+                            if (names.size() > maxNames) {
+                                throw new IOException("YGOProDeck returned more than " + maxNames + " card names");
+                            }
                         }
                     }
                 } else {
@@ -98,7 +120,7 @@ public final class CardSource {
             if (field.equals("id") && value == JsonToken.VALUE_NUMBER_INT) {
                 passcode = parser.getIntValue();
             } else if (field.equals("name") && value == JsonToken.VALUE_STRING) {
-                name = parser.getText();
+                name = Truncation.capName(parser.getText());
             } else if (field.equals("card_images") && value == JsonToken.START_ARRAY) {
                 readArtworks(parser, artworks);
             } else {

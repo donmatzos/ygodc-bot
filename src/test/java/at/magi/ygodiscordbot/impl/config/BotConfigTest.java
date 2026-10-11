@@ -90,4 +90,11 @@ public class BotConfigTest {
     public void missingFileIsEmpty() {
         assertTrue(BotConfig.readFile(dir.resolve("absent.properties")).isEmpty());
     }
+
+    @Test
+    public void toStringDoesNotContainToken() {
+        BotConfig config = BotConfig.from(Map.of("DISCORD_TOKEN", "fake-token-value", "DEV_GUILD_ID", "123"));
+        assertFalse(config.toString().contains("fake-token-value"), config.toString());
+        assertTrue(config.toString().contains("123"));
+    }
 }

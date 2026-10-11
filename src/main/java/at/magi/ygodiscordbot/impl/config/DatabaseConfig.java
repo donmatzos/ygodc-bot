@@ -9,9 +9,26 @@ package at.magi.ygodiscordbot.impl.config;
  */
 public record DatabaseConfig(String url, String user, String password) {
 
-    /** URL without credentials ({@code jdbc:mysql://user:password@host/...} is valid too), safe to log. */
+    /**
+     * URL without credentials, safe to log: {@code jdbc:mysql://user:password@host/...} and
+     * {@code ?password=...} / {@code ;password=...} are valid too.
+     */
     public String safeUrl() {
-        return url.replaceFirst("//[^/@]*@", "//***@");
+        return mask(url);
+    }
+
+    /**
+     * Exception class and message for logs. Hikari puts the raw URL into its messages
+     * ("Failed to get driver instance for jdbcUrl=..."), so the URL is masked there as well.
+     */
+    public String describe(Throwable e) {
+        String message = e.getMessage();
+        return e.getClass().getSimpleName() + (message == null ? "" : ": " + mask(message.replace(url, safeUrl())));
+    }
+
+    private static String mask(String text) {
+        return text.replaceAll("//[^/@\\s]*@", "//***@")
+                .replaceAll("(?i)(password|pwd)=[^&;\\s]*", "$1=***");
     }
 
     /** Keeps the password out of logs and exception messages. */

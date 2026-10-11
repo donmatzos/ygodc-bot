@@ -34,6 +34,7 @@ import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * {@code /tournament start|continue|standings|cancel|drop|list}. {@code list} is for everyone. The other subcommands
@@ -95,7 +96,7 @@ public final class TournamentCommand implements SlashCommand {
                                 .addOptions(idOption(), new OptionData(OptionType.USER, PLAYER, "Player", true)),
                         new SubcommandData("list", "List this server's tournaments, most recent first")
                                 .addOptions(new OptionData(OptionType.INTEGER, PAGE, "Page (20 per page)", false)
-                                                .setMinValue(1),
+                                                .setRequiredRange(1, 10_000),
                                         new OptionData(OptionType.STRING, DATE, "Only this day, as YY-MM-dd or YYYY-MM-dd", false)
                                                 .setRequiredLength(8, 10)))
                 .setContexts(InteractionContextType.GUILD);
@@ -115,6 +116,12 @@ public final class TournamentCommand implements SlashCommand {
             return TournamentMessages.listEmpty(day);
         }
         return page.rows().isEmpty() ? TournamentMessages.listPageOutOfRange(page) : null;
+    }
+
+    @Override
+    public Set<String> botCheckedManageServer() {
+        return data().getSubcommands().stream().map(SubcommandData::getName)
+                .filter(name -> !"list".equals(name)).collect(Collectors.toSet());
     }
 
     @Override
@@ -214,6 +221,11 @@ public final class TournamentCommand implements SlashCommand {
             problem = "❌ Bots can't play in tournaments.";
         }
         if (problem == null) {
+            Set<Long> memberIds = option.getMentions().getMembers().stream()
+                    .map(Member::getIdLong).collect(Collectors.toSet());
+            problem = membersProblem(players.ids(), memberIds);
+        }
+        if (problem == null) {
             GuildMessageChannel channel = event.getGuildChannel();
             problem = LeaderboardAdminCommand.channelProblem(channel.canTalk(event.getMember()), channel.canTalk(),
                     channel.getAsMention());
@@ -227,6 +239,13 @@ public final class TournamentCommand implements SlashCommand {
         long admin = event.getUser().getIdLong();
         DatabaseReplies.replyEphemeral(event, dbExecutor, TEXTS,
                 () -> service.start(guild, channel, admin, players.ids()));
+    }
+
+    /** Refuses the first player who is not a member of this server (a raw ID can name anyone), else null. */
+    static String membersProblem(List<Long> ids, Set<Long> memberIds) {
+        return ids.stream().filter(id -> !memberIds.contains(id)).findFirst()
+                .map(id -> "❌ " + TournamentMessages.mention(id) + " is not a member of this server.")
+                .orElse(null);
     }
 
     /** Reads user mentions; anything else except spaces, commas and line breaks is refused, never skipped. */

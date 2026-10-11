@@ -6,6 +6,7 @@ import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
 import org.testng.annotations.Test;
 
 import java.util.List;
+import java.util.Set;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -86,5 +87,10 @@ public class LeaderboardCommandTest {
     public void changeProblemForBots() {
         assertEquals(LeaderboardCommand.changeProblem(true, true, true), "❌ Bots can't be on the leaderboard.");
         assertNull(LeaderboardCommand.changeProblem(true, true, false));
+    }
+
+    @Test
+    public void botCheckedManageServerSubcommands() {
+        assertEquals(new LeaderboardCommand(null, null, Runnable::run).botCheckedManageServer(), Set.of("add", "update"));
     }
 }

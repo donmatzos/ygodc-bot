@@ -35,9 +35,11 @@ import at.magi.ygodiscordbot.utils.http.HttpDownloader;
 import com.zaxxer.hikari.HikariDataSource;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
+import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.exceptions.InvalidTokenException;
 import net.dv8tion.jda.api.requests.GatewayIntent;
 import net.dv8tion.jda.api.utils.cache.CacheFlag;
+import net.dv8tion.jda.api.utils.messages.MessageRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,6 +47,7 @@ import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryType;
 import java.sql.SQLException;
 import java.time.Clock;
+import java.time.Duration;
 import java.util.Deque;
 import java.util.EnumSet;
 import java.util.Random;
@@ -74,6 +77,9 @@ public final class YgoDiscordBot {
         Supervisor.superviseUnlessChild(YgoDiscordBot.class);
         Runtime.getRuntime().addShutdownHook(new Thread(YgoDiscordBot::shutdown, "shutdown"));
 
+        // Only user pings by default (no @everyone/roles); callers that want fewer say so explicitly
+        MessageRequest.setDefaultMentions(EnumSet.of(Message.MentionType.USER));
+
         BotConfig config;
         try {
             config = BotConfig.load();
@@ -95,7 +101,7 @@ public final class YgoDiscordBot {
         CommandRegistry commands = new CommandRegistry();
         commands.register(new PingCommand());
         // Reads the registry on every call, so it also lists /deck and /leaderboard registered below
-        commands.register(new HelpCommand(commands::commandData));
+        commands.register(new HelpCommand(commands::commandData, commands::botCheckedManageServer));
         commands.register(new BanlistCommand(banlists));
 
         TournamentService tournaments = null;
@@ -109,9 +115,9 @@ public final class YgoDiscordBot {
         }
         if (database != null) {
             databaseExecutor = databaseExecutor();
-            ExecutorService executor = databaseExecutor;
-            HikariDataSource pool = database;
-            ON_SHUTDOWN.push(() -> closeDatabase(executor, pool));
+            // Closes last of the database things: the requests are drained earlier (see below), so only JDA's
+            // own shutdown can still run after the drain; the pool has to outlive both
+            ON_SHUTDOWN.push(database::close);
             DecklistRepository decks = new DecklistRepository(database, clock);
             databaseExecutor.execute(() -> createSchema(decks, config.database()));
 
@@ -159,7 +165,12 @@ public final class YgoDiscordBot {
             exitWithConfigError("Discord rejected the token: " + e.getMessage());
             return;
         }
-        ON_SHUTDOWN.push(jda::shutdown);
+        ON_SHUTDOWN.push(() -> shutdownJda(jda));
+        // Pushed after the JDA step, so it runs before it: running requests can still send their reply
+        if (databaseExecutor != null) {
+            ExecutorService executor = databaseExecutor;
+            ON_SHUTDOWN.push(() -> drainDatabase(executor));
+        }
 
         // Guild commands update instantly; global ones can take up to an hour to show up.
         if (config.devGuildId() != null) {
@@ -199,15 +210,28 @@ public final class YgoDiscordBot {
         }
     }
 
-    /** Lets running database requests finish before the pool closes. */
-    private static void closeDatabase(ExecutorService executor, HikariDataSource database) {
+    /**
+     * Stops accepting database requests and lets the running ones finish (up to 4 s). The shutdown steps are
+     * budgeted at 4 s here + 3 s for JDA to send its queued replies ({@link #shutdownJda}) + 5 s per refresher
+     * (their CLOSE_TIMEOUT) = about 17 s, below the supervisor's 20 s grace period before it kills the bot.
+     */
+    private static void drainDatabase(ExecutorService executor) {
         executor.shutdown();
         try {
-            executor.awaitTermination(5, TimeUnit.SECONDS);
+            executor.awaitTermination(4, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
-        database.close();
+    }
+
+    /** {@code shutdown()} does not block: waits so the already queued replies (e.g. the drained DB work's) go out. */
+    private static void shutdownJda(JDA jda) {
+        jda.shutdown();
+        try {
+            jda.awaitShutdown(Duration.ofSeconds(3));
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     /** A broken database setting disables /deck instead of stopping the whole bot. */
@@ -216,7 +240,7 @@ public final class YgoDiscordBot {
             return DatabasePool.open(database);
         } catch (RuntimeException e) {
             log.error("Invalid database settings ({}), /deck, /leaderboard, /points, /tournament and /match are disabled: {}",
-                    database, e.getMessage());
+                    database, database.describe(e));
             return null;
         }
     }
@@ -236,7 +260,7 @@ public final class YgoDiscordBot {
             decks.ensureSchema();
         } catch (SQLException | RuntimeException e) {
             // Retried on the first /deck call
-            log.error("Could not reach the decklist database {}: {}", database.safeUrl(), e.getMessage());
+            log.error("Could not reach the decklist database {}: {}", database.safeUrl(), database.describe(e));
         }
     }
 
@@ -245,7 +269,7 @@ public final class YgoDiscordBot {
             players.ensureSchema();
         } catch (SQLException | RuntimeException e) {
             // Retried on the first /leaderboard call
-            log.error("Could not create the players table in {}: {}", database.safeUrl(), e.getMessage());
+            log.error("Could not create the players table in {}: {}", database.safeUrl(), database.describe(e));
         }
     }
 
@@ -254,7 +278,7 @@ public final class YgoDiscordBot {
             tournaments.ensureSchema();
         } catch (SQLException | RuntimeException e) {
             // Retried on the first /tournament or /match call
-            log.error("Could not create the tournament tables in {}: {}", database.safeUrl(), e.getMessage());
+            log.error("Could not create the tournament tables in {}: {}", database.safeUrl(), database.describe(e));
         }
     }
 

@@ -41,4 +41,17 @@ public class GenesysSourceTest {
                 .getBytes(StandardCharsets.UTF_8);
         assertThrows(IOException.class, () -> GenesysSource.parse(html));
     }
+
+    @Test
+    public void capsOverLongNames() throws IOException {
+        StringBuilder html = new StringBuilder("<table id=\"tablepress-genesys\"><tbody>");
+        for (int i = 0; i < GenesysSource.MIN_ENTRIES; i++) {
+            html.append("<tr><td>").append(i == 0 ? "x".repeat(5000) : "Card " + i).append("</td><td>5</td></tr>");
+        }
+        html.append("</tbody></table>");
+
+        List<GenesysPointEntry> entries = GenesysSource.parse(html.toString().getBytes(StandardCharsets.UTF_8));
+
+        assertEquals(entries.stream().mapToInt(e -> e.cardName().length()).max().orElseThrow(), 200);
+    }
 }

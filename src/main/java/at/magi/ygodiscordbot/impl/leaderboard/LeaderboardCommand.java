@@ -20,11 +20,10 @@ import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.sql.SQLException;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.concurrent.Executor;
-import java.util.concurrent.RejectedExecutionException;
 
 /**
  * {@code /leaderboard page|get|add|update}: view pages of 20 players (used in a server, the page is sent to the
@@ -77,6 +76,11 @@ public final class LeaderboardCommand implements SlashCommand {
     }
 
     @Override
+    public Set<String> botCheckedManageServer() {
+        return Set.of("add", "update");
+    }
+
+    @Override
     public void execute(SlashCommandInteractionEvent event) {
         switch (String.valueOf(event.getSubcommandName())) {
             case "page" -> page(event);
@@ -90,23 +94,7 @@ public final class LeaderboardCommand implements SlashCommand {
     private void page(SlashCommandInteractionEvent event) {
         int page = event.getOption(PAGE, 1, OptionMapping::getAsInt);
         // Ephemeral in servers; in the bot DM a normal message, so it is still there after a client restart
-        event.deferReply(event.isFromGuild()).queue();
-        try {
-            dbExecutor.execute(() -> {
-                LeaderboardPage result;
-                try {
-                    result = players.page(page);
-                } catch (SQLException | RuntimeException e) {
-                    log.warn("/leaderboard failed for {}", event.getUser().getId(), e);
-                    event.getHook().editOriginal(UNAVAILABLE).queue();
-                    return;
-                }
-                reply(event, result);
-            });
-        } catch (RejectedExecutionException e) {
-            log.warn("Request queue full, rejected /leaderboard by {}", event.getUser().getId());
-            event.getHook().editOriginal(BUSY).queue();
-        }
+        DatabaseReplies.defer(event, event.isFromGuild(), dbExecutor, TEXTS, hook -> reply(event, players.page(page)));
     }
 
     private void reply(SlashCommandInteractionEvent event, LeaderboardPage page) {

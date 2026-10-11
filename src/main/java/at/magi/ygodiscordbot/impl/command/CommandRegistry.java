@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /** Holds all slash commands and routes incoming interactions to the matching one. */
@@ -31,6 +32,17 @@ public final class CommandRegistry extends ListenerAdapter {
 
     public List<SlashCommandData> commandData() {
         return commands.values().stream().map(SlashCommand::data).toList();
+    }
+
+    /** Per command name: the subcommands the bot restricts to Manage Server itself (commands without any are left out). */
+    public Map<String, Set<String>> botCheckedManageServer() {
+        Map<String, Set<String>> checked = new LinkedHashMap<>();
+        commands.forEach((name, command) -> {
+            if (!command.botCheckedManageServer().isEmpty()) {
+                checked.put(name, command.botCheckedManageServer());
+            }
+        });
+        return checked;
     }
 
     public int size() {

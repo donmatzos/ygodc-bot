@@ -4,6 +4,7 @@ import at.magi.ygodiscordbot.entity.banlist.GenesysPointEntry;
 import at.magi.ygodiscordbot.entity.banlist.GenesysPointlist;
 import at.magi.ygodiscordbot.utils.http.HttpDownloader;
 import at.magi.ygodiscordbot.utils.text.LenientDecoder;
+import at.magi.ygodiscordbot.utils.text.Truncation;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -45,7 +46,7 @@ public final class GenesysSource {
             if (row.childrenSize() < 2) {
                 continue;
             }
-            String name = row.child(0).text().strip();
+            String name = Truncation.capName(row.child(0).text().strip());
             String points = row.child(1).text().strip();
             if (name.isEmpty() || !points.matches("\\d+")) {
                 continue;

@@ -94,10 +94,11 @@ public final class DeckCommand implements SlashCommand {
                     replyError(event, error);
                     return;
                 }
+                String stored = canonicalYdke(ydke);
                 if (subcommand.equals("save")) {
-                    runInDatabase(event, () -> save(userId, name, ydke));
+                    runInDatabase(event, () -> save(userId, name, stored));
                 } else {
-                    runInDatabase(event, () -> decks.update(userId, name, ydke)
+                    runInDatabase(event, () -> decks.update(userId, name, stored)
                             .map(deck -> deckReply("You updated the following deck", deck, cards.names()))
                             .orElseGet(() -> List.of(notFound(name))));
                 }
@@ -145,10 +146,15 @@ public final class DeckCommand implements SlashCommand {
         return null;
     }
 
+    /** The URI as stored: re-encoded from the parsed deck, so nothing but the cards is kept. */
+    static String canonicalYdke(String ydke) {
+        return Ydke.encode(Ydke.parse(ydke));
+    }
+
     static String saveError(DecklistRepository.SaveResult result, String name) {
         return switch (result) {
             case SAVED -> throw new IllegalArgumentException("not an error");
-            case NAME_TAKEN -> "❌ You already have a deck named **" + name + "**. Use `/deck update` to replace it.";
+            case NAME_TAKEN -> "❌ You already have a deck named " + DcMessageUtils.bold(name) + ". Use `/deck update` to replace it.";
             case LIMIT_REACHED -> "❌ You can save up to " + DecklistRepository.MAX_DECKS_PER_USER
                     + " decks. Delete one with `/deck delete` first.";
         };
@@ -156,9 +162,19 @@ public final class DeckCommand implements SlashCommand {
 
     /** E.g. "You saved the following deck **Dragons**:" followed by the card list and the YDKE URI. */
     static List<String> deckReply(String action, Decklist deck, CardNames names) {
-        // Stored URIs were validated on save
-        return DeckMessages.deck(action + " **" + deck.name() + "**:", deck.updatedAt(), deck.ydke(),
-                Ydke.parse(deck.ydke()), names);
+        // Stored URIs were validated on save; shown canonical so rows saved with junk still render safely
+        YdkeDeck cards;
+        try {
+            cards = Ydke.parse(deck.ydke());
+        } catch (IllegalArgumentException e) {
+            // Row saved before the stricter parser: still gettable, deletable and replaceable
+            // A deleted deck no longer exists, so only /deck save can recreate it
+            String again = action.contains("deleted") ? "`/deck save`" : "`/deck update`";
+            return List.of(action + " " + DcMessageUtils.bold(deck.name()) + ":\n"
+                    + "This deck's stored YDKE is invalid; save it again with " + again + ".");
+        }
+        return DeckMessages.deck(action + " " + DcMessageUtils.bold(deck.name()) + ":", deck.updatedAt(), Ydke.encode(cards),
+                cards, names);
     }
 
     /** 50 decks with 50-character names exceed one Discord message, so long lists are split. */
@@ -167,7 +183,7 @@ public final class DeckCommand implements SlashCommand {
             return List.of("You have no saved decks. Save one with `/deck save`.");
         }
         return DcMessageUtils.packLines("Your decks (" + names.size() + "):",
-                names.stream().map(name -> "• " + name).toList());
+                names.stream().map(name -> "• " + DcMessageUtils.escape(name)).toList());
     }
 
     private static String counts(YdkeDeck deck) {
@@ -175,7 +191,7 @@ public final class DeckCommand implements SlashCommand {
     }
 
     private static String notFound(String name) {
-        return "❌ You have no deck named **" + name + "**. See `/deck list`.";
+        return "❌ You have no deck named " + DcMessageUtils.bold(name) + ". See `/deck list`.";
     }
 
     private static void replyError(SlashCommandInteractionEvent event, String message) {

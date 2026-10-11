@@ -135,7 +135,7 @@ public class TournamentRepositoryTest {
         repository.deletePairings(id, 2);
         repository.savePairings(id, 2, List.of(new Pairing(30, 10L), Pairing.bye(40)));
         repository.startRound(id, 2);
-        repository.drop(id, 40, 2, null);
+        repository.drop(id, 40, 2, null, false);
 
         TournamentRecord record = repository.load(id).orElseThrow();
         assertEquals(record.currentRound(), 2);
@@ -158,9 +158,30 @@ public class TournamentRepositoryTest {
     }
 
     @Test
+    public void dropCanDeleteThePendingRoundInTheSameTransaction() throws SQLException {
+        long id = create();
+        repository.savePairings(id, 2, List.of(new Pairing(10, 30L), Pairing.bye(40)));
+        repository.drop(id, 40, 1, null, true);
+        TournamentRecord record = repository.load(id).orElseThrow();
+        assertEquals(record.droppedInRound(), Map.of(40L, 1));
+        assertTrue(record.matches().stream().noneMatch(match -> match.round() == 2));
+        assertEquals(record.matches().size(), 2); // round 1 is untouched
+    }
+
+    @Test
+    public void failedDropKeepsThePendingRound() throws SQLException {
+        long id = create();
+        repository.savePairings(id, 2, List.of(new Pairing(10, 30L), Pairing.bye(40)));
+        expectThrows(SQLException.class, () -> repository.drop(id, 999, 1, null, true)); // not a player
+        TournamentRecord record = repository.load(id).orElseThrow();
+        assertEquals(record.droppedInRound(), Map.of());
+        assertEquals(record.matches().stream().filter(match -> match.round() == 2).count(), 2L);
+    }
+
+    @Test
     public void dropWithForfeitSavesBoth() throws SQLException {
         long id = create();
-        repository.drop(id, 40, 1, new MatchRecord(1, 40, 10L, 10L));
+        repository.drop(id, 40, 1, new MatchRecord(1, 40, 10L, 10L), false);
         TournamentRecord record = repository.load(id).orElseThrow();
         assertEquals(record.droppedInRound(), Map.of(40L, 1));
         assertTrue(record.matches().contains(new MatchRecord(1, 40, 10L, 10L)));
@@ -170,7 +191,7 @@ public class TournamentRepositoryTest {
     public void failedForfeitAlsoUndoesTheDrop() throws SQLException {
         long id = create();
         // No round-2 match exists: the forfeit fails, so the drop must be rolled back too
-        expectThrows(SQLException.class, () -> repository.drop(id, 40, 1, new MatchRecord(2, 40, 10L, 10L)));
+        expectThrows(SQLException.class, () -> repository.drop(id, 40, 1, new MatchRecord(2, 40, 10L, 10L), false));
         assertEquals(repository.load(id).orElseThrow().droppedInRound(), Map.of());
     }
 
