@@ -5,9 +5,9 @@ import at.magi.ygodiscordbot.entity.tournament.TournamentListPage;
 import at.magi.ygodiscordbot.impl.command.CommandChecks;
 import at.magi.ygodiscordbot.impl.command.DatabaseReplies;
 import at.magi.ygodiscordbot.impl.command.SlashCommand;
-import at.magi.ygodiscordbot.impl.leaderboard.LeaderboardAdminCommand;
-import at.magi.ygodiscordbot.impl.leaderboard.PlayerNames;
+import at.magi.ygodiscordbot.utils.discord.ChannelChecks;
 import at.magi.ygodiscordbot.utils.discord.DcMessageUtils;
+import at.magi.ygodiscordbot.utils.discord.DisplayNames;
 import at.magi.ygodiscordbot.utils.discord.MessageSender;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.User;
@@ -69,10 +69,10 @@ public final class TournamentCommand implements SlashCommand {
             + "Anyone can use `/tournament list`.";
 
     private final TournamentService service;
-    private final PlayerNames names;
+    private final DisplayNames names;
     private final Executor dbExecutor;
 
-    public TournamentCommand(TournamentService service, PlayerNames names, Executor dbExecutor) {
+    public TournamentCommand(TournamentService service, DisplayNames names, Executor dbExecutor) {
         this.service = service;
         this.names = names;
         this.dbExecutor = dbExecutor;
@@ -224,7 +224,7 @@ public final class TournamentCommand implements SlashCommand {
         }
         if (problem == null) {
             GuildMessageChannel channel = event.getGuildChannel();
-            problem = LeaderboardAdminCommand.channelProblem(channel.canTalk(event.getMember()), channel.canTalk(),
+            problem = ChannelChecks.channelProblem(channel.canTalk(event.getMember()), channel.canTalk(),
                     channel.getAsMention());
         }
         if (problem != null) {

@@ -4,6 +4,8 @@ import at.magi.ygodiscordbot.entity.leaderboard.LeaderboardPage;
 import at.magi.ygodiscordbot.impl.command.CommandChecks;
 import at.magi.ygodiscordbot.impl.command.DatabaseReplies;
 import at.magi.ygodiscordbot.impl.command.SlashCommand;
+import at.magi.ygodiscordbot.utils.discord.ChannelChecks;
+import at.magi.ygodiscordbot.utils.discord.DisplayNames;
 import at.magi.ygodiscordbot.utils.discord.MessageSender;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Message;
@@ -42,10 +44,10 @@ public final class LeaderboardAdminCommand implements SlashCommand {
     private static final String CHANNEL = "channel";
 
     private final PlayerRepository players;
-    private final PlayerNames names;
+    private final DisplayNames names;
     private final Executor dbExecutor;
 
-    public LeaderboardAdminCommand(PlayerRepository players, PlayerNames names, Executor dbExecutor) {
+    public LeaderboardAdminCommand(PlayerRepository players, DisplayNames names, Executor dbExecutor) {
         this.players = players;
         this.names = names;
         this.dbExecutor = dbExecutor;
@@ -70,7 +72,7 @@ public final class LeaderboardAdminCommand implements SlashCommand {
         }
         GuildChannel chosen = event.getOption(CHANNEL, event.getGuildChannel(), OptionMapping::getAsChannel);
         String problem = chosen instanceof GuildMessageChannel target
-                ? channelProblem(target.canTalk(event.getMember()), target.canTalk(), target.getAsMention())
+                ? ChannelChecks.channelProblem(target.canTalk(event.getMember()), target.canTalk(), target.getAsMention())
                 : "I can only post the leaderboard into text channels.";
         if (problem != null) {
             CommandChecks.refuse(event, problem);
@@ -114,16 +116,5 @@ public final class LeaderboardAdminCommand implements SlashCommand {
         log.warn("Could not post leaderboard into {}", target.getId(), failure);
         event.getHook().editOriginal("I could not post in " + target.getAsMention()
                 + ". Check that I can view the channel and send messages there.").queue();
-    }
-
-    /** Why the bot should not post in the channel for this member, or null if it can. */
-    public static String channelProblem(boolean memberCanTalk, boolean botCanTalk, String channelMention) {
-        if (!memberCanTalk) {
-            return "❌ You can't send messages in " + channelMention + ", so I won't post there for you.";
-        }
-        if (!botCanTalk) {
-            return "❌ I can't post in " + channelMention + ". Give me **View Channel** and **Send Messages** there.";
-        }
-        return null;
     }
 }

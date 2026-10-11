@@ -1,6 +1,6 @@
 package at.magi.ygodiscordbot.impl.tournament;
 
-import at.magi.ygodiscordbot.impl.leaderboard.PlayerNames;
+import at.magi.ygodiscordbot.utils.discord.DisplayNames;
 import at.magi.ygodiscordbot.utils.discord.MessageSender;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.entities.Message;
@@ -24,10 +24,10 @@ public final class JdaTournamentAnnouncer implements TournamentAnnouncer {
     private static final Logger log = LoggerFactory.getLogger(JdaTournamentAnnouncer.class);
     private static final EnumSet<Message.MentionType> NO_PINGS = EnumSet.noneOf(Message.MentionType.class);
 
-    private final PlayerNames names;
+    private final DisplayNames names;
     private volatile JDA jda;
 
-    public JdaTournamentAnnouncer(PlayerNames names) {
+    public JdaTournamentAnnouncer(DisplayNames names) {
         this.names = names;
     }
 

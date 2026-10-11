@@ -8,6 +8,7 @@ import at.magi.ygodiscordbot.entity.tournament.TournamentStatus;
 import at.magi.ygodiscordbot.entity.tournament.TournamentSummary;
 import at.magi.ygodiscordbot.entity.tournament.WinnerRule;
 import at.magi.ygodiscordbot.utils.discord.DcMessageUtils;
+import at.magi.ygodiscordbot.utils.discord.DisplayNames;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -45,7 +46,7 @@ final class TournamentMessages {
     }
 
     static String name(Map<Long, String> names, long user) {
-        return DcMessageUtils.safe(names.getOrDefault(user, "Unknown user (" + user + ")"));
+        return DcMessageUtils.safe(DisplayNames.nameOrUnknown(names, user));
     }
 
     private static String matchLine(ActiveMatch match) {

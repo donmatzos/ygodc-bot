@@ -1,4 +1,4 @@
-package at.magi.ygodiscordbot.impl.leaderboard;
+package at.magi.ygodiscordbot.utils.discord;
 
 import at.magi.ygodiscordbot.entity.leaderboard.RankedPlayer;
 import net.dv8tion.jda.api.JDA;
@@ -21,7 +21,7 @@ import java.util.function.Consumer;
  * a small LRU cache keeps repeated requests for the same pages from costing up to 20 lookups each. A deleted or
  * unknown user is left out instead of failing the whole page.
  */
-public final class PlayerNames {
+public final class DisplayNames {
 
     /** A few KB at most: two full pages of top players plus some browsing. */
     static final int CAPACITY = 256;
@@ -39,13 +39,18 @@ public final class PlayerNames {
         }
     };
 
-    public PlayerNames(Clock clock) {
+    public DisplayNames(Clock clock) {
         this.clock = clock;
     }
 
     /** Looks up the names of all rows, from the cache where possible, and passes them to {@code onDone}. */
-    void resolve(JDA jda, List<RankedPlayer> rows, Consumer<Map<Long, String>> onDone, Consumer<Throwable> onError) {
+    public void resolve(JDA jda, List<RankedPlayer> rows, Consumer<Map<Long, String>> onDone, Consumer<Throwable> onError) {
         resolveIds(jda, rows.stream().map(RankedPlayer::userId).toList(), onDone, onError);
+    }
+
+    /** The name of {@code id} in {@code names}, or a placeholder naming the ID when it is missing. */
+    public static String nameOrUnknown(Map<Long, String> names, long id) {
+        return names.getOrDefault(id, "Unknown user (" + id + ")");
     }
 
     /** Looks up display names of {@code ids}, from the cache where possible. Unknown users are left out. */

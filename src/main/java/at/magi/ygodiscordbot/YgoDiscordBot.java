@@ -22,7 +22,6 @@ import at.magi.ygodiscordbot.impl.deck.DecklistRepository;
 import at.magi.ygodiscordbot.impl.help.HelpCommand;
 import at.magi.ygodiscordbot.impl.leaderboard.LeaderboardAdminCommand;
 import at.magi.ygodiscordbot.impl.leaderboard.LeaderboardCommand;
-import at.magi.ygodiscordbot.impl.leaderboard.PlayerNames;
 import at.magi.ygodiscordbot.impl.leaderboard.PlayerRepository;
 import at.magi.ygodiscordbot.impl.leaderboard.PointsCommand;
 import at.magi.ygodiscordbot.impl.runtime.Supervisor;
@@ -32,6 +31,7 @@ import at.magi.ygodiscordbot.impl.tournament.TournamentCommand;
 import at.magi.ygodiscordbot.impl.tournament.TournamentRepository;
 import at.magi.ygodiscordbot.impl.tournament.TournamentService;
 import at.magi.ygodiscordbot.impl.tournament.TournamentTimer;
+import at.magi.ygodiscordbot.utils.discord.DisplayNames;
 import at.magi.ygodiscordbot.utils.http.HttpDownloader;
 import com.zaxxer.hikari.HikariDataSource;
 import net.dv8tion.jda.api.JDA;
@@ -134,7 +134,7 @@ public final class YgoDiscordBot {
 
             PlayerRepository players = new PlayerRepository(database);
             databaseExecutor.execute(() -> prepareSchema("players table", players::ensureSchema, config.database()));
-            PlayerNames playerNames = new PlayerNames(clock);
+            DisplayNames playerNames = new DisplayNames(clock);
             commands.register(new LeaderboardCommand(players, playerNames, databaseExecutor));
             commands.register(new LeaderboardAdminCommand(players, playerNames, databaseExecutor));
             commands.register(new PointsCommand(players, databaseExecutor));

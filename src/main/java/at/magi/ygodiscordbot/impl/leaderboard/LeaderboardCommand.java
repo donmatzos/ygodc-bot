@@ -6,6 +6,7 @@ import at.magi.ygodiscordbot.entity.leaderboard.Points;
 import at.magi.ygodiscordbot.impl.command.CommandChecks;
 import at.magi.ygodiscordbot.impl.command.DatabaseReplies;
 import at.magi.ygodiscordbot.impl.command.SlashCommand;
+import at.magi.ygodiscordbot.utils.discord.DisplayNames;
 import at.magi.ygodiscordbot.utils.discord.MessageSender;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
@@ -45,10 +46,10 @@ public final class LeaderboardCommand implements SlashCommand {
     private static final String NOT_ON_BOARD_HINT = " Add them with `/leaderboard add` first.";
 
     private final PlayerRepository players;
-    private final PlayerNames names;
+    private final DisplayNames names;
     private final Executor dbExecutor;
 
-    public LeaderboardCommand(PlayerRepository players, PlayerNames names, Executor dbExecutor) {
+    public LeaderboardCommand(PlayerRepository players, DisplayNames names, Executor dbExecutor) {
         this.players = players;
         this.names = names;
         this.dbExecutor = dbExecutor;
